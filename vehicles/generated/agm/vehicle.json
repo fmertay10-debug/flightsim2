@@ -1,57 +1,61 @@
 {
-  "type": "rocket",
   "mass_kg": 96,
   "inertia": {
     "ixx": 5.0,
     "iyy": 95,
     "izz": 95
   },
-  "aero": {
-    "sref_m2": 0.071,
-    "cbar_m": 3.2,
-    "bref_m": 0.2,
-    "tables_csv": "aero_tables.csv",
-    "control_csv": "control_tables.csv",
-    "xref_m": 1.6
-  },
-  "propulsion": {
-    "type": "solid_motor",
-    "propellant_kg": 22,
-    "thrust_curve": [
-      [
-        0.0,
-        15000
-      ],
-      [
-        0.3,
-        16000
-      ],
-      [
-        3.0,
-        13000
-      ],
-      [
-        3.5,
-        0
-      ]
-    ]
-  },
-  "controller": {
-    "method": "lqr",
-    "schedule": "gain_schedule.csv",
-    "limits": {
-      "max_fin_deg": 25,
-      "min_airspeed_ms": 35
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.071,
+      "cbar_m": 3.2,
+      "bref_m": 0.2,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 1.6
     },
-    "roll": {
-      "kp": 0.08,
-      "kd": 0.1
+    {
+      "type": "solid_motor",
+      "propellant_kg": 22,
+      "thrust_curve": [
+        [
+          0.0,
+          15000
+        ],
+        [
+          0.3,
+          16000
+        ],
+        [
+          3.0,
+          13000
+        ],
+        [
+          3.5,
+          0
+        ]
+      ]
     }
-  },
-  "actuator": {
-    "tau_s": 0.02,
-    "rate_dps": 450,
-    "limit_deg": 25
+  ],
+  "gnc": {
+    "control_law": {
+      "type": "lqr",
+      "schedule": "gain_schedule.csv",
+      "limits": {
+        "max_fin_deg": 25,
+        "min_airspeed_ms": 35
+      },
+      "roll": {
+        "kp": 0.08,
+        "kd": 0.1
+      }
+    },
+    "actuator": {
+      "tau_s": 0.02,
+      "rate_dps": 450,
+      "limit_deg": 25
+    }
   },
   "geometry": {
     "length_m": 3.2,

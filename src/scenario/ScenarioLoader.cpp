@@ -5,11 +5,9 @@
 #include <map>
 #include <stdexcept>
 
-#include "aero/AeroFactory.h"
 #include "control/ActuatorBank.h"
 #include "control/ControllerFactory.h"
 #include "dynamics/EomFactory.h"
-#include "effector/EffectorFactory.h"
 #include "guidance/GuidanceFactory.h"
 #include "io/Json.h"
 #include "math/Units.h"
@@ -71,10 +69,8 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
 
     // Kinematic movers need no vehicle definition at all.
     std::unique_ptr<Vehicle>      veh;
-    std::unique_ptr<AeroModel>    aero;
     std::unique_ptr<Controller>   controller;
     std::unique_ptr<ActuatorBank> actuators;
-    std::vector<std::unique_ptr<Effector>> effectors;
     ChannelTable channels;
 
     if (dynamics != "kinematic") {
@@ -93,22 +89,29 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
             baseDir = path.parent_path();
         }
 
-        const std::string type = definition.str("type");
-        veh  = vehicle::create(definition, baseDir.string());
-        aero = aero::Factory::create(type, definition.at("aero"), baseDir.string());
-        if (definition.has("controller"))
-            controller = control::Factory::create(type, definition.at("controller"),
-                                                  baseDir.string());
-        effectors = effector::build(definition);
+        // Clean break: the pre-components schema is not supported.
+        if (!definition.has("components"))
+            throw std::invalid_argument(
+                "vehicle definition for '" + name + "' has no \"components\" "
+                "array. The old schema (top-level \"aero\"/\"propulsion\"/"
+                "\"thrust_vectoring\"/\"controller\"/\"actuator\" blocks) was "
+                "replaced: list aero and motors under \"components\" (each with "
+                "an explicit \"type\") and put control_law/actuator under "
+                "\"gnc\" -- see docs/BUILDING_VEHICLES.md.");
 
-        // Channel phase A: force-producing components DECLARE the channels
-        // they consume...
-        aero->declareChannels(channels);
-        for (const auto& e : effectors) e->declareChannels(channels);
+        veh = vehicle::create(definition, baseDir.string());
+
+        // Channel phase A: force components DECLARE the channels they consume...
         veh->declareChannels(channels);
 
-        if (definition.has("actuator"))
-            actuators = ActuatorBank::fromJson(definition.at("actuator"), channels);
+        if (definition.has("gnc")) {
+            const json::Value& gnc = definition.at("gnc");
+            if (gnc.has("control_law"))
+                controller = control::Factory::create(gnc.at("control_law"),
+                                                      baseDir.string());
+            if (gnc.has("actuator"))
+                actuators = ActuatorBank::fromJson(gnc.at("actuator"), channels);
+        }
 
         // ...phase B: the controller BINDS the channels it writes. A required
         // channel nothing declared throws here (misconfigured pairing);
@@ -134,17 +137,14 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
     if (entry.has("flight_plan"))
         plan = FlightPlan::fromJson(entry.at("flight_plan"));
 
-    auto entity = std::make_unique<Entity>(name,
-                                           std::move(veh),
-                                           std::move(aero),
-                                           std::move(controller),
-                                           std::move(actuators),
-                                           eom::create(dynamics, opts),
-                                           std::move(plan),
-                                           buildInitialState(entry),
-                                           std::move(channels));
-    entity->setEffectors(std::move(effectors));
-    return entity;
+    return std::make_unique<Entity>(name,
+                                    std::move(veh),
+                                    std::move(controller),
+                                    std::move(actuators),
+                                    eom::create(dynamics, opts),
+                                    std::move(plan),
+                                    buildInitialState(entry),
+                                    std::move(channels));
 }
 
 } // namespace

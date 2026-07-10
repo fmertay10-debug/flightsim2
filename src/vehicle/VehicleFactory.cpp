@@ -5,9 +5,9 @@
 #include <stdexcept>
 #include <utility>
 
+#include "component/ComponentFactory.h"
 #include "mass/ConstantMassModel.h"
 #include "mass/TabulatedMassModel.h"
-#include "propulsion/PropulsionFactory.h"
 
 namespace vehicle {
 
@@ -58,18 +58,21 @@ buildMass(const json::Value& def, const std::string& baseDir, bool hasSolidMotor
 } // namespace
 
 std::unique_ptr<Vehicle> create(const json::Value& def, const std::string& baseDir) {
-    std::unique_ptr<PropulsionModel> prop;
+    const json::Value& list = def.at("components");
+    if (!list.isArray())
+        throw std::invalid_argument("vehicle: 'components' must be an array");
+
+    std::vector<std::unique_ptr<ForceComponent>> components;
+    components.reserve(list.size());
     bool hasSolidMotor = false;
-    if (def.has("propulsion")) {
-        const json::Value& p = def.at("propulsion");
-        hasSolidMotor = (p.str("type", "none") == "solid_motor");
-        prop = propulsion::create(p, baseDir);
+    for (std::size_t i = 0; i < list.size(); ++i) {
+        hasSolidMotor = hasSolidMotor || (list[i].str("type") == "solid_motor");
+        components.push_back(component::Factory::create(list[i], baseDir));
     }
 
     auto [mass, addPropellant] = buildMass(def, baseDir, hasSolidMotor);
-
-    return std::make_unique<Vehicle>(def.str("type"), std::move(mass),
-                                     std::move(prop), addPropellant);
+    return std::make_unique<Vehicle>(std::move(mass), std::move(components),
+                                     addPropellant);
 }
 
 } // namespace vehicle

@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "aero/AeroModel.h"
 #include "control/ActuatorBank.h"
 #include "control/Controller.h"
 #include "control/FlightPlan.h"
@@ -12,15 +11,14 @@
 #include "core/State.h"
 #include "core/Telemetry.h"
 #include "dynamics/EquationsOfMotion.h"
-#include "effector/Effector.h"
 #include "environment/Environment.h"
 #include "guidance/GuidanceLaw.h"
 #include "vehicle/Vehicle.h"
 
-// One vehicle's complete simulation stack: vehicle properties + aero +
-// controller + actuators + EOM + flight plan, plus its kinematic state.
-// Composition via Strategy interfaces -- any part can be swapped or null:
-//   null aero       -> no aerodynamic loads (e.g. kinematic targets)
+// An object in the simulated world: kinematic state + an integrator,
+// optionally carrying a Vehicle (mass + force components) and a GNC stack
+// (flight plan / guidance / controller / actuators). Any part can be null:
+//   null vehicle    -> no loads at all (kinematic movers)
 //   null controller -> zero control input
 //   null actuators  -> ideal (actual == commanded)
 //
@@ -35,7 +33,6 @@ class Entity {
 public:
     Entity(std::string name,
            std::unique_ptr<Vehicle>           vehicle,   // may be null for kinematic movers
-           std::unique_ptr<AeroModel>         aero,
            std::unique_ptr<Controller>        controller,
            std::unique_ptr<ActuatorBank>      actuators,
            std::unique_ptr<EquationsOfMotion> eom,
@@ -47,12 +44,6 @@ public:
     // scripted values. Attached after construction (needs the target's id).
     void setGuidance(std::unique_ptr<GuidanceLaw> guidance) {
         guidance_ = std::move(guidance);
-    }
-
-    // Control effectors (thrust application: axial or TVC, plus future RCS).
-    // Empty is fine (an unpowered/kinematic entity). Set at construction time.
-    void setEffectors(std::vector<std::unique_ptr<Effector>> effectors) {
-        effectors_ = std::move(effectors);
     }
 
     // Phase 1: next state from the shared snapshot. No mutation of state_.
@@ -76,16 +67,13 @@ private:
     bool        alive_ = true;
 
     std::unique_ptr<Vehicle>           vehicle_;
-    std::unique_ptr<AeroModel>         aero_;
     std::unique_ptr<Controller>        controller_;
     std::unique_ptr<ActuatorBank>      actuators_;
     std::unique_ptr<EquationsOfMotion> eom_;
     std::unique_ptr<GuidanceLaw>       guidance_;
-    std::vector<std::unique_ptr<Effector>> effectors_;
     FlightPlan                         flightPlan_;
 
     ChannelTable  channels_;
-    ChannelHandle throttle_;   // propulsion demand (invalid if not declared)
 
     State     state_;
     Telemetry telem_;

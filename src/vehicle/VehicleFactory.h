@@ -6,7 +6,9 @@
 #include "io/Json.h"
 #include "vehicle/Vehicle.h"
 
-// Factory: build a Vehicle from a vehicle definition file's top level.
+// Factory: build a Vehicle from a vehicle definition file's top level --
+// the "mass" block plus the "components" array (each entry built by
+// component::Factory, dispatched on its explicit "type").
 //
 // Mass block (Lego): either an explicit "mass" object
 //   "mass": {"model": "constant", "mass_kg": 9300,

@@ -8,7 +8,6 @@
 
 Entity::Entity(std::string name,
                std::unique_ptr<Vehicle>           vehicle,
-               std::unique_ptr<AeroModel>         aero,
                std::unique_ptr<Controller>        controller,
                std::unique_ptr<ActuatorBank>      actuators,
                std::unique_ptr<EquationsOfMotion> eom,
@@ -17,13 +16,11 @@ Entity::Entity(std::string name,
                ChannelTable                       channels)
     : name_(std::move(name)),
       vehicle_(std::move(vehicle)),
-      aero_(std::move(aero)),
       controller_(std::move(controller)),
       actuators_(std::move(actuators)),
       eom_(std::move(eom)),
       flightPlan_(std::move(flightPlan)),
       channels_(std::move(channels)),
-      throttle_(channels_.find(channels::kThrottle)),
       state_(initialState)
 {
     if (!eom_)
@@ -73,42 +70,37 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     const ChannelValues actual = actuators_ ? actuators_->apply(commanded, dt)
                                             : commanded;
 
-    // 3. Aerodynamic loads (body frame, about the aero moment reference).
-    AeroForces aero;
-    if (aero_) aero = aero_->compute(s, air, actual);
-
-    // 4. Mass properties and thrust. Mass/inertia/CG are time-varying (burn);
-    //    the engine advances its own spool state, so build its full context.
+    // 3. Mass properties. Mass/inertia/CG are time-varying (burn).
     double mass = 1.0;
     Matrix3x3 inertia = Matrix3x3::identity();
     double xcg = 0.0;
-    double thrust = 0.0;
     if (vehicle_) {
         const MassState ms = vehicle_->massState(s.time);
         mass = ms.mass;
         inertia = ms.inertia;
         xcg = ms.xcg;
-
-        PropulsionContext pc;
-        pc.time = s.time;
-        pc.throttle = actual.get(throttle_);
-        pc.mach = air.mach;
-        pc.density = atm.density;
-        pc.altitude = altitude;
-        pc.dt = dt;
-        thrust = vehicle_->thrust(pc);
     }
 
-    // Transfer the aero moment from the model's reference station to the CG:
-    //   M_cg = M_ref + (xcg - xref, 0, 0) x F   (body x forward, aft-positive
-    //   station). Only when the model declares a finite reference; derivative
-    //   models report about the CG already and opt out with NaN.
-    if (aero_) {
-        const double xref = aero_->momentReferenceStation();
-        if (std::isfinite(xref) && std::isfinite(xcg)) {
-            const double dx = xcg - xref;
-            aero.moment.y -= dx * aero.force.z;
-            aero.moment.z += dx * aero.force.y;
+    // 4. Force components (aero, motors, ...): each produces a body-frame
+    //    wrench about its own reference station; transfer each to the CG:
+    //      M_cg = M_ref + (xcg - xref, 0, 0) x F   (body x forward,
+    //    aft-positive station). NaN reference = already about the CG.
+    //    Gravity seeds the force sum (it is the ambient field, not a
+    //    component); components are summed in their declared list order.
+    Vector3 force = s.attitude.rotate(Vector3(0.0, 0.0, mass * g));
+    Vector3 moment;
+    if (vehicle_) {
+        const ComponentContext cctx{ s, air, altitude, dt, xcg };
+        for (const auto& c : vehicle_->components()) {
+            Wrench w = c->compute(cctx, actual);
+            const double xref = c->momentReferenceStation();
+            if (std::isfinite(xref) && std::isfinite(xcg)) {
+                const double dx = xcg - xref;
+                w.moment.y -= dx * w.force.z;
+                w.moment.z += dx * w.force.y;
+            }
+            force  = force + w.force;
+            moment = moment + w.moment;
         }
     }
 
@@ -119,24 +111,8 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     telem_.setpoint   = cmd;
     telem_.air        = air;
     telem_.mass       = mass;
-    telem_.thrust     = thrust;
+    telem_.thrust     = vehicle_ ? vehicle_->thrustNewtons() : 0.0;
 
-    // 5. Control effectors turn the available thrust + commands into body-frame
-    //    wrenches: an axial ThrustEffector (thrust along +x, no moment) or a
-    //    TvcEffector (gimbaled thrust -> pitch/yaw moment), plus any future
-    //    additive effectors. This replaces the old inline axial thrust term.
-    Wrench effectorLoad;
-    if (!effectors_.empty()) {
-        const EffectorContext ectx{ s, air, thrust, xcg };
-        for (const auto& eff : effectors_)
-            effectorLoad = effectorLoad + eff->compute(ectx, actual);
-    }
-
-    // 6. Sum body-frame loads: aero + gravity (rotated in) + effectors.
-    const Vector3 gravityBody = s.attitude.rotate(Vector3(0.0, 0.0, mass * g));
-    const Vector3 force  = aero.force + gravityBody + effectorLoad.force;
-    const Vector3 moment = aero.moment + effectorLoad.moment;
-
-    // 7. One integration step (committed later by the Simulation).
+    // 5. One integration step (committed later by the Simulation).
     return eom_->solve(s, force, moment, mass, inertia, dt);
 }

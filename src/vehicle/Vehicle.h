@@ -1,58 +1,51 @@
 #pragma once
 
 #include <memory>
-#include <string>
 #include <utility>
+#include <vector>
 
+#include "component/ForceComponent.h"
 #include "core/Channel.h"
 #include "mass/MassModel.h"
-#include "propulsion/PropulsionModel.h"
 
-// A vehicle's physical plant: a mass block + a propulsion block. Aerodynamics
-// live in the AeroModel and control in the Controller -- this class is purely
-// the mass/inertia/CG and thrust provider, composed from two swappable Lego
-// blocks.
-//
-// mass properties are time-varying (burn-time mass/inertia/CG travel via the
-// MassModel). Thrust acts along body +x through the CG (force only).
+// The complete physical craft (what a vehicles/*.json defines): mass
+// properties + a flat list of ForceComponents (aero, motors, ...) + the
+// channels those components declare. Control/guidance are NOT part of the
+// Vehicle -- the GNC stack attaches to the Entity.
 class Vehicle {
 public:
-    Vehicle(std::string typeName,
-            std::unique_ptr<MassModel>       mass,
-            std::unique_ptr<PropulsionModel> propulsion,
+    Vehicle(std::unique_ptr<MassModel> mass,
+            std::vector<std::unique_ptr<ForceComponent>> components,
             bool addMotorPropellant = false)
-        : typeName_(std::move(typeName)),
-          mass_(std::move(mass)),
-          propulsion_(std::move(propulsion) ? std::move(propulsion)
-                                            : nullptr),
-          addMotorPropellant_(addMotorPropellant)
-    {
-        if (!propulsion_) propulsion_ = std::make_unique<NoPropulsion>();
-    }
+        : mass_(std::move(mass)),
+          components_(std::move(components)),
+          addMotorPropellant_(addMotorPropellant) {}
 
     // Mass, inertia, CG at sim time. The legacy path (scalar dry mass + solid
-    // motor) adds the motor's remaining propellant to the constant dry mass.
+    // motor) adds the motors' remaining propellant to the constant dry mass.
     MassState massState(double time) const {
         MassState s = mass_->at(time);
-        if (addMotorPropellant_) s.mass += propulsion_->propellantMass(time);
+        if (addMotorPropellant_)
+            for (const auto& c : components_) s.mass += c->propellantMass(time);
         return s;
     }
 
-    // Thrust [N] this step (non-const: throttleable engines advance internal
-    // spool state -- call once per step).
-    double thrust(const PropulsionContext& ctx) { return propulsion_->thrust(ctx); }
+    std::vector<std::unique_ptr<ForceComponent>>& components() { return components_; }
 
-    // Declare the propulsion demand channel (unless there is no propulsion).
+    // Forward declaration phase to every component, in list order.
     void declareChannels(ChannelTable& table) {
-        if (propulsion_->hasThrottleChannel())
-            table.add({channels::kThrottle, ChannelKind::Throttle, 0.0, 1.0});
+        for (const auto& c : components_) c->declareChannels(table);
     }
 
-    const std::string& typeName() const { return typeName_; }
+    // Telemetry: total propulsive thrust produced by the last compute pass [N].
+    double thrustNewtons() const {
+        double t = 0.0;
+        for (const auto& c : components_) t += c->thrustNewtons();
+        return t;
+    }
 
 private:
-    std::string typeName_;
-    std::unique_ptr<MassModel>       mass_;
-    std::unique_ptr<PropulsionModel> propulsion_;
+    std::unique_ptr<MassModel> mass_;
+    std::vector<std::unique_ptr<ForceComponent>> components_;
     bool addMotorPropellant_;
 };

@@ -5,39 +5,40 @@
 //
 // This airframe is statically UNSTABLE at xcg = 0.35 cbar (relaxed stability,
 // like the real jet) and its aileron sign is INVERTED vs the missile
-// convention (+aileron -> LEFT roll). The controller below carries the
+// convention (+aileron -> LEFT roll). The control law below carries the
 // matching signs (negative roll gains) and acts as a stability augmentation
 // system holding pitch attitude.
 //
-// Lego blocks: [aero] table set, [mass] constant tensor with Ixz, [propulsion]
-// F-16 engine, [controller] cascaded PID, [actuator] fast servo.
+// Components: [f16_aero] table set, [f16_engine] turbofan. Mass: constant
+// tensor with Ixz. GNC: cascaded PID + fast servo.
 {
-  "type": "aircraft",
-
-  "aero": { "dir": "f16" },
-
   "mass": {
     "model": "constant",
     "mass_kg": 9295.48,
     "inertia": { "ixx": 12874.85, "iyy": 75673.62, "izz": 85552.11, "ixz": 1331.41 }
   },
 
-  "propulsion": { "type": "f16_engine", "dir": "f16" },
+  "components": [
+    { "type": "f16_aero", "dir": "f16" },
+    { "type": "f16_engine", "dir": "f16" }
+  ],
 
-  "controller": {
-    "gains": {
-      "pitch_kp": 3.0, "pitch_ki": 1.2, "pitch_kd": 1.1,
-      "roll_kp": -0.25, "roll_kd": -0.08,
-      "heading_kp": 0.6,
-      "alt_to_vs": 0.2, "vs_kp": 0.03, "vs_ki": 0.02,
-      "speed_kp": 0.06, "speed_ki": 0.02,
-      "yaw_damper": 0.0
+  "gnc": {
+    "control_law": {
+      "type": "aircraft_pid",
+      "gains": {
+        "pitch_kp": 3.0, "pitch_ki": 1.2, "pitch_kd": 1.1,
+        "roll_kp": -0.25, "roll_kd": -0.08,
+        "heading_kp": 0.6,
+        "alt_to_vs": 0.2, "vs_kp": 0.03, "vs_ki": 0.02,
+        "speed_kp": 0.06, "speed_ki": 0.02,
+        "yaw_damper": 0.0
+      },
+      "limits": {
+        "max_bank_deg": 55, "max_pitch_deg": 20, "max_climb_rate_ms": 120,
+        "max_elevator_deg": 25, "max_aileron_deg": 21.5, "max_rudder_deg": 30
+      }
     },
-    "limits": {
-      "max_bank_deg": 55, "max_pitch_deg": 20, "max_climb_rate_ms": 120,
-      "max_elevator_deg": 25, "max_aileron_deg": 21.5, "max_rudder_deg": 30
-    }
-  },
-
-  "actuator": { "tau_s": 0.05, "rate_dps": 60, "limit_deg": 25 }
+    "actuator": { "tau_s": 0.05, "rate_dps": 60, "limit_deg": 25 }
+  }
 }
