@@ -56,7 +56,15 @@ servo dynamics live in `ActuatorBank` (lag + slew rate + stop from the vehicle's
 
 - Moment sign reminder: body My>0 = nose UP, Mz>0 = nose RIGHT (q_dot=My/Iyy).
   Fin controllers flip elevator sign (`-pitchPid`); the TVC controller does NOT
-  (its gimbal sign is defined so +command = +attitude directly).
+  (its gimbal sign is defined so +command = +attitude directly). The
+  allocation path (`allocated_attitude` -> Allocator) carries NO signs at all:
+  they live in the effectiveness columns (`controlEffectiveness`, dM/dchannel
+  about the CG) that components report -- fins analytically, table aero by
+  differencing its control tables, the gimbal as arm*lastThrust (one-step
+  thrust lag, deliberate). Allocation gains are angular-accel scale and must
+  dominate weathercock stiffness (~100x the direct-PID scale, plus ki for
+  trim); see vehicles/hybrid_launcher.json + scenarios/hybrid_launch.json
+  (the TVC+fin blend acceptance vehicle, asserted in test_scenario).
 - A TVC launcher must be near-neutral/low-static-margin in pitch (small `cma`, no
   aero control derivatives) or the aero weathercock cancels the gimbal authority;
   roll is left to aero damping (single nozzle = pitch/yaw only). See
@@ -83,11 +91,14 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
   tabulated_thrust / f16_engine.
 - New mass model = MassModel subclass + branch in `vehicle::create` (`mass`
   block: "constant" | "tabulated").
-- New control law = Controller subclass +
-  `control::Factory::registerControlLaw` (types: aircraft_pid / rocket_pid /
-  tvc_pid / scheduled / lqr). Chosen independent of the airframe.
+- New control law = ControlLaw subclass + `gnc::Factory::registerControlLaw`
+  (types: aircraft_pid / rocket_pid / tvc_pid / scheduled / lqr /
+  allocated_attitude). Chosen independent of the airframe. Laws take a
+  GncContext {state, air, mass, dt}.
 - New guidance law = GuidanceLaw subclass + `guidance::Factory::registerLaw`
-  (types: pro_nav / pure_pursuit).
+  (types: pro_nav / pure_pursuit). Guidance declares its command level
+  (attitude vs acceleration); the control law declares what it accepts;
+  mismatches throw when guidance attaches.
 - Multi-vehicle interactions read others via the `WorldView` in
   `Entity::propagate`; the intercept watch lives in `Simulation::step`.
 

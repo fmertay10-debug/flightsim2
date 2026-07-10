@@ -36,20 +36,21 @@ src/
   io/              minimal JSON parser (// comments) + tidy-CSV / key-value reader
   environment/     ISA atmosphere; gravity + wind Strategies
   dynamics/        EOM Strategies: six_dof, point_mass, kinematic (+ factory)
-  component/       ForceComponent Strategy (state+channels -> body wrench) + registry:
+  component/       ForceComponent Strategy (state+channels -> body wrench) + registry +
+                   control-effectiveness queries (dM/dchannel for allocation):
                    AeroComponent (wraps an AeroModel), Propulsor (motor + axial or
-                   gimbaled/TVC mount; owns the throttle + tvc channels)
+                   gimbaled/TVC mount; owns the throttle + tvc channels), AeroModel iface
   propulsion/      PropulsionModel Strategies: turbojet, solid_motor,
-                   tabulated_thrust (thrust(t)), f16_engine (idle/mil/max + power dynamics)
+                   tabulated_thrust (thrust(t)), f16_engine moved to models/f16
   mass/            MassModel Strategy: constant, tabulated (mass/inertia/CG vs time)
-  aero/            AeroModel per airframe family: AircraftAero, RocketAero (derivatives),
-                   RocketTableAero (DATCOM tables), F16Aero (wind-tunnel tables);
-                   moment reference for CG travel
-  control/         Controllers: AircraftController, RocketController; ScheduledController
-                   (LQR state feedback); TvcController (thrust vectoring); PID, flight
-                   plans, per-channel ActuatorBank; registry keyed on control_law "type"
-  guidance/        GuidanceLaw Strategy: ProNav3D, PurePursuit (+ registry) -- reads the
-                   target from the WorldView, overlays the flight plan
+  models/          family-specific implementations: aircraft/ (derivative aero),
+                   rocket/ (derivative + DATCOM table aero), f16/ (wind-tunnel aero
+                   + turbofan)
+  gnc/             the GNC stack: ControlLaws (aircraft/rocket/tvc PIDs, ScheduledLaw
+                   LQR state feedback, AllocatedAttitudeLaw), Allocator (moment ->
+                   channels by live effectiveness), guidance (ProNav3D, PurePursuit),
+                   PID, flight plans, per-channel ActuatorBank; registries keyed on
+                   explicit "type" strings
   vehicle/         Vehicle (mass + ForceComponent list + declared channels) + factory
   sim/             Simulation (two-phase multi-vehicle loop, intercept watch, CG
                    moment transfer), Entity, WorldView, observers, CsvLogger
@@ -76,6 +77,13 @@ Real-data vehicles included: the **F-16** (Stevens & Lewis / NASA TP-1538
 wind-tunnel tables + turbofan model, aero validated against a reference fixture)
 and DATCOM-derived rockets, including one with **variable thrust, mass, inertia,
 and CG travel** (`scenarios/advanced_rocket_launch.json`).
+
+**Control allocation** (`scenarios/hybrid_launch.json`): a launcher with a
+gimbaled nozzle AND fins, flown by one allocation-based attitude law. The
+Allocator distributes desired body moments over the channels by each
+component's live effectiveness — the gimbal steers off the pad (fins have no
+qbar), authority blends to the fins as speed builds, and after burnout the
+fins carry the tracking alone. No mode switching, no per-phase gains.
 
 **Missile examples** — AAM, SAM, AGM, and SSM, each built the whole way
 (`tools/make_missiles.py`): a DATCOM aero run → tables → vehicle → auto-designed

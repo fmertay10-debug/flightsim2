@@ -1,0 +1,33 @@
+// Hybrid TVC+fin launcher: lifts off near-vertical steered by the gimbal
+// (fins are useless at pad qbar), tips over along the pitch program with the
+// Allocator blending gimbal->fins as speed builds, then KEEPS tracking after
+// burnout (~8 s) on fins alone -- including a post-burnout pitch command at
+// t=12 s that a pure-TVC vehicle could not follow.
+{
+  "name": "hybrid_launch",
+  "simulation": { "dt_s": 0.002, "duration_s": 30, "ground_level_m": 0 },
+  "environment": { "gravity": "spherical", "wind": { "type": "constant", "ned_ms": [6, 3, 0] } },
+
+  "vehicles": [
+    {
+      "name": "hybrid",
+      "vehicle": "../vehicles/hybrid_launcher.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -5],
+        "velocity_ned_ms": [1.5, 0, -22],
+        "euler_deg": [0, 88, 0]
+      },
+      "flight_plan": [
+        { "time_s": 0,   "pitch_deg": 88, "heading_deg": 0 },
+        { "time_s": 0.8, "pitch_deg": 84 },
+        { "time_s": 2.5, "pitch_deg": 78 },
+        { "time_s": 5,   "pitch_deg": 64 },
+        { "time_s": 7,   "pitch_deg": 55 },
+        { "time_s": 12,  "pitch_deg": 45 }
+      ],
+      "log": "output/hybrid_launch/hybrid.csv",
+      "log_decimation": 15
+    }
+  ]
+}

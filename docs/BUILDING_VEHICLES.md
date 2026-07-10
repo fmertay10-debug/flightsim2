@@ -55,16 +55,30 @@ impulse-consistent propellant) · `tabulated_thrust` (raw thrust(t) table) ·
 (Legacy flat `mass_kg` + `inertia` still works and adds a solid motor's
 propellant to the dry mass automatically.)
 
-### `gnc.control_law` — the control algorithm (registry: `control::Factory`)
+### `gnc.control_law` — the control algorithm (registry: `gnc::Factory`)
 | `type` | config | what |
 |---|---|---|
-| `aircraft_pid` | `gains`, `limits` | cascaded fixed-wing PID |
-| `rocket_pid` | `gains`, `limits` | finned-rocket attitude PID |
-| `tvc_pid` | `gains`, `limits` | thrust-vector-control PID (drives the gimbal) |
+| `aircraft_pid` | `gains`, `limits` | cascaded fixed-wing PID (direct-write) |
+| `rocket_pid` | `gains`, `limits` | finned-rocket attitude PID (direct-write) |
+| `tvc_pid` | `gains`, `limits` | thrust-vector-control PID (direct-write) |
 | `scheduled` / `lqr` | `schedule: gains.csv` | gain-scheduled state feedback, gains **auto-designed** |
+| `allocated_attitude` | `gains`, `limits` | attitude PID → desired body moments → **Allocator** |
 
 The law is chosen independently of the airframe — fly the same vehicle with
 PID or LQR by editing one line.
+
+Two output contracts (ADR-0002): the direct-write laws put plant knowledge in
+their gains and write specific channels; `allocated_attitude` emits desired
+body moments (scaled by the live inertia) and the **Allocator** distributes
+them over whatever channels the components declare, weighted by each
+component's queried effectiveness at the current flight condition. That is
+what flies a hybrid: `vehicles/hybrid_launcher.json` has a gimbaled motor AND
+fins — the gimbal steers the low-qbar pad phase, the fins take over as speed
+builds, and after burnout the fins track alone, all under one law with no
+mode switching (`scenarios/hybrid_launch.json`). Note its gains are in
+angular-acceleration units (rad/s² per rad of error) and must dominate the
+airframe's weathercock stiffness — expect values ~100×, not ~1×, with an
+integral term to hold trim.
 
 ### Channels — how control reaches the components
 

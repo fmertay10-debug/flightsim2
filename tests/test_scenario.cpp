@@ -117,6 +117,38 @@ static void testTvcRocket() {
     CHECK(maxRollRate < 0.2);                // roll passively bounded (no roll ctrl)
 }
 
+static void testHybridLauncher() {
+    // TVC + fins on one airframe under the allocation-based law: the gimbal
+    // must steer the early low-qbar phase, the fins must carry the tracking
+    // after burnout (~8 s) -- including a post-burnout pitch command.
+    scenario::LoadResult loaded = scenario::load("scenarios/hybrid_launch.json");
+    Simulation& sim = *loaded.simulation;
+    const Entity& e = *sim.entities()[0];
+    const ChannelTable& table = *e.telemetry().channels;
+    const ChannelHandle tvc  = table.find("tvc_pitch");
+    const ChannelHandle elev = table.find("elevator");
+    CHECK(tvc.valid());
+    CHECK(elev.valid());
+
+    double tvcEarly = 0.0, tvcLate = 0.0, finLate = 0.0, thetaEnd = 0.0;
+    while (sim.step()) {
+        const Telemetry& t = e.telemetry();
+        const double time = t.state.time;
+        const double gp = std::abs(t.control.get(tvc));
+        if (time < 2.0) tvcEarly = std::max(tvcEarly, gp);
+        if (time > 8.5) {
+            tvcLate = std::max(tvcLate, gp);
+            finLate = std::max(finLate, std::abs(t.control.get(elev)));
+        }
+        thetaEnd = e.state().eulerAngles().y;
+    }
+    CHECK(sim.entities()[0]->alive());
+    CHECK(tvcEarly > 0.003);            // gimbal did the early steering
+    CHECK(tvcLate < 1e-4);              // burnout kills the gimbal channel
+    CHECK(finLate > 0.002);             // fins carry the post-burnout tracking
+    CHECK_NEAR(thetaEnd, 0.7854, 0.06); // 45 deg command held after burnout
+}
+
 int main() {
     testAircraftCruise();
     testInterceptHits();
@@ -126,6 +158,7 @@ int main() {
     testLqrRocket();
     testMissileIntercept();
     testTvcRocket();
+    testHybridLauncher();
     std::printf("test_scenario: all checks passed\n");
     return 0;
 }
