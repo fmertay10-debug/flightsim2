@@ -45,12 +45,20 @@ std::unique_ptr<Controller> ScheduledController::fromJson(const json::Value& cfg
     return std::make_unique<ScheduledController>(std::move(c));
 }
 
-ControlInput ScheduledController::update(const State& state, const AirData& air,
-                                         const CommandSet& cmd, double dt) {
-    ControlInput out;
-    out.throttle = cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0;
+std::vector<ChannelHandle> ScheduledController::bindChannels(const ChannelTable& t) {
+    elevator_ = t.require(channels::kElevator);
+    rudder_   = t.require(channels::kRudder);
+    aileron_  = t.find(channels::kAileron);
+    throttle_ = t.find(channels::kThrottle);
+    return {elevator_, rudder_, aileron_, throttle_};
+}
 
-    if (air.airspeed < c_.minAirspeed) return out;   // fins ineffective on the rail
+void ScheduledController::update(const State& state, const AirData& air,
+                                 const CommandSet& cmd, double dt,
+                                 ChannelValues& out) {
+    out.set(throttle_, cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0);
+
+    if (air.airspeed < c_.minAirspeed) return;   // fins ineffective on the rail
 
     const double mach = air.mach;
     const double kA = c_.kAlpha.eval(mach);
@@ -73,16 +81,16 @@ ControlInput ScheduledController::update(const State& state, const AirData& air,
     const double thetaCmd = cmd.pitch ? *cmd.pitch : theta;
     const double eTheta = theta - thetaCmd;
     const double uElev = -(kA * air.alpha + kQ * q + kT * eTheta + kI * ziTheta_);
-    out.elevator = std::clamp(uElev, -c_.maxFin, c_.maxFin);
+    out.set(elevator_, std::clamp(uElev, -c_.maxFin, c_.maxFin));
     // Conditional integration: freeze when saturated (anti-windup).
     if (std::abs(uElev) < c_.maxFin) ziTheta_ += eTheta * dt;
 
     // Near vertical, heading/roll Euler angles are ill-conditioned: rate-damp.
     // (-kQ is the positive damping magnitude: the pitch law damps q via -(kQ*q).)
     if (std::abs(theta) > c_.verticalGuard) {
-        out.rudder  = std::clamp(-kQ * r, -c_.maxFin, c_.maxFin);
-        out.aileron = std::clamp(rollScale * (-c_.rollKd * p), -c_.maxFin, c_.maxFin);
-        return out;
+        out.set(rudder_,  std::clamp(-kQ * r, -c_.maxFin, c_.maxFin));
+        out.set(aileron_, std::clamp(rollScale * (-c_.rollKd * p), -c_.maxFin, c_.maxFin));
+        return;
     }
 
     // ---- Yaw: mirror the pitch feedback by axisymmetry ----
@@ -93,12 +101,11 @@ ControlInput ScheduledController::update(const State& state, const AirData& air,
     const double psiCmd = cmd.heading ? *cmd.heading : psi;
     const double ePsi = units::wrapAngle(psi - psiCmd);
     const double uRud = -(kA * air.beta + kQ * r + kT * ePsi + kI * ziPsi_);
-    out.rudder = std::clamp(uRud, -c_.maxFin, c_.maxFin);
+    out.set(rudder_, std::clamp(uRud, -c_.maxFin, c_.maxFin));
     if (std::abs(uRud) < c_.maxFin) ziPsi_ += ePsi * dt;
 
     // ---- Roll: PD hold wings level (qbar-normalized, see above) ----
     const double phiCmd = cmd.roll ? *cmd.roll : 0.0;
     const double uAil = c_.rollKp * units::wrapAngle(phiCmd - phi) - c_.rollKd * p;
-    out.aileron = std::clamp(rollScale * uAil, -c_.maxFin, c_.maxFin);
-    return out;
+    out.set(aileron_, std::clamp(rollScale * uAil, -c_.maxFin, c_.maxFin));
 }

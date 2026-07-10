@@ -29,11 +29,16 @@ public:
     // Builder for control::Factory (method "tvc" / "tvc_pid").
     static std::unique_ptr<Controller> fromJson(const json::Value& cfg);
 
-    ControlInput update(const State& state, const AirData& air,
-                        const CommandSet& cmd, double dt) override;
+    // The gimbal channels are essential -- pairing this controller with a
+    // vehicle that has no thrust_vectoring block fails at load.
+    std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
+
+    void update(const State& state, const AirData& air,
+                const CommandSet& cmd, double dt, ChannelValues& out) override;
 
 private:
     Gains g_;
     Pid   pitchPid_;
     Pid   yawPid_;
+    ChannelHandle tvcPitch_, tvcYaw_, throttle_;
 };

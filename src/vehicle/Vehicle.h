@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "core/Channel.h"
 #include "mass/MassModel.h"
 #include "propulsion/PropulsionModel.h"
 
@@ -40,6 +41,12 @@ public:
     // Thrust [N] this step (non-const: throttleable engines advance internal
     // spool state -- call once per step).
     double thrust(const PropulsionContext& ctx) { return propulsion_->thrust(ctx); }
+
+    // Declare the propulsion demand channel (unless there is no propulsion).
+    void declareChannels(ChannelTable& table) {
+        if (propulsion_->hasThrottleChannel())
+            table.add({channels::kThrottle, ChannelKind::Throttle, 0.0, 1.0});
+    }
 
     const std::string& typeName() const { return typeName_; }
 

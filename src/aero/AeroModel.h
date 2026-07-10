@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "core/AirData.h"
-#include "core/ControlInput.h"
+#include "core/Channel.h"
 #include "core/State.h"
 #include "math/Vector3.h"
 
@@ -29,9 +29,17 @@ class AeroModel {
 public:
     virtual ~AeroModel() = default;
 
+    // Declare the actuator channels this model consumes (its control
+    // surfaces) into the vehicle's table and keep the returned handles.
+    // Called once at load, before any compute(). Declare ONLY surfaces with
+    // actual authority (nonzero control derivatives) -- a controller driving
+    // an undeclared surface then fails loudly at load instead of silently
+    // flying open-loop. Models with no control surfaces declare nothing.
+    virtual void declareChannels(ChannelTable& table) { (void)table; }
+
     virtual AeroForces compute(const State& state,
                                const AirData& air,
-                               const ControlInput& control) const = 0;
+                               const ChannelValues& control) const = 0;
 
     // Station (meters, increasing aft, same datum as MassState::xcg) that the
     // reported moments are taken about. The Entity transfers them from here to

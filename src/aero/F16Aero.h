@@ -33,8 +33,11 @@ public:
     static std::unique_ptr<AeroModel> fromJson(const json::Value& cfg,
                                                const std::string& baseDir);
 
+    // The S&L tables always carry elevator/aileron/rudder authority.
+    void declareChannels(ChannelTable& table) override;
+
     AeroForces compute(const State& state, const AirData& air,
-                       const ControlInput& control) const override;
+                       const ChannelValues& control) const override;
 
     // Tables are referenced to xcgr (fraction of cbar). As a station in meters
     // (increasing aft, MAC-LE datum) that is xcgr*cbar -- matching the mass
@@ -45,4 +48,5 @@ private:
     F16Tables     t_;
     AeroReference ref_;
     double        xcgr_;   // table reference CG [fraction of cbar]
+    ChannelHandle elevator_, aileron_, rudder_;
 };

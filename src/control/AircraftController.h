@@ -40,11 +40,15 @@ public:
     // Builder for control::Factory: reads the "controller" config block.
     static std::unique_ptr<Controller> fromJson(const json::Value& cfg);
 
-    ControlInput update(const State& state, const AirData& air,
-                        const CommandSet& cmd, double dt) override;
+    // All three surfaces are essential on a fixed-wing aircraft.
+    std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
+
+    void update(const State& state, const AirData& air,
+                const CommandSet& cmd, double dt, ChannelValues& out) override;
 
 private:
     Gains g_;
+    ChannelHandle elevator_, aileron_, rudder_, throttle_;
     Pid   pitchPid_;   // pitch err -> +up demand (sign flipped onto elevator)
     Pid   vsPid_;      // climb-rate err -> pitch cmd
     Pid   speedPid_;   // speed err -> throttle

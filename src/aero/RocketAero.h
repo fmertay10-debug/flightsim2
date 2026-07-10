@@ -32,10 +32,15 @@ public:
     // Builder for aero::Factory: reads the "aero" config block of a vehicle file.
     static std::unique_ptr<AeroModel> fromJson(const json::Value& cfg);
 
+    // Declares only fins with authority (nonzero control derivatives) -- a
+    // TVC airframe with no fin derivatives declares no fin channels at all.
+    void declareChannels(ChannelTable& table) override;
+
     AeroForces compute(const State& state, const AirData& air,
-                       const ControlInput& control) const override;
+                       const ChannelValues& control) const override;
 
 private:
     AeroReference ref_;   // cbar = body length (pitch/yaw), bref = diameter (roll)
     Derivatives   d_;
+    ChannelHandle elevator_, aileron_, rudder_;
 };

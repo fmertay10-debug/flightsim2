@@ -40,9 +40,17 @@ std::unique_ptr<Controller> AircraftController::fromJson(const json::Value& cfg)
     return std::make_unique<AircraftController>(g);
 }
 
-ControlInput AircraftController::update(const State& state, const AirData& air,
-                                        const CommandSet& cmd, double dt) {
-    ControlInput out;
+std::vector<ChannelHandle> AircraftController::bindChannels(const ChannelTable& t) {
+    elevator_ = t.require(channels::kElevator);
+    aileron_  = t.require(channels::kAileron);
+    rudder_   = t.require(channels::kRudder);
+    throttle_ = t.find(channels::kThrottle);
+    return {elevator_, aileron_, rudder_, throttle_};
+}
+
+void AircraftController::update(const State& state, const AirData& air,
+                                const CommandSet& cmd, double dt,
+                                ChannelValues& out) {
     const Vector3 euler = state.eulerAngles();
     const double phi = euler.x, theta = euler.y, psi = euler.z;
     const double p = state.angularRate.x;
@@ -57,8 +65,8 @@ ControlInput AircraftController::update(const State& state, const AirData& air,
         const double psiErr = units::wrapAngle(*cmd.heading - psi);
         phiCmd = std::clamp(g_.headingKp * psiErr, -g_.maxBank, g_.maxBank);
     }
-    out.aileron = std::clamp(g_.rollKp * (phiCmd - phi) - g_.rollKd * p,
-                             -g_.maxAileron, g_.maxAileron);
+    out.set(aileron_, std::clamp(g_.rollKp * (phiCmd - phi) - g_.rollKd * p,
+                                 -g_.maxAileron, g_.maxAileron));
 
     // ---- Longitudinal: altitude -> climb rate -> pitch -> elevator ----
     double thetaCmd = theta;   // no command -> hold current pitch
@@ -72,18 +80,16 @@ ControlInput AircraftController::update(const State& state, const AirData& air,
     }
     thetaCmd = std::clamp(thetaCmd, -g_.maxPitch, g_.maxPitch);
     // Elevator sign: positive elevator pitches DOWN (cmde < 0), so flip.
-    out.elevator = -pitchPid_.update(thetaCmd - theta, q, dt);
+    out.set(elevator_, -pitchPid_.update(thetaCmd - theta, q, dt));
 
     // ---- Speed -> throttle ----
     if (cmd.throttle) {
-        out.throttle = std::clamp(*cmd.throttle, 0.0, 1.0);
+        out.set(throttle_, std::clamp(*cmd.throttle, 0.0, 1.0));
     } else if (cmd.speed) {
-        out.throttle = speedPid_.update(*cmd.speed - air.airspeed, 0.0, dt);
+        out.set(throttle_, speedPid_.update(*cmd.speed - air.airspeed, 0.0, dt));
     }
 
     // ---- Yaw damper ----
     // rudder > 0 yields a nose-left moment (cndr < 0), so +r feedback damps.
-    out.rudder = std::clamp(g_.yawDamper * r, -g_.maxRudder, g_.maxRudder);
-
-    return out;
+    out.set(rudder_, std::clamp(g_.yawDamper * r, -g_.maxRudder, g_.maxRudder));
 }

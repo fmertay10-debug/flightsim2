@@ -36,10 +36,14 @@ public:
     // Builder for aero::Factory: reads the "aero" config block of a vehicle file.
     static std::unique_ptr<AeroModel> fromJson(const json::Value& cfg);
 
+    // Declares only the surfaces with authority (nonzero control derivatives).
+    void declareChannels(ChannelTable& table) override;
+
     AeroForces compute(const State& state, const AirData& air,
-                       const ControlInput& control) const override;
+                       const ChannelValues& control) const override;
 
 private:
     AeroReference ref_;
     Derivatives   d_;
+    ChannelHandle elevator_, aileron_, rudder_;
 };

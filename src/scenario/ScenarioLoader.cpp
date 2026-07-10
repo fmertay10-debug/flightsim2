@@ -1,12 +1,13 @@
 #include "scenario/ScenarioLoader.h"
 
+#include <cstdio>
 #include <filesystem>
 #include <map>
 #include <stdexcept>
 
 #include "aero/AeroFactory.h"
+#include "control/ActuatorBank.h"
 #include "control/ControllerFactory.h"
-#include "control/FirstOrderActuator.h"
 #include "dynamics/EomFactory.h"
 #include "effector/EffectorFactory.h"
 #include "guidance/GuidanceFactory.h"
@@ -69,11 +70,12 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
     const std::string dynamics = entry.str("dynamics", "six_dof");
 
     // Kinematic movers need no vehicle definition at all.
-    std::unique_ptr<Vehicle>    veh;
-    std::unique_ptr<AeroModel>  aero;
-    std::unique_ptr<Controller> controller;
-    std::unique_ptr<Actuator>   actuator;
+    std::unique_ptr<Vehicle>      veh;
+    std::unique_ptr<AeroModel>    aero;
+    std::unique_ptr<Controller>   controller;
+    std::unique_ptr<ActuatorBank> actuators;
     std::vector<std::unique_ptr<Effector>> effectors;
+    ChannelTable channels;
 
     if (dynamics != "kinematic") {
         // Vehicle definition: referenced file or inline object. Relative data
@@ -97,9 +99,32 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
         if (definition.has("controller"))
             controller = control::Factory::create(type, definition.at("controller"),
                                                   baseDir.string());
-        if (definition.has("actuator"))
-            actuator = FirstOrderActuator::fromJson(definition.at("actuator"));
         effectors = effector::build(definition);
+
+        // Channel phase A: force-producing components DECLARE the channels
+        // they consume...
+        aero->declareChannels(channels);
+        for (const auto& e : effectors) e->declareChannels(channels);
+        veh->declareChannels(channels);
+
+        if (definition.has("actuator"))
+            actuators = ActuatorBank::fromJson(definition.at("actuator"), channels);
+
+        // ...phase B: the controller BINDS the channels it writes. A required
+        // channel nothing declared throws here (misconfigured pairing);
+        // declared channels no controller drives are only warned about --
+        // they hold their default (zero).
+        if (controller) {
+            std::vector<bool> driven(static_cast<std::size_t>(channels.size()), false);
+            for (const ChannelHandle h : controller->bindChannels(channels))
+                if (h.valid()) driven[h.index] = true;
+            for (int i = 0; i < channels.size(); ++i)
+                if (!driven[i])
+                    std::fprintf(stderr,
+                                 "warning: %s: channel '%s' is declared but the "
+                                 "controller never writes it\n",
+                                 name.c_str(), channels.def(i).name.c_str());
+        }
     }
 
     eom::Options opts;
@@ -113,10 +138,11 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
                                            std::move(veh),
                                            std::move(aero),
                                            std::move(controller),
-                                           std::move(actuator),
+                                           std::move(actuators),
                                            eom::create(dynamics, opts),
                                            std::move(plan),
-                                           buildInitialState(entry));
+                                           buildInitialState(entry),
+                                           std::move(channels));
     entity->setEffectors(std::move(effectors));
     return entity;
 }

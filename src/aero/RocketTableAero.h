@@ -44,8 +44,11 @@ public:
     static std::unique_ptr<AeroModel> fromJson(const json::Value& cfg,
                                                const std::string& baseDir);
 
+    // DATCOM control tables always carry all three fin channels.
+    void declareChannels(ChannelTable& table) override;
+
     AeroForces compute(const State& state, const AirData& air,
-                       const ControlInput& control) const override;
+                       const ChannelValues& control) const override;
 
     double momentReferenceStation() const override { return xref_; }
 
@@ -53,4 +56,5 @@ private:
     AeroReference ref_;
     Tables        t_;
     double        xref_;
+    ChannelHandle elevator_, aileron_, rudder_;
 };

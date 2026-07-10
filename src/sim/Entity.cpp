@@ -10,22 +10,26 @@ Entity::Entity(std::string name,
                std::unique_ptr<Vehicle>           vehicle,
                std::unique_ptr<AeroModel>         aero,
                std::unique_ptr<Controller>        controller,
-               std::unique_ptr<Actuator>          actuator,
+               std::unique_ptr<ActuatorBank>      actuators,
                std::unique_ptr<EquationsOfMotion> eom,
                FlightPlan                         flightPlan,
-               const State&                       initialState)
+               const State&                       initialState,
+               ChannelTable                       channels)
     : name_(std::move(name)),
       vehicle_(std::move(vehicle)),
       aero_(std::move(aero)),
       controller_(std::move(controller)),
-      actuator_(std::move(actuator)),
+      actuators_(std::move(actuators)),
       eom_(std::move(eom)),
       flightPlan_(std::move(flightPlan)),
+      channels_(std::move(channels)),
+      throttle_(channels_.find(channels::kThrottle)),
       state_(initialState)
 {
     if (!eom_)
         throw std::invalid_argument("Entity '" + name_ + "': EOM is required");
     telem_.name = name_;
+    telem_.channels = &channels_;
 }
 
 State Entity::propagate(const Environment& env, const WorldView& world, double dt) {
@@ -51,7 +55,7 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     // 2. Flight plan + guidance overlay -> controller (COMMANDED) -> actuator
     //    (ACTUAL). Guidance reads the target from the shared world snapshot
     //    and wins over the scripted plan on the fields it sets.
-    ControlInput commanded;
+    ChannelValues commanded(channels_);
     CommandSet cmd;
     if (controller_) {
         cmd = flightPlan_.at(s.time);
@@ -64,10 +68,10 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
             if (g.speed)    cmd.speed    = g.speed;
             if (g.throttle) cmd.throttle = g.throttle;
         }
-        commanded = controller_->update(s, air, cmd, dt);
+        controller_->update(s, air, cmd, dt, commanded);
     }
-    const ControlInput actual = actuator_ ? actuator_->apply(commanded, dt)
-                                          : commanded;
+    const ChannelValues actual = actuators_ ? actuators_->apply(commanded, dt)
+                                            : commanded;
 
     // 3. Aerodynamic loads (body frame, about the aero moment reference).
     AeroForces aero;
@@ -87,7 +91,7 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
 
         PropulsionContext pc;
         pc.time = s.time;
-        pc.throttle = actual.throttle;
+        pc.throttle = actual.get(throttle_);
         pc.mach = air.mach;
         pc.density = atm.density;
         pc.altitude = altitude;

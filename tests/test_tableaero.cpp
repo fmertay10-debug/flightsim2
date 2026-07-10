@@ -15,6 +15,14 @@ int main() {
     })");
     const auto aero = RocketTableAero::fromJson(cfg, dir);
 
+    ChannelTable table;
+    aero->declareChannels(table);
+    const ChannelHandle elevator = table.find("elevator");
+    const ChannelHandle rudder   = table.find("rudder");
+    CHECK(elevator.valid());
+    CHECK(rudder.valid());
+    CHECK(table.find("aileron").valid());
+
     State s;
     AirData air;
     air.atmosphere.density = 1.225;
@@ -26,7 +34,7 @@ int main() {
     // --- Positive alpha: normal force UP (-z), pitch moment restoring (<0) ---
     air.alpha = 0.05;
     air.beta = 0.0;
-    ControlInput u;
+    ChannelValues u(table);
     AeroForces f = aero->compute(s, air, u);
     const double qS = air.qbar * 0.129693;
     CHECK(f.force.z < 0.0);                // lift opposes alpha
@@ -46,16 +54,16 @@ int main() {
 
     // --- Positive elevator: fin lift joins CN, moment pitches DOWN ---
     air.beta = 0.0;
-    ControlInput uDown = u;
-    uDown.elevator = 0.15;
+    ChannelValues uDown = u;
+    uDown.set(elevator, 0.15);
     const AeroForces f0 = aero->compute(s, air, u);
     const AeroForces fE = aero->compute(s, air, uDown);
     CHECK(fE.moment.y < f0.moment.y);      // dCM < 0 for +deflection
     CHECK(fE.force.z < f0.force.z);        // fin lift adds upward force
 
     // --- Rudder mirrors elevator through the cbar/bref conversion ---
-    ControlInput uR = u;
-    uR.rudder = 0.15;
+    ChannelValues uR = u;
+    uR.set(rudder, 0.15);
     const AeroForces fR = aero->compute(s, air, uR);
     CHECK(fR.moment.z < f0.moment.z);      // +rudder -> nose-left moment
     const double c2b = 8.2296 / 0.5182;

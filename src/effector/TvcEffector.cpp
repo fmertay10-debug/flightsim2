@@ -3,12 +3,17 @@
 #include <algorithm>
 #include <cmath>
 
-Wrench TvcEffector::compute(const EffectorContext& ctx, const ControlInput& u) const {
+void TvcEffector::declareChannels(ChannelTable& table) {
+    pitch_ = table.add({channels::kTvcPitch, ChannelKind::Gimbal, -maxGimbal_, maxGimbal_});
+    yaw_   = table.add({channels::kTvcYaw,   ChannelKind::Gimbal, -maxGimbal_, maxGimbal_});
+}
+
+Wrench TvcEffector::compute(const EffectorContext& ctx, const ChannelValues& u) const {
     Wrench w;
     if (ctx.thrust <= 0.0) return w;   // no thrust -> no TVC authority
 
-    const double dp = std::clamp(u.tvcPitch, -maxGimbal_, maxGimbal_);
-    const double dy = std::clamp(u.tvcYaw,   -maxGimbal_, maxGimbal_);
+    const double dp = std::clamp(u.get(pitch_), -maxGimbal_, maxGimbal_);
+    const double dy = std::clamp(u.get(yaw_),   -maxGimbal_, maxGimbal_);
     const double T  = ctx.thrust;
 
     // Gimbaled thrust vector in the body frame:

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/AirData.h"
-#include "core/ControlInput.h"
+#include "core/Channel.h"
 #include "core/State.h"
 #include "core/Wrench.h"
 
@@ -27,5 +27,12 @@ struct EffectorContext {
 class Effector {
 public:
     virtual ~Effector() = default;
-    virtual Wrench compute(const EffectorContext& ctx, const ControlInput& u) const = 0;
+
+    // Declare the actuator channels this effector consumes (e.g. the TVC
+    // gimbal) into the vehicle's table and keep the returned handles. Called
+    // once at load, before any compute().
+    virtual void declareChannels(ChannelTable& table) { (void)table; }
+
+    virtual Wrench compute(const EffectorContext& ctx,
+                           const ChannelValues& u) const = 0;
 };

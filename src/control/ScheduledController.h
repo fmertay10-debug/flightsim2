@@ -35,11 +35,15 @@ public:
     static std::unique_ptr<Controller> fromJson(const json::Value& cfg,
                                                 const std::string& baseDir);
 
-    ControlInput update(const State& state, const AirData& air,
-                        const CommandSet& cmd, double dt) override;
+    // Pitch/yaw fins are essential; roll assist and throttle are optional.
+    std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
+
+    void update(const State& state, const AirData& air,
+                const CommandSet& cmd, double dt, ChannelValues& out) override;
 
 private:
     Config c_;
     double ziTheta_ = 0.0;   // pitch tracking-error integral
     double ziPsi_   = 0.0;   // yaw tracking-error integral
+    ChannelHandle elevator_, aileron_, rudder_, throttle_;
 };

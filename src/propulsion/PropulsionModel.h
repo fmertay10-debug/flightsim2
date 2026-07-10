@@ -27,9 +27,16 @@ public:
     // Onboard propellant remaining at sim time [kg]. Only used by the legacy
     // "dry mass + motor propellant" path; tabulated mass models ignore it.
     virtual double propellantMass(double time) const { (void)time; return 0.0; }
+
+    // Whether the vehicle declares a "throttle" channel for this model. The
+    // channel is the propulsion DEMAND: motors that burn a fixed curve (solid)
+    // still own it -- the pass-through command stays visible in telemetry --
+    // so only a total absence of propulsion opts out.
+    virtual bool hasThrottleChannel() const { return true; }
 };
 
 class NoPropulsion : public PropulsionModel {
 public:
     double thrust(const PropulsionContext&) override { return 0.0; }
+    bool hasThrottleChannel() const override { return false; }
 };

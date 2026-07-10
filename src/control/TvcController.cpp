@@ -30,27 +30,32 @@ std::unique_ptr<Controller> TvcController::fromJson(const json::Value& cfg) {
     return std::make_unique<TvcController>(g);
 }
 
-ControlInput TvcController::update(const State& state, const AirData& /*air*/,
-                                   const CommandSet& cmd, double dt) {
-    ControlInput out;
-    out.throttle = cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0;
+std::vector<ChannelHandle> TvcController::bindChannels(const ChannelTable& t) {
+    tvcPitch_ = t.require(channels::kTvcPitch);
+    tvcYaw_   = t.require(channels::kTvcYaw);
+    throttle_ = t.find(channels::kThrottle);
+    return {tvcPitch_, tvcYaw_, throttle_};
+}
+
+void TvcController::update(const State& state, const AirData& /*air*/,
+                           const CommandSet& cmd, double dt, ChannelValues& out) {
+    out.set(throttle_, cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0);
 
     const Vector3 euler = state.eulerAngles();
     const double theta = euler.y, psi = euler.z;
     const double q = state.angularRate.y, r = state.angularRate.z;
 
-    // Pitch: gimbal to drive theta -> command (+tvcPitch = nose-up, so direct).
+    // Pitch: gimbal to drive theta -> command (+tvc_pitch = nose-up, so direct).
     const double thetaCmd = cmd.pitch ? *cmd.pitch : theta;
-    out.tvcPitch = pitchPid_.update(thetaCmd - theta, q, dt);
+    out.set(tvcPitch_, pitchPid_.update(thetaCmd - theta, q, dt));
 
     // Near vertical the heading angle is ill-conditioned: just damp yaw rate.
     if (std::abs(theta) > g_.verticalGuard) {
-        out.tvcYaw = std::clamp(-g_.yawKd * r, -g_.maxGimbal, g_.maxGimbal);
-        return out;
+        out.set(tvcYaw_, std::clamp(-g_.yawKd * r, -g_.maxGimbal, g_.maxGimbal));
+        return;
     }
 
-    // Yaw: gimbal to drive heading -> command (+tvcYaw = nose-right, direct).
+    // Yaw: gimbal to drive heading -> command (+tvc_yaw = nose-right, direct).
     const double psiCmd = cmd.heading ? *cmd.heading : psi;
-    out.tvcYaw = yawPid_.update(units::wrapAngle(psiCmd - psi), r, dt);
-    return out;
+    out.set(tvcYaw_, yawPid_.update(units::wrapAngle(psiCmd - psi), r, dt));
 }

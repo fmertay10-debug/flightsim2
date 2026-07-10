@@ -30,11 +30,16 @@ public:
     // Builder for control::Factory: reads the "controller" config block.
     static std::unique_ptr<Controller> fromJson(const json::Value& cfg);
 
-    ControlInput update(const State& state, const AirData& air,
-                        const CommandSet& cmd, double dt) override;
+    // Pitch/yaw fins are essential; roll assist and throttle are optional
+    // (a vehicle without roll fins or a throttleable motor is legitimate).
+    std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
+
+    void update(const State& state, const AirData& air,
+                const CommandSet& cmd, double dt, ChannelValues& out) override;
 
 private:
     Gains g_;
     Pid   pitchPid_;
     Pid   yawPid_;
+    ChannelHandle elevator_, aileron_, rudder_, throttle_;
 };

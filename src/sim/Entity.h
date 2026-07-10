@@ -5,9 +5,10 @@
 #include <vector>
 
 #include "aero/AeroModel.h"
-#include "control/Actuator.h"
+#include "control/ActuatorBank.h"
 #include "control/Controller.h"
 #include "control/FlightPlan.h"
+#include "core/Channel.h"
 #include "core/State.h"
 #include "core/Telemetry.h"
 #include "dynamics/EquationsOfMotion.h"
@@ -17,11 +18,15 @@
 #include "vehicle/Vehicle.h"
 
 // One vehicle's complete simulation stack: vehicle properties + aero +
-// controller + actuator + EOM + flight plan, plus its kinematic state.
+// controller + actuators + EOM + flight plan, plus its kinematic state.
 // Composition via Strategy interfaces -- any part can be swapped or null:
 //   null aero       -> no aerodynamic loads (e.g. kinematic targets)
 //   null controller -> zero control input
-//   null actuator   -> ideal (actual == commanded)
+//   null actuators  -> ideal (actual == commanded)
+//
+// The ChannelTable is the vehicle's declared actuator channels; the loader
+// builds it (components declare, the controller binds) BEFORE construction,
+// so every component's handles are already resolved against it.
 //
 // Two-phase stepping: propagate() computes the next state WITHOUT writing it;
 // the Simulation commits all entities afterwards so everyone reacts to the
@@ -32,10 +37,11 @@ public:
            std::unique_ptr<Vehicle>           vehicle,   // may be null for kinematic movers
            std::unique_ptr<AeroModel>         aero,
            std::unique_ptr<Controller>        controller,
-           std::unique_ptr<Actuator>          actuator,
+           std::unique_ptr<ActuatorBank>      actuators,
            std::unique_ptr<EquationsOfMotion> eom,
            FlightPlan                         flightPlan,
-           const State&                       initialState);
+           const State&                       initialState,
+           ChannelTable                       channels = {});
 
     // Guidance overlays the flight plan: fields the law sets win over the
     // scripted values. Attached after construction (needs the target's id).
@@ -72,11 +78,14 @@ private:
     std::unique_ptr<Vehicle>           vehicle_;
     std::unique_ptr<AeroModel>         aero_;
     std::unique_ptr<Controller>        controller_;
-    std::unique_ptr<Actuator>          actuator_;
+    std::unique_ptr<ActuatorBank>      actuators_;
     std::unique_ptr<EquationsOfMotion> eom_;
     std::unique_ptr<GuidanceLaw>       guidance_;
     std::vector<std::unique_ptr<Effector>> effectors_;
     FlightPlan                         flightPlan_;
+
+    ChannelTable  channels_;
+    ChannelHandle throttle_;   // propulsion demand (invalid if not declared)
 
     State     state_;
     Telemetry telem_;

@@ -14,6 +14,15 @@ int main() {
     const json::Value cfg = json::Value::parse(R"({"dir": "vehicles/f16"})");
     const auto aero = F16Aero::fromJson(cfg, ".");
 
+    ChannelTable table;
+    aero->declareChannels(table);
+    const ChannelHandle elevator = table.find("elevator");
+    const ChannelHandle aileron  = table.find("aileron");
+    const ChannelHandle rudder   = table.find("rudder");
+    CHECK(elevator.valid());
+    CHECK(aileron.valid());
+    CHECK(rudder.valid());
+
     const auto ref = csv::readKeyValue("vehicles/f16/reference.csv");
     const double S = ref.at("sref_m2"), b = ref.at("bref_m"), c = ref.at("cbar_m");
 
@@ -47,10 +56,10 @@ int main() {
         air.atmosphere.density = rho;
         air.atmosphere.soundSpeed = 340.0;
 
-        ControlInput ctl;
-        ctl.elevator = row[ei];
-        ctl.aileron  = row[li];
-        ctl.rudder   = row[ri];
+        ChannelValues ctl(table);
+        ctl.set(elevator, row[ei]);
+        ctl.set(aileron,  row[li]);
+        ctl.set(rudder,   row[ri]);
 
         const AeroForces f = aero->compute(s, air, ctl);
         const double qS = air.qbar * S;

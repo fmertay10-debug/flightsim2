@@ -18,6 +18,24 @@
 // Units/signs are the channel owner's contract (deflections in radians,
 // throttle dimensionless [0..1]); the owner documents them where it declares.
 
+// Canonical names of the standard channels (a vehicle declares only the ones
+// its components consume; new components may declare entirely new names).
+// Signs/units are the declaring component's contract:
+//   elevator > 0 : trailing edge down -> nose-DOWN pitching moment   [rad]
+//   aileron  > 0 : right-roll moment (right aileron up)              [rad]
+//   rudder   > 0 : trailing edge left -> nose-LEFT yawing moment     [rad]
+//   throttle     : propulsion demand                                 [0..1]
+//   tvc_pitch> 0 : nozzle gimballed to give a nose-UP moment         [rad]
+//   tvc_yaw  > 0 : nozzle gimballed to give a nose-RIGHT moment      [rad]
+namespace channels {
+inline constexpr const char* kElevator = "elevator";
+inline constexpr const char* kAileron  = "aileron";
+inline constexpr const char* kRudder   = "rudder";
+inline constexpr const char* kThrottle = "throttle";
+inline constexpr const char* kTvcPitch = "tvc_pitch";
+inline constexpr const char* kTvcYaw   = "tvc_yaw";
+} // namespace channels
+
 // Selects which parameter set of the vehicle's "actuator" config block
 // applies to the channel (see ActuatorBank).
 enum class ChannelKind {

@@ -26,8 +26,19 @@ std::unique_ptr<AeroModel> RocketAero::fromJson(const json::Value& cfg) {
     return std::make_unique<RocketAero>(ref, d);
 }
 
+void RocketAero::declareChannels(ChannelTable& table) {
+    // Declared travel is metadata; enforcement stays with the actuator config.
+    constexpr double lim = 0.7854;   // 45 deg
+    if (d_.cnde != 0.0 || d_.cmde != 0.0)
+        elevator_ = table.add({channels::kElevator, ChannelKind::Surface, -lim, lim});
+    if (d_.clda != 0.0)
+        aileron_ = table.add({channels::kAileron, ChannelKind::Surface, -lim, lim});
+    if (d_.cydr != 0.0 || d_.cndr != 0.0)
+        rudder_ = table.add({channels::kRudder, ChannelKind::Surface, -lim, lim});
+}
+
 AeroForces RocketAero::compute(const State& state, const AirData& air,
-                               const ControlInput& u) const {
+                               const ChannelValues& u) const {
     AeroForces out;
     const double V = air.airspeed;
     if (V < 1e-6 || air.qbar <= 0.0) return out;
@@ -41,18 +52,22 @@ AeroForces RocketAero::compute(const State& state, const AirData& air,
     const double qhat = state.angularRate.y * ref_.cbar / (2.0 * V);
     const double rhat = state.angularRate.z * ref_.cbar / (2.0 * V);
 
+    const double de = u.get(elevator_);
+    const double da = u.get(aileron_);
+    const double dr = u.get(rudder_);
+
     // --- Forces ---
     const double CA = d_.ca0;
-    const double CN = d_.cna * alpha + d_.cnde * u.elevator;
-    const double CY = d_.cyb * beta + d_.cydr * u.rudder;
+    const double CN = d_.cna * alpha + d_.cnde * de;
+    const double CY = d_.cyb * beta + d_.cydr * dr;
     out.force.x = -CA * qS;
     out.force.y =  CY * qS;
     out.force.z = -CN * qS;
 
     // --- Moments ---
-    const double Cl = d_.clp * phat + d_.clda * u.aileron;
-    const double Cm = d_.cma * alpha + d_.cmq * qhat + d_.cmde * u.elevator;
-    const double Cn = d_.cnb * beta  + d_.cnr * rhat + d_.cndr * u.rudder;
+    const double Cl = d_.clp * phat + d_.clda * da;
+    const double Cm = d_.cma * alpha + d_.cmq * qhat + d_.cmde * de;
+    const double Cn = d_.cnb * beta  + d_.cnr * rhat + d_.cndr * dr;
     out.moment.x = Cl * qS * ref_.bref;
     out.moment.y = Cm * qS * ref_.cbar;
     out.moment.z = Cn * qS * ref_.cbar;

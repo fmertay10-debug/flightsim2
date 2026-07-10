@@ -12,16 +12,20 @@
 // in. Control authority is proportional to thrust, so TVC works only while the
 // motor burns (zero authority after burnout, by construction).
 //
-// Sign convention (matches ControlInput): +tvcPitch -> nose-up (My>0),
-// +tvcYaw -> nose-right (Mz>0).
+// Sign convention (see core/Channel.h): +tvc_pitch -> nose-up (My>0),
+// +tvc_yaw -> nose-right (Mz>0).
 class TvcEffector : public Effector {
 public:
     TvcEffector(double nozzleStation, double maxGimbal)
         : nozzleStation_(nozzleStation), maxGimbal_(maxGimbal) {}
 
-    Wrench compute(const EffectorContext& ctx, const ControlInput& u) const override;
+    // Declares the two gimbal channels, limits = the mechanical gimbal stop.
+    void declareChannels(ChannelTable& table) override;
+
+    Wrench compute(const EffectorContext& ctx, const ChannelValues& u) const override;
 
 private:
     double nozzleStation_;   // [m, nose datum, aft positive]
     double maxGimbal_;       // [rad]
+    ChannelHandle pitch_, yaw_;
 };

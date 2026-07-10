@@ -38,8 +38,16 @@ std::unique_ptr<AeroModel> RocketTableAero::fromJson(const json::Value& cfg,
     return std::make_unique<RocketTableAero>(ref, std::move(t), xref);
 }
 
+void RocketTableAero::declareChannels(ChannelTable& table) {
+    // Declared travel is metadata; enforcement stays with the actuator config.
+    constexpr double lim = 0.7854;   // 45 deg
+    elevator_ = table.add({channels::kElevator, ChannelKind::Surface, -lim, lim});
+    aileron_  = table.add({channels::kAileron,  ChannelKind::Surface, -lim, lim});
+    rudder_   = table.add({channels::kRudder,   ChannelKind::Surface, -lim, lim});
+}
+
 AeroForces RocketTableAero::compute(const State& state, const AirData& air,
-                                    const ControlInput& u) const {
+                                    const ChannelValues& u) const {
     AeroForces out;
     const double V = air.airspeed;
     if (V < 1e-6 || air.qbar <= 0.0) return out;
@@ -56,9 +64,11 @@ AeroForces RocketTableAero::compute(const State& state, const AirData& air,
     // convention +delta -> nose RIGHT; this project defines +rudder = nose
     // LEFT (aircraft-style, see ControlInput.h), so the rudder is looked up
     // negated in both the force and moment tables.
-    const double dr = -u.rudder;
+    const double de = u.get(elevator_);
+    const double da = u.get(aileron_);
+    const double dr = -u.get(rudder_);
 
-    const double CN = t_.cn.eval(alpha, mach) + t_.dclCtrl.eval(u.elevator, mach);
+    const double CN = t_.cn.eval(alpha, mach) + t_.dclCtrl.eval(de, mach);
     const double CA = t_.ca.eval(alpha, mach);
     const double CM = t_.cm.eval(alpha, mach);
     const double CY = t_.cyb.eval(alpha, mach) * beta
@@ -70,10 +80,10 @@ AeroForces RocketTableAero::compute(const State& state, const AirData& air,
     const double rhat = state.angularRate.z * ref_.bref / (2.0 * V);
 
     const double CM_total = CM + t_.cmq.eval(alpha, mach) * qhat
-                          + t_.dcmCtrl.eval(u.elevator, mach);
+                          + t_.dcmCtrl.eval(de, mach);
 
     const double Cl_total = t_.clp.eval(alpha, mach) * phat
-                          + t_.clRoll.eval(u.aileron, mach);
+                          + t_.clRoll.eval(da, mach);
 
     // Weathercock is stabilizing with the leading minus; cnb and the reused
     // pitch control table are per-cbar quantities in a per-bref channel ->

@@ -32,14 +32,22 @@ std::unique_ptr<Controller> RocketController::fromJson(const json::Value& cfg) {
     return std::make_unique<RocketController>(g);
 }
 
-ControlInput RocketController::update(const State& state, const AirData& air,
-                                      const CommandSet& cmd, double dt) {
-    ControlInput out;
+std::vector<ChannelHandle> RocketController::bindChannels(const ChannelTable& t) {
+    elevator_ = t.require(channels::kElevator);
+    rudder_   = t.require(channels::kRudder);
+    aileron_  = t.find(channels::kAileron);
+    throttle_ = t.find(channels::kThrottle);
+    return {elevator_, rudder_, aileron_, throttle_};
+}
+
+void RocketController::update(const State& state, const AirData& air,
+                              const CommandSet& cmd, double dt,
+                              ChannelValues& out) {
     // Throttle passes through regardless (solid motors ignore it anyway).
-    out.throttle = cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0;
+    out.set(throttle_, cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0);
 
     // Fins are useless below min airspeed -- hold zero, don't wind up.
-    if (air.airspeed < g_.minAirspeed) return out;
+    if (air.airspeed < g_.minAirspeed) return;
 
     const Vector3 euler = state.eulerAngles();
     const double phi = euler.x, theta = euler.y, psi = euler.z;
@@ -49,26 +57,25 @@ ControlInput RocketController::update(const State& state, const AirData& air,
 
     // ---- Pitch program -> elevator (positive elevator pitches DOWN) ----
     const double thetaCmd = cmd.pitch ? *cmd.pitch : theta;
-    out.elevator = -pitchPid_.update(thetaCmd - theta, q, dt);
+    out.set(elevator_, -pitchPid_.update(thetaCmd - theta, q, dt));
 
     // Near vertical, roll (phi) and heading (psi) are ill-conditioned Euler
     // angles: tiny lateral tilts read as huge angle swings. Tracking them
     // there pumps energy into the airframe, so damp the body rates instead
     // and let weathercock stability keep the vehicle straight.
     if (std::abs(theta) > g_.verticalGuard) {
-        out.rudder  = std::clamp(g_.yawKd * r, -g_.maxFin, g_.maxFin);
-        out.aileron = std::clamp(-g_.rollKd * p, -g_.maxFin, g_.maxFin);
-        return out;
+        out.set(rudder_,  std::clamp(g_.yawKd * r, -g_.maxFin, g_.maxFin));
+        out.set(aileron_, std::clamp(-g_.rollKd * p, -g_.maxFin, g_.maxFin));
+        return;
     }
 
     // ---- Heading hold -> rudder (positive rudder yaws LEFT) ----
     const double psiCmd = cmd.heading ? *cmd.heading : psi;
-    out.rudder = -yawPid_.update(units::wrapAngle(psiCmd - psi), r, dt);
+    out.set(rudder_, -yawPid_.update(units::wrapAngle(psiCmd - psi), r, dt));
 
     // ---- Roll hold -> aileron (positive aileron rolls RIGHT) ----
     const double phiCmd = cmd.roll ? *cmd.roll : 0.0;
-    out.aileron = std::clamp(g_.rollKp * units::wrapAngle(phiCmd - phi) - g_.rollKd * p,
-                             -g_.maxFin, g_.maxFin);
-
-    return out;
+    out.set(aileron_,
+            std::clamp(g_.rollKp * units::wrapAngle(phiCmd - phi) - g_.rollKd * p,
+                       -g_.maxFin, g_.maxFin));
 }

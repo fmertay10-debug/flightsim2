@@ -11,11 +11,20 @@
 F16Aero::F16Aero(F16Tables tables, AeroReference ref, double xcgrCbar)
     : t_(std::move(tables)), ref_(ref), xcgr_(xcgrCbar) {}
 
+void F16Aero::declareChannels(ChannelTable& table) {
+    // Declared travel = the S&L surface limits (25 / 21.5 / 30 deg).
+    elevator_ = table.add({channels::kElevator, ChannelKind::Surface, -0.4363, 0.4363});
+    aileron_  = table.add({channels::kAileron,  ChannelKind::Surface, -0.3752, 0.3752});
+    rudder_   = table.add({channels::kRudder,   ChannelKind::Surface, -0.5236, 0.5236});
+}
+
 AeroForces F16Aero::compute(const State& state, const AirData& air,
-                            const ControlInput& u) const {
+                            const ChannelValues& u) const {
     AeroForces out;
     const double V = air.airspeed;
     if (V < 1e-6 || air.qbar <= 0.0) return out;
+
+    const double elevator = u.get(elevator_);
 
     // alpha from body velocity (AirData); beta per S&L definition asin(v/V).
     const double alpha = air.alpha;
@@ -26,9 +35,9 @@ AeroForces F16Aero::compute(const State& state, const AirData& air,
     // enter normalized by their travel limits (20 / 30 deg).
     constexpr double R2D = 180.0 / 3.14159265358979323846;
     const double betaDeg = beta * R2D;
-    const double elDeg   = u.elevator * R2D;
-    const double dail    = u.aileron * R2D / 20.0;
-    const double drdr    = u.rudder  * R2D / 30.0;
+    const double elDeg   = elevator * R2D;
+    const double dail    = u.get(aileron_) * R2D / 20.0;
+    const double drdr    = u.get(rudder_)  * R2D / 30.0;
 
     const double p = state.angularRate.x, q = state.angularRate.y,
                  r = state.angularRate.z;
@@ -36,7 +45,7 @@ AeroForces F16Aero::compute(const State& state, const AirData& air,
     const double b2v = ref_.bref / (2.0 * V);
 
     // --- The 6-coefficient buildup (S&L Appendix A) ---
-    const double CXT = t_.cx.eval(alpha, u.elevator) + cq * t_.cxq.eval(alpha);
+    const double CXT = t_.cx.eval(alpha, elevator) + cq * t_.cxq.eval(alpha);
 
     const double CYT = -0.02 * betaDeg + 0.021 * dail + 0.086 * drdr
                      + b2v * (t_.cyr.eval(alpha) * r + t_.cyp.eval(alpha) * p);
@@ -50,7 +59,7 @@ AeroForces F16Aero::compute(const State& state, const AirData& air,
                      + t_.dldr.eval(alpha, beta) * drdr
                      + b2v * (t_.clr.eval(alpha) * r + t_.clp.eval(alpha) * p);
 
-    const double CMT = t_.cm.eval(alpha, u.elevator) + cq * t_.cmq.eval(alpha);
+    const double CMT = t_.cm.eval(alpha, elevator) + cq * t_.cmq.eval(alpha);
 
     const double CNT = t_.cn.eval(alpha, beta)
                      + t_.dnda.eval(alpha, beta) * dail

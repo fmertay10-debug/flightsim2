@@ -16,14 +16,37 @@ CsvLogger::CsvLogger(int entityId, const std::string& path, int decimation)
     out_.open(path, std::ios::trunc);
     if (!out_)
         throw std::runtime_error("CsvLogger: cannot open '" + path + "'");
+    out_ << std::setprecision(8);
+}
+
+void CsvLogger::writeHeader(const ChannelTable* table) {
+    headerWritten_ = true;
+    if (table) {
+        elevator_ = table->find(channels::kElevator);
+        aileron_  = table->find(channels::kAileron);
+        rudder_   = table->find(channels::kRudder);
+        throttle_ = table->find(channels::kThrottle);
+        tvcPitch_ = table->find(channels::kTvcPitch);
+        tvcYaw_   = table->find(channels::kTvcYaw);
+        for (int i = 0; i < table->size(); ++i) {
+            const std::string& n = table->def(i).name;
+            if (n != channels::kElevator && n != channels::kAileron &&
+                n != channels::kRudder && n != channels::kThrottle &&
+                n != channels::kTvcPitch && n != channels::kTvcYaw)
+                extras_.push_back(i);
+        }
+    }
 
     out_ << "time,x,y,z,vx,vy,vz,phi,theta,psi,p,q,r,"
             "elevator,aileron,rudder,throttle,"
             "elevator_cmd,aileron_cmd,rudder_cmd,throttle_cmd,"
-            "tvc_pitch,tvc_yaw,"
-            "alpha,beta,mach,airspeed,altitude,mass,thrust,"
+            "tvc_pitch,tvc_yaw,";
+    for (const int i : extras_) {
+        const std::string& n = table->def(i).name;
+        out_ << n << ',' << n << "_cmd,";
+    }
+    out_ << "alpha,beta,mach,airspeed,altitude,mass,thrust,"
             "pitch_sp,roll_sp,heading_sp,altitude_sp,speed_sp\n";
-    out_ << std::setprecision(8);
 }
 
 namespace {
@@ -37,6 +60,7 @@ double sp(const std::optional<double>& v) {
 void CsvLogger::onStep(const Telemetry& t) {
     if (t.id != entityId_) return;
     if (count_++ % decimation_ != 0) return;
+    if (!headerWritten_) writeHeader(t.channels);
 
     const State& s = t.state;
     const Vector3 e = s.eulerAngles();
@@ -45,12 +69,14 @@ void CsvLogger::onStep(const Telemetry& t) {
          << s.velocity.x << ',' << s.velocity.y << ',' << s.velocity.z << ','
          << e.x << ',' << e.y << ',' << e.z << ','
          << s.angularRate.x << ',' << s.angularRate.y << ',' << s.angularRate.z << ','
-         << t.control.elevator << ',' << t.control.aileron << ','
-         << t.control.rudder << ',' << t.control.throttle << ','
-         << t.controlCmd.elevator << ',' << t.controlCmd.aileron << ','
-         << t.controlCmd.rudder << ',' << t.controlCmd.throttle << ','
-         << t.control.tvcPitch << ',' << t.control.tvcYaw << ','
-         << t.air.alpha << ',' << t.air.beta << ',' << t.air.mach << ','
+         << t.control.get(elevator_) << ',' << t.control.get(aileron_) << ','
+         << t.control.get(rudder_) << ',' << t.control.get(throttle_) << ','
+         << t.controlCmd.get(elevator_) << ',' << t.controlCmd.get(aileron_) << ','
+         << t.controlCmd.get(rudder_) << ',' << t.controlCmd.get(throttle_) << ','
+         << t.control.get(tvcPitch_) << ',' << t.control.get(tvcYaw_) << ',';
+    for (const int i : extras_)
+        out_ << t.control.at(i) << ',' << t.controlCmd.at(i) << ',';
+    out_ << t.air.alpha << ',' << t.air.beta << ',' << t.air.mach << ','
          << t.air.airspeed << ',' << s.altitude() << ','
          << t.mass << ',' << t.thrust << ','
          << sp(t.setpoint.pitch) << ',' << sp(t.setpoint.roll) << ','
@@ -59,5 +85,6 @@ void CsvLogger::onStep(const Telemetry& t) {
 }
 
 void CsvLogger::onFinish() {
+    if (!headerWritten_) writeHeader(nullptr);
     out_.flush();
 }
