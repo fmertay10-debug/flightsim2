@@ -63,12 +63,20 @@ so you can fly the same airframe with PID or LQR by editing one line.
 
 Control reaches the airframe through **effectors**. Two physical families:
 
-- **Aerodynamic** (fins): the deflections in `ControlInput` feed the `AeroModel`,
+- **Aerodynamic** (fins): the surface deflection channels feed the `AeroModel`,
   which changes the airflow. This is implicit — any aero model that reads the
   surfaces is a fin effector.
 - **Propulsive / reaction** (a pluggable effector list on the Entity): the
   default is an axial `ThrustEffector`; adding a `thrust_vectoring` block swaps
   in a `TvcEffector` that gimbals the thrust for pitch/yaw moments.
+
+Control commands flow as **named channels** (`src/core/Channel.h`): each
+component *declares* the channels it consumes (`elevator`, `tvc_pitch`, ...)
+and the controller *binds* the channels it writes, once, at load. The loader
+validates the pairing — a controller whose required channel nothing on the
+vehicle declares fails with an error that lists what IS declared. A derivative
+aero model only declares surfaces with nonzero control derivatives, so pairing
+`method: "pid"` with a control-derivative-free TVC airframe is caught too.
 
 ```json
 "thrust_vectoring": { "nozzle_station_m": 6.0, "max_gimbal_deg": 6 }
@@ -83,10 +91,12 @@ are near-neutral or unstable in pitch (that's *why* they need TVC), so give the
 `aero` block a small `cma` and no control derivatives — see `vehicles/tvc_rocket.json`
 and `scenarios/tvc_launch.json`.
 
-**To add a new control METHOD** (e.g. RCS): implement an `Effector` subclass +
-register it in `effector::build`, add a `Controller` that commands its channels
-+ register the method in `control::Factory`, and add the command channels to
-`ControlInput`. Nothing in `sim/`, `dynamics/`, or the other blocks changes.
+**To add a new control METHOD** (e.g. RCS): implement an `Effector` subclass
+that *declares* its own channels (e.g. `rcs_roll`) + register it in
+`effector::build`, and add a `Controller` that *binds* and writes those
+channels + register the method in `control::Factory`. No shared struct to
+edit — channel names are the whole contract. Nothing in `sim/`, `dynamics/`,
+or the other blocks changes.
 
 ## Worked example: a fin-controlled rocket, PID → LQR
 

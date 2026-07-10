@@ -19,9 +19,9 @@ MinGW builds link `-static` on purpose (mixed libstdc++ DLLs on PATH cause
 - NED inertial frame, z down, `altitude = -position.z`. Body: x fwd, y right, z down.
 - Quaternion is scalar-first (w,x,y,z), inertial → body, `normalize()` every EOM step.
 - Forward Euler integration, fixed dt. Intentional (matches flightsim v1 behavior).
-- Control sign conventions (see `src/core/ControlInput.h`): +elevator = nose DOWN,
+- Control sign conventions (see `src/core/Channel.h`): +elevator = nose DOWN,
   +rudder = nose LEFT, +aileron = right roll. Controllers flip signs accordingly
-  (`out.elevator = -pitchPid...`).
+  (`out.set(elevator_, -pitchPid...)`).
 - RocketAero axisymmetric mirror defaults: `cnb=-cma`, `cnr=cmq`, `cndr=cmde`,
   `cyb=-cna`, `cydr=-cnde` — deliberate, overridable per config.
 - Config files: degrees/`_dps` keys, converted ONCE at the loading boundary
@@ -31,20 +31,33 @@ MinGW builds link `-static` on purpose (mixed libstdc++ DLLs on PATH cause
 
 ## Control effectors (how control enters the sim)
 
+Control commands flow as NAMED CHANNELS (`src/core/Channel.h`, replaced the old
+ControlInput union): force-producing components DECLARE the channels they consume
+(`declareChannels`, e.g. `elevator`, `tvc_pitch`) and the controller BINDS the
+channels it writes (`bindChannels`) — both once, at load, in the scenario loader.
+Required channels with no consumer throw there (listing what IS declared), so a
+mismatched controller/airframe pairing fails at load instead of silently flying
+open-loop. Derivative aero models declare only surfaces with nonzero control
+derivatives — that's what makes the validation real. Runtime is index-based
+(`ChannelValues`, fixed capacity, no string lookups in the loop). Per-channel
+servo dynamics live in `ActuatorBank` (lag + slew rate + stop from the vehicle's
+`actuator` block, parameter set picked by ChannelKind).
+
 Control reaches the vehicle two physical ways, kept deliberately separate:
-- **Aerodynamic** control (fins) acts THROUGH the AeroModel — the surfaces in
-  ControlInput change the airflow. Stays inside the aero models.
+- **Aerodynamic** control (fins) acts THROUGH the AeroModel — the surface
+  channels change the airflow. Stays inside the aero models.
 - **Propulsive/reaction** control is a pluggable **Effector list** on the Entity
-  (`src/effector/`). Each Effector maps ControlInput + flight condition to a
+  (`src/effector/`). Each Effector maps its channels + flight condition to a
   body-frame `Wrench` (about the CG). The Entity sums them (this replaced the old
   inline axial-thrust term, so `ThrustEffector` reproduces it exactly).
-  - `ThrustEffector` (default): axial thrust, no moment.
-  - `TvcEffector`: gimbaled thrust; My = arm*T*sin(tvcPitch) (nose-up for +),
-    Mz = -arm*T*sin(tvcYaw)... (nose-right for +). arm = nozzleStation - xcg, so
+  - `ThrustEffector` (default): axial thrust, no moment, no channels.
+  - `TvcEffector`: gimbaled thrust; My = arm*T*sin(tvc_pitch) (nose-up for +),
+    Mz = -arm*T*sin(tvc_yaw)... (nose-right for +). arm = nozzleStation - xcg, so
     it grows as the CG moves forward and goes to zero at burnout (thrust=0).
-- New control method = Effector subclass (+ `effector::build` branch) + Controller
-  (+ `control::Factory` "method" branch) + ControlInput channels. That's the
-  whole contract; sim/dynamics/mass/aero are untouched.
+- New control method = Effector subclass declaring its own channels
+  (+ `effector::build` branch) + Controller binding them (+ `control::Factory`
+  "method" branch). No shared struct to edit — channel names are the whole
+  contract; sim/dynamics/mass/aero are untouched.
 - Moment sign reminder: body My>0 = nose UP, Mz>0 = nose RIGHT (q_dot=My/Iyy).
   Fin controllers flip elevator sign (`-pitchPid`); the TVC controller does NOT
   (its gimbal sign is defined so +command = +attitude directly).
