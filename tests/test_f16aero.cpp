@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "aero/F16Aero.h"
+#include "models/f16/F16Aero.h"
 #include "io/CsvReader.h"
 #include "io/Json.h"
 

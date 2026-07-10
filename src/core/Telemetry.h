@@ -5,7 +5,7 @@
 #include "core/State.h"
 #include "core/Channel.h"
 #include "core/AirData.h"
-#include "control/CommandSet.h"
+#include "gnc/CommandSet.h"
 
 // One entity's full record at one instant -- what every observer consumes.
 // Channel values are indexed by the entity's ChannelTable (`channels`, owned

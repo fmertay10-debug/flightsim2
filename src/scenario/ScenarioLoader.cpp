@@ -5,10 +5,10 @@
 #include <map>
 #include <stdexcept>
 
-#include "control/ActuatorBank.h"
-#include "control/ControllerFactory.h"
+#include "gnc/ActuatorBank.h"
+#include "gnc/ControlLawFactory.h"
 #include "dynamics/EomFactory.h"
-#include "guidance/GuidanceFactory.h"
+#include "gnc/GuidanceFactory.h"
 #include "io/Json.h"
 #include "math/Units.h"
 #include "sim/CsvLogger.h"
@@ -69,7 +69,7 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
 
     // Kinematic movers need no vehicle definition at all.
     std::unique_ptr<Vehicle>      veh;
-    std::unique_ptr<Controller>   controller;
+    std::unique_ptr<ControlLaw>   controller;
     std::unique_ptr<ActuatorBank> actuators;
     ChannelTable channels;
 
@@ -107,7 +107,7 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
         if (definition.has("gnc")) {
             const json::Value& gnc = definition.at("gnc");
             if (gnc.has("control_law"))
-                controller = control::Factory::create(gnc.at("control_law"),
+                controller = gnc::Factory::create(gnc.at("control_law"),
                                                       baseDir.string());
             if (gnc.has("actuator"))
                 actuators = ActuatorBank::fromJson(gnc.at("actuator"), channels);

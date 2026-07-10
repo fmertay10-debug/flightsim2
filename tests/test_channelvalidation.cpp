@@ -4,10 +4,10 @@
 #include <stdexcept>
 #include <string>
 
-#include "aero/RocketAero.h"
+#include "models/rocket/RocketAero.h"
 #include "component/Propulsor.h"
-#include "control/RocketController.h"
-#include "control/TvcController.h"
+#include "gnc/RocketPidLaw.h"
+#include "gnc/TvcPidLaw.h"
 #include "io/Json.h"
 #include "propulsion/SolidMotor.h"
 #include "scenario/ScenarioLoader.h"
@@ -53,7 +53,7 @@ int main() {
         auto aero = RocketAero::fromJson(finAero);
         aero->declareChannels(t);
         motor(std::nullopt)->declareChannels(t);       // axial mount: no gimbal
-        auto ctl = TvcController::fromJson(json::Value::parse("{}"));
+        auto ctl = TvcPidLaw::fromJson(json::Value::parse("{}"));
         CHECK(throwsMentioning([&] { ctl->bindChannels(t); }, "tvc_pitch"));
     }
 
@@ -63,7 +63,7 @@ int main() {
         auto aero = RocketAero::fromJson(tvcAero);
         aero->declareChannels(t);                      // declares NOTHING
         motor(Propulsor::Gimbal{6.0, 0.1})->declareChannels(t);
-        auto ctl = RocketController::fromJson(json::Value::parse("{}"));
+        auto ctl = RocketPidLaw::fromJson(json::Value::parse("{}"));
         CHECK(throwsMentioning([&] { ctl->bindChannels(t); }, "elevator"));
     }
 
@@ -72,7 +72,7 @@ int main() {
         ChannelTable t;
         auto aero = RocketAero::fromJson(finAero);
         aero->declareChannels(t);
-        auto ctl = RocketController::fromJson(json::Value::parse("{}"));
+        auto ctl = RocketPidLaw::fromJson(json::Value::parse("{}"));
         for (const ChannelHandle h : ctl->bindChannels(t))
             (void)h;                                    // no throw is the check
         CHECK(t.find("elevator").valid());

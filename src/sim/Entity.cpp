@@ -8,7 +8,7 @@
 
 Entity::Entity(std::string name,
                std::unique_ptr<Vehicle>           vehicle,
-               std::unique_ptr<Controller>        controller,
+               std::unique_ptr<ControlLaw>        controller,
                std::unique_ptr<ActuatorBank>      actuators,
                std::unique_ptr<EquationsOfMotion> eom,
                FlightPlan                         flightPlan,
@@ -16,7 +16,7 @@ Entity::Entity(std::string name,
                ChannelTable                       channels)
     : name_(std::move(name)),
       vehicle_(std::move(vehicle)),
-      controller_(std::move(controller)),
+      controlLaw_(std::move(controller)),
       actuators_(std::move(actuators)),
       eom_(std::move(eom)),
       flightPlan_(std::move(flightPlan)),
@@ -54,7 +54,7 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     //    and wins over the scripted plan on the fields it sets.
     ChannelValues commanded(channels_);
     CommandSet cmd;
-    if (controller_) {
+    if (controlLaw_) {
         cmd = flightPlan_.at(s.time);
         if (guidance_) {
             const CommandSet g = guidance_->update(s, world, dt);
@@ -65,7 +65,7 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
             if (g.speed)    cmd.speed    = g.speed;
             if (g.throttle) cmd.throttle = g.throttle;
         }
-        controller_->update(s, air, cmd, dt, commanded);
+        controlLaw_->update(s, air, cmd, dt, commanded);
     }
     const ChannelValues actual = actuators_ ? actuators_->apply(commanded, dt)
                                             : commanded;

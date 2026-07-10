@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "guidance/ProNav3D.h"
-#include "guidance/PurePursuit.h"
+#include "gnc/ProNav3D.h"
+#include "gnc/PurePursuit.h"
 #include "math/Units.h"
 
 namespace {

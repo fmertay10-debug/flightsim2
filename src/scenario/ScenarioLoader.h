@@ -36,7 +36,7 @@
 //   "type": "aircraft" | "rocket" | <registered custom type>,
 //   "mass_kg": ..., "inertia": {"ixx": ..., "iyy": ..., "izz": ...},
 //   "aero":       { type-specific coefficient block  -> aero::Factory },
-//   "controller": { type-specific gains/limits block -> control::Factory },
+//   "controller": { type-specific gains/limits block -> gnc::Factory },
 //   "propulsion": { "type": "none" | "turbojet" | "solid_motor", ... },
 //   "actuator":   { "tau_s": ..., "rate_dps": ..., "limit_deg": ... }   // optional
 // }

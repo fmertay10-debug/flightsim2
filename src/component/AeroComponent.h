@@ -3,7 +3,7 @@
 #include <memory>
 #include <utility>
 
-#include "aero/AeroModel.h"
+#include "component/AeroModel.h"
 #include "component/ForceComponent.h"
 
 // Adapts an AeroModel to the ForceComponent contract. The aero models keep

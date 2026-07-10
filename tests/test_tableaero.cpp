@@ -1,6 +1,6 @@
 #include "test_util.h"
 
-#include "aero/RocketTableAero.h"
+#include "models/rocket/RocketTableAero.h"
 #include "io/CsvReader.h"
 #include "io/Json.h"
 

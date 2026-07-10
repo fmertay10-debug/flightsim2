@@ -4,15 +4,15 @@
 #include <string>
 #include <vector>
 
-#include "control/ActuatorBank.h"
-#include "control/Controller.h"
-#include "control/FlightPlan.h"
+#include "gnc/ActuatorBank.h"
+#include "gnc/ControlLaw.h"
+#include "gnc/FlightPlan.h"
 #include "core/Channel.h"
 #include "core/State.h"
 #include "core/Telemetry.h"
 #include "dynamics/EquationsOfMotion.h"
 #include "environment/Environment.h"
-#include "guidance/GuidanceLaw.h"
+#include "gnc/GuidanceLaw.h"
 #include "vehicle/Vehicle.h"
 
 // An object in the simulated world: kinematic state + an integrator,
@@ -33,7 +33,7 @@ class Entity {
 public:
     Entity(std::string name,
            std::unique_ptr<Vehicle>           vehicle,   // may be null for kinematic movers
-           std::unique_ptr<Controller>        controller,
+           std::unique_ptr<ControlLaw>        controller,
            std::unique_ptr<ActuatorBank>      actuators,
            std::unique_ptr<EquationsOfMotion> eom,
            FlightPlan                         flightPlan,
@@ -67,7 +67,7 @@ private:
     bool        alive_ = true;
 
     std::unique_ptr<Vehicle>           vehicle_;
-    std::unique_ptr<Controller>        controller_;
+    std::unique_ptr<ControlLaw>        controlLaw_;
     std::unique_ptr<ActuatorBank>      actuators_;
     std::unique_ptr<EquationsOfMotion> eom_;
     std::unique_ptr<GuidanceLaw>       guidance_;

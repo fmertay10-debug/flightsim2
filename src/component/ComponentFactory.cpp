@@ -7,14 +7,14 @@
 #include <utility>
 #include <vector>
 
-#include "aero/AircraftAero.h"
-#include "aero/F16Aero.h"
-#include "aero/RocketAero.h"
-#include "aero/RocketTableAero.h"
+#include "models/aircraft/AircraftAero.h"
+#include "models/f16/F16Aero.h"
+#include "models/rocket/RocketAero.h"
+#include "models/rocket/RocketTableAero.h"
 #include "component/AeroComponent.h"
 #include "component/Propulsor.h"
 #include "math/Units.h"
-#include "propulsion/F16Engine.h"
+#include "models/f16/F16Engine.h"
 #include "propulsion/SolidMotor.h"
 #include "propulsion/TabulatedThrust.h"
 #include "propulsion/Turbojet.h"

@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "control/ActuatorBank.h"
+#include "gnc/ActuatorBank.h"
 #include "core/Channel.h"
 #include "test_util.h"
 
