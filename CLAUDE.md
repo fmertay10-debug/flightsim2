@@ -29,35 +29,31 @@ MinGW builds link `-static` on purpose (mixed libstdc++ DLLs on PATH cause
 - Two-phase step (snapshot → propagate → commit) in `Simulation::step` keeps
   multi-vehicle runs order-independent. `Entity::propagate` must not mutate state.
 
-## Control effectors (how control enters the sim)
+## Force components + channels (how loads and control enter the sim)
+
+A Vehicle = MassModel + a flat list of **ForceComponents** (`src/component/`,
+ADR-0001). Each component maps `(state, air, channels) → body Wrench` about its
+own `momentReferenceStation()` (NaN = about CG); the Entity transfers each to
+the current CG and sums them. Gravity is applied by the Entity (it SEEDS the
+force accumulator — that exact FP summation order reproduces the pre-component
+results bit-for-bit; don't reorder it casually). Aero models are wrapped by
+`AeroComponent`; a motor + its mount is one `Propulsor` component (axial by
+default, gimbaled TVC with a `"gimbal"` config block; My = arm*T*sin(tvc_pitch)
+nose-up for +, Mz = -arm*T*sin(tvc_yaw) nose-right for +, arm = nozzleStation -
+xcg so authority grows as CG moves forward and dies at burnout).
 
 Control commands flow as NAMED CHANNELS (`src/core/Channel.h`, replaced the old
-ControlInput union): force-producing components DECLARE the channels they consume
-(`declareChannels`, e.g. `elevator`, `tvc_pitch`) and the controller BINDS the
-channels it writes (`bindChannels`) — both once, at load, in the scenario loader.
+ControlInput union): components DECLARE the channels they consume
+(`declareChannels`, e.g. `elevator`, `tvc_pitch`; motors own `throttle`) and the
+controller BINDS the channels it writes (`bindChannels`) — both once, at load.
 Required channels with no consumer throw there (listing what IS declared), so a
 mismatched controller/airframe pairing fails at load instead of silently flying
 open-loop. Derivative aero models declare only surfaces with nonzero control
 derivatives — that's what makes the validation real. Runtime is index-based
 (`ChannelValues`, fixed capacity, no string lookups in the loop). Per-channel
 servo dynamics live in `ActuatorBank` (lag + slew rate + stop from the vehicle's
-`actuator` block, parameter set picked by ChannelKind).
+`gnc.actuator` block, parameter set picked by ChannelKind).
 
-Control reaches the vehicle two physical ways, kept deliberately separate:
-- **Aerodynamic** control (fins) acts THROUGH the AeroModel — the surface
-  channels change the airflow. Stays inside the aero models.
-- **Propulsive/reaction** control is a pluggable **Effector list** on the Entity
-  (`src/effector/`). Each Effector maps its channels + flight condition to a
-  body-frame `Wrench` (about the CG). The Entity sums them (this replaced the old
-  inline axial-thrust term, so `ThrustEffector` reproduces it exactly).
-  - `ThrustEffector` (default): axial thrust, no moment, no channels.
-  - `TvcEffector`: gimbaled thrust; My = arm*T*sin(tvc_pitch) (nose-up for +),
-    Mz = -arm*T*sin(tvc_yaw)... (nose-right for +). arm = nozzleStation - xcg, so
-    it grows as the CG moves forward and goes to zero at burnout (thrust=0).
-- New control method = Effector subclass declaring its own channels
-  (+ `effector::build` branch) + Controller binding them (+ `control::Factory`
-  "method" branch). No shared struct to edit — channel names are the whole
-  contract; sim/dynamics/mass/aero are untouched.
 - Moment sign reminder: body My>0 = nose UP, Mz>0 = nose RIGHT (q_dot=My/Iyy).
   Fin controllers flip elevator sign (`-pitchPid`); the TVC controller does NOT
   (its gimbal sign is defined so +command = +attitude directly).
@@ -66,23 +62,32 @@ Control reaches the vehicle two physical ways, kept deliberately separate:
   roll is left to aero damping (single nozzle = pitch/yaw only). See
   vehicles/tvc_rocket.json.
 
+## Config schema (components[] + gnc, since increment 2)
+
+Vehicle JSON: `mass` block (or legacy flat `mass_kg`+`inertia`, which adds solid
+propellant to dry mass) + `"components": [...]` (each entry names its
+implementation via explicit `"type"` — no key-sniffing, no vehicle-type
+dispatch) + `"gnc": {"control_law": {"type": ...}, "actuator": {...}}`. The old
+schema (top-level aero/propulsion/thrust_vectoring/controller/actuator) is a
+LOAD ERROR by design (clean break). Component order in the array is the compute
+order — keep aero first, motor second for bit-identical results.
+
 ## Where things extend
 
-The vehicle is Lego blocks (aero / mass / propulsion / effectors / controller),
-each a Strategy + factory. See docs/BUILDING_VEHICLES.md.
+Everything is a registry (see docs/BUILDING_VEHICLES.md):
 
-- New aero (per vehicle type) = AeroModel subclass registered in `aero::Factory`
-  (registry in AeroFactory.cpp). Builder takes `baseDir` for data paths. Report
-  moments about `momentReferenceStation()` (NaN = about CG, no transfer); the
-  Entity transfers to the current CG using `MassState::xcg`.
+- New force producer (aero, motor, RCS, rotor...) = ForceComponent subclass +
+  `component::Factory::registerComponent`. Aero models can stay AeroModel
+  subclasses wrapped in `AeroComponent`; component types: aircraft_aero /
+  f16_aero / rocket_aero / rocket_table_aero / turbojet / solid_motor /
+  tabulated_thrust / f16_engine.
 - New mass model = MassModel subclass + branch in `vehicle::create` (`mass`
   block: "constant" | "tabulated").
-- New propulsion = PropulsionModel subclass + branch in `propulsion::create`.
-  `thrust(PropulsionContext&)` is non-const (engines advance spool state).
-- New controller / control law = Controller subclass. Register a per-type
-  default in `control::Factory`, OR add a `method` branch (like "lqr" ->
-  ScheduledController) so it's selectable independent of the airframe.
-- New guidance law = GuidanceLaw subclass + branch in `guidance::create`.
+- New control law = Controller subclass +
+  `control::Factory::registerControlLaw` (types: aircraft_pid / rocket_pid /
+  tvc_pid / scheduled / lqr). Chosen independent of the airframe.
+- New guidance law = GuidanceLaw subclass + `guidance::Factory::registerLaw`
+  (types: pro_nav / pure_pursuit).
 - Multi-vehicle interactions read others via the `WorldView` in
   `Entity::propagate`; the intercept watch lives in `Simulation::step`.
 

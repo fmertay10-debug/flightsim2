@@ -182,13 +182,14 @@ def build_vehicle_json(d, veh, scale, mass_kg, controlled, outdir, variable=Fals
     thrust = round(8.0 * 9.80665 * mass_kg, -1)
 
     aero = {
+        "type": "rocket_table_aero",
         "sref_m2": round(float(d["sref"]) * scale ** 2, 6),
         "cbar_m": round(float(d["cbar"]) * scale, 4),
         "bref_m": round(float(d["blref"]) * scale, 4),
         "tables_csv": "aero_tables.csv",
         "control_csv": "control_tables.csv",
     }
-    cfg = {"type": "rocket", "aero": aero}
+    cfg = {}
 
     if variable:
         # Lego blocks: tabulated mass (mass/inertia/CG vs time) + tabulated
@@ -197,17 +198,32 @@ def build_vehicle_json(d, veh, scale, mass_kg, controlled, outdir, variable=Fals
         write_variable_tables(outdir, mass_kg, length_m, diameter_m, xref_m)
         aero["xref_m"] = xref_m
         cfg["mass"] = {"model": "tabulated", "table": "mass_props.csv"}
-        cfg["propulsion"] = {"type": "tabulated_thrust", "table": "thrust.csv"}
+        motor = {"type": "tabulated_thrust", "table": "thrust.csv"}
     else:
         # Constant mass (dry) + solid motor adds propellant; no CG travel.
         cfg["mass_kg"] = round(dry, 2)
         cfg["inertia"] = {"ixx": round(ixx, 3), "iyy": round(iyy, 1),
                           "izz": round(iyy, 1)}
-        cfg["propulsion"] = {
+        motor = {
             "type": "solid_motor",
             "propellant_kg": round(prop, 2),
             "thrust_curve": [[0.0, thrust], [0.2, thrust * 1.15],
                              [5.0, thrust * 1.05], [5.5, 0.0]],
+        }
+    cfg["components"] = [aero, motor]
+
+    if controlled:
+        cfg["gnc"] = {
+            "control_law": {
+                "type": "rocket_pid",
+                "gains": {
+                    "pitch_kp": 0.08, "pitch_ki": 0.02, "pitch_kd": 0.05,
+                    "yaw_kp": 0.08, "yaw_ki": 0.02, "yaw_kd": 0.05,
+                    "roll_kp": 0.05, "roll_kd": 0.02,
+                },
+                "limits": {"max_fin_deg": 15, "min_airspeed_ms": 15},
+            },
+            "actuator": {"tau_s": 0.03, "rate_dps": 200, "limit_deg": 15},
         }
 
     cfg["geometry"] = {   # informational + used by the visualizer
@@ -216,16 +232,6 @@ def build_vehicle_json(d, veh, scale, mass_kg, controlled, outdir, variable=Fals
         "xcg_m": xref_m,
         "mesh": "mesh.json",
     }
-    if controlled:
-        cfg["controller"] = {
-            "gains": {
-                "pitch_kp": 0.08, "pitch_ki": 0.02, "pitch_kd": 0.05,
-                "yaw_kp": 0.08, "yaw_ki": 0.02, "yaw_kd": 0.05,
-                "roll_kp": 0.05, "roll_kd": 0.02,
-            },
-            "limits": {"max_fin_deg": 15, "min_airspeed_ms": 15},
-        }
-        cfg["actuator"] = {"tau_s": 0.03, "rate_dps": 200, "limit_deg": 15}
 
     path = os.path.join(outdir, "vehicle.json")
     with open(path, "w") as f:
@@ -290,9 +296,10 @@ def main():
         print(f"  thrust.csv          variable thrust vs time")
         print(f"  mass_props.csv      variable mass/inertia/CG vs time (CG travel)")
         print(f"  vehicle.json        tabulated mass + tabulated thrust + DATCOM aero"
-              f" (xref {cfg['aero']['xref_m']} m)")
+              f" (xref {cfg['components'][0]['xref_m']} m)")
     else:
-        print(f"  vehicle.json        mass {mass:.1f} kg, sref {cfg['aero']['sref_m2']} m^2, "
+        print(f"  vehicle.json        mass {mass:.1f} kg, "
+              f"sref {cfg['components'][0]['sref_m2']} m^2, "
               f"length {cfg['geometry']['length_m']} m")
     print(f"  mesh.json           3-D geometry for the visualizer")
 

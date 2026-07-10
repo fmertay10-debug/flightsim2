@@ -25,46 +25,50 @@ mass, thrust) you can plot with anything.
 
 ```
 scenarios/         scenario files: sim settings, environment, vehicle list, flight plans
-vehicles/          vehicle definition files: mass, aero, propulsion, controller, actuator
+vehicles/          vehicle definitions: mass + components[] (aero, motors) + gnc block
   generated/       DATCOM-derived vehicles (built by tools/datcom_export.py)
 datcom/            vendored pydatcom: DATCOM output parser + example rockets (no ML)
 tools/             Python: datcom_export.py, visualize.py, meshes.py
 output/            sim CSV logs + generated HTML viewers (gitignored)
 src/
   math/            Vector3, Matrix3x3, Quaternion (scalar-first), lookup tables, units
-  core/            shared currency structs: State, ControlInput, AirData, Telemetry
+  core/            shared currency structs: State, Channel(Table/Values), AirData, Telemetry
   io/              minimal JSON parser (// comments) + tidy-CSV / key-value reader
   environment/     ISA atmosphere; gravity + wind Strategies
   dynamics/        EOM Strategies: six_dof, point_mass, kinematic (+ factory)
-  propulsion/      Strategies: turbojet, solid_motor, tabulated_thrust (thrust(t)),
-                   f16_engine (idle/mil/max + power dynamics), none
-  effector/        Effector Strategy (control -> body wrench): ThrustEffector
-                   (axial), TvcEffector (gimbaled thrust); pluggable list on Entity
+  component/       ForceComponent Strategy (state+channels -> body wrench) + registry:
+                   AeroComponent (wraps an AeroModel), Propulsor (motor + axial or
+                   gimbaled/TVC mount; owns the throttle + tvc channels)
+  propulsion/      PropulsionModel Strategies: turbojet, solid_motor,
+                   tabulated_thrust (thrust(t)), f16_engine (idle/mil/max + power dynamics)
   mass/            MassModel Strategy: constant, tabulated (mass/inertia/CG vs time)
-  aero/            AeroModel per vehicle type: AircraftAero, RocketAero (derivatives),
-                   RocketTableAero (DATCOM tables), F16Aero (wind-tunnel tables),
-                   registry factory; moment reference for CG travel
-  control/         Controller per type: AircraftController, RocketController;
-                   ScheduledController (LQR state feedback); TvcController (thrust
-                   vectoring); PID, flight plans, actuators; factory dispatches on "method"
-  guidance/        GuidanceLaw Strategy: ProNav3D, PurePursuit (+ factory) -- reads the
+  aero/            AeroModel per airframe family: AircraftAero, RocketAero (derivatives),
+                   RocketTableAero (DATCOM tables), F16Aero (wind-tunnel tables);
+                   moment reference for CG travel
+  control/         Controllers: AircraftController, RocketController; ScheduledController
+                   (LQR state feedback); TvcController (thrust vectoring); PID, flight
+                   plans, per-channel ActuatorBank; registry keyed on control_law "type"
+  guidance/        GuidanceLaw Strategy: ProNav3D, PurePursuit (+ registry) -- reads the
                    target from the WorldView, overlays the flight plan
-  vehicle/         Vehicle (mass block + propulsion block) + factory
+  vehicle/         Vehicle (mass + ForceComponent list + declared channels) + factory
   sim/             Simulation (two-phase multi-vehicle loop, intercept watch, CG
                    moment transfer), Entity, WorldView, observers, CsvLogger
-  scenario/        ScenarioLoader: JSON -> factories -> ready-to-run Simulation
-tests/             assert-based CTest suite (math, ISA, JSON, 6-DOF, table aero,
-                   F-16 vs fixture, guidance, end-to-end scenarios)
+  scenario/        ScenarioLoader: JSON -> registries -> ready-to-run Simulation
+tests/             assert-based CTest suite (math, ISA, JSON, 6-DOF, channels,
+                   actuators, validation, table aero, F-16 vs fixture, guidance,
+                   end-to-end scenarios)
 ```
 
 ## Building vehicles (the Lego model) & control design
 
-A vehicle is four independent blocks — `aero`, `mass`, `propulsion`,
-`controller` — snapped together in one JSON file, each backed by a factory. You
-never touch `src/` to add a vehicle. The control block is chosen by a `method`
-field independent of the airframe, and its gains can be **auto-designed** from
-the vehicle's own aero + mass by LQR or pole placement
-(`tools/design_autopilot.py`). Full guide with a PID→LQR walkthrough:
+A vehicle is **mass + a components[] list + a gnc block**, snapped together in
+one JSON file; every entry names its implementation explicitly via `"type"`,
+each backed by a registry. You never touch `src/` to add a vehicle. The control
+law is chosen independent of the airframe, and its gains can be
+**auto-designed** from the vehicle's own aero + mass by LQR or pole placement
+(`tools/design_autopilot.py`). Control commands flow as named channels that are
+validated at load (a control law paired with an airframe that can't respond is
+a load error, not a silent open loop). Full guide with a PID→LQR walkthrough:
 **[docs/BUILDING_VEHICLES.md](docs/BUILDING_VEHICLES.md)**. Tool reference:
 **[tools/README.md](tools/README.md)**.
 
@@ -135,21 +139,22 @@ py tools/visualize.py scenarios/intercept.json # -> output/intercept/view.html
 - Two-phase stepping: all entities propagate from the same `WorldView` snapshot,
   then commit together — deterministic regardless of entity order.
 
-## Adding a new vehicle TYPE (e.g. quadcopter)
+## Adding a new vehicle CLASS (e.g. quadcopter)
 
-The per-type physics and control live in exactly two classes:
+The class-specific physics and control live in exactly two registrations:
 
-1. **Aero**: subclass `AeroModel` (`src/aero/`), give it a
-   `static fromJson(const json::Value&)` builder, register it:
-   `aero::Factory::registerModel("quadcopter", QuadAero::fromJson);`
-   (built-ins are registered in `AeroFactory.cpp`).
-2. **Controller**: subclass `Controller` (`src/control/`), same pattern:
-   `control::Factory::registerController("quadcopter", QuadController::fromJson);`
+1. **Force component(s)**: subclass `ForceComponent` (`src/component/`) — or
+   subclass `AeroModel` and wrap it in `AeroComponent` — declare the channels
+   it consumes (e.g. four motor channels), and register it:
+   `component::Factory::registerComponent("quad_rotors", QuadRotors::fromJson);`
+   (built-ins are registered in `ComponentFactory.cpp`).
+2. **Control law**: subclass `Controller` (`src/control/`), bind the channels
+   it writes, and register it:
+   `control::Factory::registerControlLaw("quad_pid", QuadController::fromJson);`
    (built-ins in `ControllerFactory.cpp`).
-3. Write a vehicle definition JSON with `"type": "quadcopter"` and your own
-   `aero` / `controller` blocks — the loader routes them to your classes.
-   New propulsion? Add a Strategy in `src/propulsion/` and a branch in
-   `propulsion::create`.
+3. Write a vehicle definition JSON listing your components and control law by
+   those type names — the loader routes them to your classes and validates at
+   load that every channel the control law writes has a consumer.
 
 Nothing in `sim/`, `dynamics/`, or `scenario/` changes.
 
@@ -165,8 +170,9 @@ relative to the scenario file.
 
 ## Design patterns
 
-Strategy (`EquationsOfMotion`, `AeroModel`, `Controller`, `Actuator`,
-`PropulsionModel`, `GravityModel`, `WindModel`), registry-based Factory
-(`aero::Factory`, `control::Factory`, `eom::create`, `propulsion::create`),
-Observer (`SimObserver` → `CsvLogger`), Composition (`Entity` bundles one
-vehicle's full stack).
+Strategy (`EquationsOfMotion`, `ForceComponent`, `AeroModel`, `Controller`,
+`PropulsionModel`, `MassModel`, `GravityModel`, `WindModel`), registry-based
+Factory (`component::Factory`, `control::Factory`, `guidance::Factory`,
+`eom::create`), Observer (`SimObserver` → `CsvLogger`), Composition (`Entity` =
+state + integrator + optional Vehicle + optional GNC stack; `Vehicle` = mass +
+force components + declared channels).

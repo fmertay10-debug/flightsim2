@@ -64,10 +64,13 @@ def inline_vehicle(entry, scen_dir):
     vdir = os.path.dirname(vpath)
     veh = load_jsonc(vpath)
     # Absolutize relative data paths.
-    for sec, key in [("aero", "tables_csv"), ("aero", "control_csv"),
-                     ("controller", "schedule")]:
-        if sec in veh and key in veh[sec] and not os.path.isabs(veh[sec][key]):
-            veh[sec][key] = os.path.join(vdir, veh[sec][key])
+    blocks = list(veh.get("components", []))
+    blocks.append(veh.get("gnc", {}).get("control_law", {}))
+    blocks.append(veh.get("mass", {}))
+    for blk in blocks:
+        for key in ("tables_csv", "control_csv", "schedule", "table", "dir"):
+            if key in blk and isinstance(blk[key], str) and not os.path.isabs(blk[key]):
+                blk[key] = os.path.join(vdir, blk[key])
     return veh
 
 
@@ -84,11 +87,12 @@ def perturb(base, pursuer_name, target_name, rng, s):
             v = init.get("velocity_ned_ms", [0, 0, 0])
             init["velocity_ned_ms"] = [c * (1 + rng.normal(0, s["vel"])) for c in v]
             # Motor thrust dispersion (scale the whole curve).
-            if "definition" in e and "propulsion" in e["definition"]:
-                prop = e["definition"]["propulsion"]
-                if "thrust_curve" in prop:
-                    k = 1 + rng.normal(0, s["thrust"])
-                    prop["thrust_curve"] = [[t, f * k] for t, f in prop["thrust_curve"]]
+            if "definition" in e:
+                for comp in e["definition"].get("components", []):
+                    if "thrust_curve" in comp:
+                        k = 1 + rng.normal(0, s["thrust"])
+                        comp["thrust_curve"] = [[t, f * k]
+                                                for t, f in comp["thrust_curve"]]
         if e["name"] == target_name:
             init = e["initial"]
             p = init.get("position_ned_m", [0, 0, 0])

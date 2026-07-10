@@ -134,10 +134,13 @@ def mesh_for(vehicle_cfg, dynamics):
         return aircraft_mesh(span=6.0, length=8.0, body_color="#9aa0a6",
                              wing_color="#b0b4b8", tail_color="#b0b4b8")
 
-    vtype = vehicle_cfg.get("type", "rocket")
-    if vtype == "aircraft":
-        aero = vehicle_cfg.get("aero", {})
-        if "dir" in aero:
+    # The aero component tells us the airframe family and its references.
+    aero = next((c for c in vehicle_cfg.get("components", [])
+                 if c.get("type", "").endswith("_aero")), {})
+    atype = aero.get("type", "rocket_aero")
+
+    if atype in ("aircraft_aero", "f16_aero"):
+        if atype == "f16_aero":
             # Table-aero aircraft (e.g. the F-16): dimensions aren't in the JSON.
             span, length = 9.14, 15.0
         else:
@@ -147,7 +150,6 @@ def mesh_for(vehicle_cfg, dynamics):
 
     # Rocket: prefer explicit geometry, else infer from aero references.
     geom = vehicle_cfg.get("geometry", {})
-    aero = vehicle_cfg.get("aero", {})
     length = geom.get("length_m") or aero.get("lref_m") or aero.get("cbar_m", 3.0)
     diameter = geom.get("diameter_m") or aero.get("dref_m") or (length * 0.06)
     return rocket_mesh(length=length, diameter=diameter)

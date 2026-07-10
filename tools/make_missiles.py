@@ -96,28 +96,32 @@ def build(name, spec):
     # 4. Vehicle: DATCOM table aero + dry mass + solid motor + LQR controller.
     xref = round(float(d["xcg"]) * scale, 4)
     cfg = {
-        "type": "rocket",
         "mass_kg": spec["dry"],
         "inertia": {"ixx": spec["ixx"], "iyy": spec["iyy"], "izz": spec["iyy"]},
-        "aero": {
-            "sref_m2": round(float(d["sref"]) * scale ** 2, 6),
-            "cbar_m": round(float(d["cbar"]) * scale, 4),
-            "bref_m": round(float(d["blref"]) * scale, 4),
-            "tables_csv": "aero_tables.csv",
-            "control_csv": "control_tables.csv",
-            "xref_m": xref,
+        "components": [
+            {
+                "type": "rocket_table_aero",
+                "sref_m2": round(float(d["sref"]) * scale ** 2, 6),
+                "cbar_m": round(float(d["cbar"]) * scale, 4),
+                "bref_m": round(float(d["blref"]) * scale, 4),
+                "tables_csv": "aero_tables.csv",
+                "control_csv": "control_tables.csv",
+                "xref_m": xref,
+            },
+            {
+                "type": "solid_motor", "propellant_kg": spec["prop"],
+                "thrust_curve": spec["thrust"],
+            },
+        ],
+        "gnc": {
+            "control_law": {
+                "type": "lqr",
+                "schedule": "gain_schedule.csv",
+                "limits": {"max_fin_deg": spec["max_fin"], "min_airspeed_ms": spec["min_v"]},
+                "roll": {"kp": 0.08, "kd": 0.10},
+            },
+            "actuator": {"tau_s": 0.02, "rate_dps": 450, "limit_deg": spec["max_fin"]},
         },
-        "propulsion": {
-            "type": "solid_motor", "propellant_kg": spec["prop"],
-            "thrust_curve": spec["thrust"],
-        },
-        "controller": {
-            "method": "lqr",
-            "schedule": "gain_schedule.csv",
-            "limits": {"max_fin_deg": spec["max_fin"], "min_airspeed_ms": spec["min_v"]},
-            "roll": {"kp": 0.08, "kd": 0.10},
-        },
-        "actuator": {"tau_s": 0.02, "rate_dps": 450, "limit_deg": spec["max_fin"]},
         "geometry": {
             "length_m": round(float(spec["veh"].L) * scale, 4),
             "diameter_m": round(float(spec["veh"].D) * scale, 4),
@@ -127,7 +131,7 @@ def build(name, spec):
     import json
     with open(os.path.join(outdir, "vehicle.json"), "w") as f:
         json.dump(cfg, f, indent=2)
-    print(f"  aero {na}x{nm}, sref {cfg['aero']['sref_m2']} m^2, "
+    print(f"  aero {na}x{nm}, sref {cfg['components'][0]['sref_m2']} m^2, "
           f"length {cfg['geometry']['length_m']} m, xref {xref} m")
 
     # 5. Design the LQR gain schedule from THIS vehicle's aero + mass.

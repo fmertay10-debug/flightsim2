@@ -157,10 +157,12 @@ def main():
     vpath = os.path.abspath(args.vehicle)
     vdir = os.path.dirname(vpath)
     cfg = load_jsonc(vpath)
-    aero = cfg["aero"]
-    if "tables_csv" not in aero:
-        sys.exit("design_autopilot: vehicle aero has no DATCOM tables_csv "
-                 "(this tool designs for the table-aero rocket)")
+    aero = next((c for c in cfg.get("components", [])
+                 if c.get("type") == "rocket_table_aero"), None)
+    if aero is None or "tables_csv" not in aero:
+        sys.exit("design_autopilot: vehicle has no rocket_table_aero component "
+                 "with DATCOM tables_csv (this tool designs for the table-aero "
+                 "rocket)")
 
     S = aero["sref_m2"]
     cbar = aero["cbar_m"]
