@@ -1,0 +1,30 @@
+// DATCOM table-aero rocket (vehicles/generated/datcom_rocket, produced by
+// tools/datcom_export.py from example 02_rocket_fin_control): guided launch
+// with a pitch program, coefficients interpolated over the full alpha x Mach
+// envelope.
+{
+  "name": "datcom_rocket_launch",
+  "simulation": { "dt_s": 0.002, "duration_s": 120, "ground_level_m": 0 },
+  "environment": { "gravity": "spherical", "wind": { "type": "constant", "ned_ms": [4, 2, 0] } },
+
+  "vehicles": [
+    {
+      "name": "datcom-rocket",
+      "vehicle": "../vehicles/generated/datcom_rocket/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -2],
+        "velocity_ned_ms": [2.6, 0, -29.9],
+        "euler_deg": [0, 85, 0]
+      },
+      "flight_plan": [
+        { "time_s": 0,  "pitch_deg": 85, "heading_deg": 0, "roll_deg": 0 },
+        { "time_s": 4,  "pitch_deg": 78 },
+        { "time_s": 8,  "pitch_deg": 70 },
+        { "time_s": 14, "pitch_deg": 60 }
+      ],
+      "log": "output/datcom_rocket_launch/datcom-rocket.csv",
+      "log_decimation": 25
+    }
+  ]
+}

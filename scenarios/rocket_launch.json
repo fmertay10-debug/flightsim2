@@ -1,0 +1,28 @@
+// Guided sounding-rocket launch: leaves the rail at 85 deg pitch, follows a
+// pitch program through the burn, coasts to apogee, falls back.
+{
+  "name": "rocket_launch",
+  "simulation": { "dt_s": 0.002, "duration_s": 90, "ground_level_m": 0 },
+  "environment": { "gravity": "spherical", "wind": { "type": "constant", "ned_ms": [3, 0, 0] } },
+
+  "vehicles": [
+    {
+      "name": "rocket-1",
+      "vehicle": "../vehicles/sounding_rocket.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -1],
+        "velocity_ned_ms": [2.2, 0, -24.9],
+        "euler_deg": [0, 85, 0]
+      },
+      "flight_plan": [
+        { "time_s": 0,  "pitch_deg": 85, "heading_deg": 0, "roll_deg": 0 },
+        { "time_s": 4,  "pitch_deg": 80 },
+        { "time_s": 8,  "pitch_deg": 72 },
+        { "time_s": 14, "pitch_deg": 65 }
+      ],
+      "log": "output/rocket_launch/rocket-1.csv",
+      "log_decimation": 25
+    }
+  ]
+}

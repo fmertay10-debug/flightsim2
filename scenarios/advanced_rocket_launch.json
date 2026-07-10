@@ -1,0 +1,31 @@
+// "Variable everything" DATCOM rocket: fin-controlled with DATCOM aero tables,
+// variable thrust (thrust.csv), and variable mass/inertia/CG (mass_props.csv).
+// The CG migrates from aft of the aero reference (loaded, low static margin)
+// to forward of it (empty, high static margin) through the burn -- so the
+// vehicle actually gets more stable as it climbs.
+{
+  "name": "advanced_rocket_launch",
+  "simulation": { "dt_s": 0.002, "duration_s": 100, "ground_level_m": 0 },
+  "environment": { "gravity": "spherical", "wind": { "type": "constant", "ned_ms": [5, 2, 0] } },
+
+  "vehicles": [
+    {
+      "name": "adv-rocket",
+      "vehicle": "../vehicles/generated/advanced_rocket/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -3],
+        "velocity_ned_ms": [3.5, 0, -40],
+        "euler_deg": [0, 85, 0]
+      },
+      "flight_plan": [
+        { "time_s": 0,  "pitch_deg": 85, "heading_deg": 0, "roll_deg": 0 },
+        { "time_s": 5,  "pitch_deg": 80 },
+        { "time_s": 10, "pitch_deg": 72 },
+        { "time_s": 16, "pitch_deg": 62 }
+      ],
+      "log": "output/advanced_rocket_launch/adv-rocket.csv",
+      "log_decimation": 20
+    }
+  ]
+}

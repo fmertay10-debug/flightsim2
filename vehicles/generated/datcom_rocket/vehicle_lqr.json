@@ -1,0 +1,29 @@
+// Same DATCOM airframe as vehicle.json, but the CONTROL block is swapped for
+// the LQR gain-scheduled autopilot (gain_schedule.csv, designed by
+// tools/design_autopilot.py from THIS vehicle's aero + mass). Demonstrates the
+// Lego control block: aero/mass/propulsion are identical -- only "controller"
+// changed, and its gains were auto-generated rather than hand-tuned.
+{
+  "type": "rocket",
+  "mass_kg": 59.5,
+  "inertia": { "ixx": 1.755, "iyy": 479.7, "izz": 479.7 },
+
+  "aero": {
+    "sref_m2": 0.129693, "cbar_m": 8.2296, "bref_m": 0.5182,
+    "tables_csv": "aero_tables.csv", "control_csv": "control_tables.csv"
+  },
+
+  "propulsion": {
+    "type": "solid_motor", "propellant_kg": 25.5,
+    "thrust_curve": [[0.0, 6670], [0.2, 7670], [5.0, 7000], [5.5, 0.0]]
+  },
+
+  "controller": {
+    "method": "lqr",
+    "schedule": "gain_schedule.csv",
+    "limits": { "max_fin_deg": 15, "min_airspeed_ms": 20 },
+    "roll": { "kp": 0.4, "kd": 0.15 }
+  },
+
+  "actuator": { "tau_s": 0.03, "rate_dps": 200, "limit_deg": 15 }
+}

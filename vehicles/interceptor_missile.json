@@ -1,0 +1,34 @@
+// Compact, agile surface-to-air interceptor (derivative aero model). Short
+// body + low inertia + strong fins give the control authority a sounding
+// rocket lacks -- this is what actually catches a maneuvering target.
+// Moderate static margin (cma) so it points fast without being unstable.
+{
+  "type": "rocket",
+  "mass_kg": 65,
+  "inertia": { "ixx": 0.6, "iyy": 40, "izz": 40 },
+
+  "aero": {
+    "sref_m2": 0.0314, "lref_m": 2.6, "dref_m": 0.20,
+    "ca0": 0.30,
+    "cna": 14.0,  "cnde": 6.0,
+    "cma": -6.0,  "cmq": -180.0, "cmde": -22.0,
+    "clp": -12.0, "clda": 5.0
+  },
+
+  "propulsion": {
+    "type": "solid_motor",
+    "propellant_kg": 20,
+    "thrust_curve": [ [0.0, 16000], [0.3, 18000], [3.0, 16000], [3.4, 0] ]
+  },
+
+  "controller": {
+    "gains": {
+      "pitch_kp": 1.4, "pitch_ki": 0.25, "pitch_kd": 0.5,
+      "yaw_kp": 1.4,   "yaw_ki": 0.25,   "yaw_kd": 0.5,
+      "roll_kp": 0.8,  "roll_kd": 0.25
+    },
+    "limits": { "max_fin_deg": 25, "min_airspeed_ms": 20, "vertical_guard_deg": 80 }
+  },
+
+  "actuator": { "tau_s": 0.02, "rate_dps": 400, "limit_deg": 25 }
+}

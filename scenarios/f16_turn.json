@@ -1,0 +1,28 @@
+// F-16 sustained hard banked turn at 150 m/s, 3000 m -- the multi-axis
+// aircraft demo. From trimmed cruise, roll into a steep bank (the heading
+// autopilot clamps at 55 deg) and hold it while the pitch SAS keeps altitude
+// (a turn needs ~1/cos(bank) more lift) and the throttle covers induced drag.
+{
+  "name": "f16_turn",
+  "simulation": { "dt_s": 0.002, "duration_s": 70, "ground_level_m": 0 },
+  "environment": { "gravity": "flat", "wind": { "type": "none" } },
+
+  "vehicles": [
+    {
+      "name": "viper",
+      "vehicle": "../vehicles/f16.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -3000],
+        "velocity_ned_ms": [150, 0, 0],
+        "euler_deg": [0, 3.55, 0]
+      },
+      "flight_plan": [
+        { "time_s": 0,  "altitude_m": 3000, "heading_deg": 0,   "speed_ms": 150 },
+        { "time_s": 8,  "heading_deg": 200 }
+      ],
+      "log": "output/f16_turn/viper.csv",
+      "log_decimation": 15
+    }
+  ]
+}

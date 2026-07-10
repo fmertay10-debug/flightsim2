@@ -1,0 +1,33 @@
+// Fin-stabilized sounding rocket, 85 kg at liftoff (60 dry + 25 propellant).
+// Missile-convention derivatives per radian; axisymmetric yaw terms default
+// to mirrors of the pitch terms (see RocketAero).
+{
+  "type": "rocket",
+  "mass_kg": 60,
+  "inertia": { "ixx": 2, "iyy": 320, "izz": 320 },
+
+  "aero": {
+    "sref_m2": 0.049, "lref_m": 3.0, "dref_m": 0.25,
+    "ca0": 0.35,
+    "cna": 10.0,  "cnde": 1.5,
+    "cma": -12.0, "cmq": -120.0, "cmde": -8.0,
+    "clp": -6.0,  "clda": 3.0
+  },
+
+  "propulsion": {
+    "type": "solid_motor",
+    "propellant_kg": 25,
+    "thrust_curve": [ [0.0, 6000], [0.2, 7000], [5.0, 6500], [5.5, 0] ]
+  },
+
+  "controller": {
+    "gains": {
+      "pitch_kp": 0.5, "pitch_ki": 0.1, "pitch_kd": 0.3,
+      "yaw_kp": 0.5,   "yaw_ki": 0.1,   "yaw_kd": 0.3,
+      "roll_kp": 0.4,  "roll_kd": 0.15
+    },
+    "limits": { "max_fin_deg": 15, "min_airspeed_ms": 15 }
+  },
+
+  "actuator": { "tau_s": 0.03, "rate_dps": 200, "limit_deg": 15 }
+}

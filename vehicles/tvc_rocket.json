@@ -1,0 +1,42 @@
+// TVC rocket -- controlled purely by THRUST VECTORING (no aerodynamic control
+// surfaces). The aero (derivative model) provides static stability and roll
+// damping but has NO control effectiveness (no cmde/cnde/clda); every pitch and
+// yaw control moment comes from gimbaling the nozzle. Roll is passively damped
+// by the airframe (single-nozzle TVC can't roll).
+//
+// Lego blocks: [aero] stability only, [mass] constant tensor with CG station,
+// [propulsion] solid motor, [thrust_vectoring] the TVC effector, [controller]
+// the "tvc" method. TVC authority tracks thrust, so control ends at burnout.
+{
+  "type": "rocket",
+
+  "mass": {
+    "model": "constant", "mass_kg": 520,
+    "inertia": { "ixx": 16, "iyy": 1500, "izz": 1500 },
+    "xcg_m": 3.5
+  },
+
+  "aero": {
+    "sref_m2": 0.196, "lref_m": 6.0, "dref_m": 0.5,
+    "ca0": 0.30, "cna": 12.0,
+    "cma": -0.6, "cmq": -40.0, "clp": -12.0
+  },
+
+  "propulsion": {
+    "type": "solid_motor", "propellant_kg": 210,
+    "thrust_curve": [[0.0, 85000], [0.3, 92000], [7.5, 80000], [8.0, 0]]
+  },
+
+  "thrust_vectoring": { "nozzle_station_m": 6.0, "max_gimbal_deg": 6 },
+
+  "controller": {
+    "method": "tvc",
+    "gains": {
+      "pitch_kp": 4.0, "pitch_ki": 0.6, "pitch_kd": 1.6,
+      "yaw_kp": 4.0,   "yaw_ki": 0.6,   "yaw_kd": 1.6
+    },
+    "limits": { "max_gimbal_deg": 6, "vertical_guard_deg": 84 }
+  },
+
+  "actuator": { "tau_s": 0.03, "rate_dps": 120, "limit_deg": 25, "gimbal_limit_deg": 6 }
+}

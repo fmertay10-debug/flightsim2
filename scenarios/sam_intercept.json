@@ -1,0 +1,41 @@
+// SAM engagement: a surface-to-air missile (DATCOM aero + LQR autopilot) is
+// launched near-vertical off a ground rail, boosts hard, and runs a
+// proportional-navigation intercept on an inbound high-altitude aircraft.
+{
+  "name": "sam_intercept",
+  "simulation": { "dt_s": 0.002, "duration_s": 30, "ground_level_m": 0 },
+  "environment": { "gravity": "spherical", "wind": { "type": "constant", "ned_ms": [5, 0, 0] } },
+
+  "vehicles": [
+    {
+      "name": "sam",
+      "vehicle": "../vehicles/generated/sam/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -3],
+        "velocity_ned_ms": [8, 0, -35],
+        "euler_deg": [0, 78, 0]
+      },
+      "guidance": {
+        "type": "pro_nav", "target": "raider",
+        "nav_gain": 4.0, "max_pitch_deg": 80, "max_yaw_deg": 85, "blind_range_m": 12
+      },
+      "log": "output/sam_intercept/sam.csv", "log_decimation": 5
+    },
+    {
+      "name": "raider",
+      "dynamics": "kinematic",
+      "turn_rate_dps": 1,
+      "initial": {
+        "position_ned_m": [9000, 1500, -6000],
+        "velocity_ned_ms": [-250, 0, 0],
+        "euler_deg": [0, 0, 180]
+      },
+      "log": "output/sam_intercept/raider.csv", "log_decimation": 10
+    }
+  ],
+
+  "end_conditions": {
+    "intercept": { "pursuer": "sam", "target": "raider", "hit_radius_m": 10 }
+  }
+}

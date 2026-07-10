@@ -1,0 +1,29 @@
+// F-16 trimmed cruise at 150 m/s, 3000 m (Mach ~0.46, in the S&L model's
+// credible subsonic band). The autopilot acts as a stability augmentation
+// system for this relaxed-stability airframe: hold altitude and speed, then a
+// gentle climb and a heading change.
+{
+  "name": "f16_cruise",
+  "simulation": { "dt_s": 0.002, "duration_s": 90, "ground_level_m": 0 },
+  "environment": { "gravity": "flat", "wind": { "type": "none" } },
+
+  "vehicles": [
+    {
+      "name": "viper",
+      "vehicle": "../vehicles/f16.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -3000],
+        "velocity_ned_ms": [150, 0, 0],
+        "euler_deg": [0, 3.55, 0]
+      },
+      "flight_plan": [
+        { "time_s": 0,  "altitude_m": 3000, "heading_deg": 0, "speed_ms": 150 },
+        { "time_s": 30, "altitude_m": 3500 },
+        { "time_s": 55, "heading_deg": 40 }
+      ],
+      "log": "output/f16_cruise/viper.csv",
+      "log_decimation": 20
+    }
+  ]
+}

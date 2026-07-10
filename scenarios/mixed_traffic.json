@@ -1,0 +1,53 @@
+// Multi-vehicle demo: two aircraft on crossing tracks at different altitudes
+// plus a kinematic mover (constant-rate turner) acting as traffic.
+{
+  "name": "mixed_traffic",
+  "simulation": { "dt_s": 0.005, "duration_s": 90, "ground_level_m": 0 },
+  "environment": { "gravity": "flat", "wind": { "type": "constant", "ned_ms": [0, 4, 0] } },
+
+  "vehicles": [
+    {
+      "name": "trainer-1",
+      "vehicle": "../vehicles/trainer.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [0, 0, -900],
+        "velocity_ned_ms": [60, 0, 0],
+        "euler_deg": [0, 2, 0]
+      },
+      "flight_plan": [
+        { "time_s": 0,  "altitude_m": 900, "heading_deg": 0, "speed_ms": 60 },
+        { "time_s": 40, "heading_deg": 45 }
+      ],
+      "log": "output/mixed_traffic/trainer-1.csv",
+      "log_decimation": 20
+    },
+    {
+      "name": "trainer-2",
+      "vehicle": "../vehicles/trainer.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [4000, 2000, -1100],
+        "velocity_ned_ms": [-60, 0, 0],
+        "euler_deg": [0, 2, 180]
+      },
+      "flight_plan": [
+        { "time_s": 0,  "altitude_m": 1100, "heading_deg": 180, "speed_ms": 60 },
+        { "time_s": 50, "heading_deg": 270 }
+      ],
+      "log": "output/mixed_traffic/trainer-2.csv",
+      "log_decimation": 20
+    },
+    {
+      "name": "traffic",
+      "dynamics": "kinematic",
+      "turn_rate_dps": 3,
+      "initial": {
+        "position_ned_m": [2000, -1000, -1000],
+        "velocity_ned_ms": [50, 0, 0]
+      },
+      "log": "output/mixed_traffic/traffic.csv",
+      "log_decimation": 20
+    }
+  ]
+}

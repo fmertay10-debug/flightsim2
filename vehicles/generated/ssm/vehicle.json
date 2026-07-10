@@ -1,0 +1,62 @@
+{
+  "type": "rocket",
+  "mass_kg": 185,
+  "inertia": {
+    "ixx": 14.0,
+    "iyy": 420,
+    "izz": 420
+  },
+  "aero": {
+    "sref_m2": 0.102,
+    "cbar_m": 5.0,
+    "bref_m": 0.3,
+    "tables_csv": "aero_tables.csv",
+    "control_csv": "control_tables.csv",
+    "xref_m": 2.8
+  },
+  "propulsion": {
+    "type": "solid_motor",
+    "propellant_kg": 110,
+    "thrust_curve": [
+      [
+        0.0,
+        90000
+      ],
+      [
+        0.4,
+        98000
+      ],
+      [
+        6.0,
+        82000
+      ],
+      [
+        6.5,
+        0
+      ]
+    ]
+  },
+  "controller": {
+    "method": "lqr",
+    "schedule": "gain_schedule.csv",
+    "limits": {
+      "max_fin_deg": 20,
+      "min_airspeed_ms": 30
+    },
+    "roll": {
+      "kp": 0.08,
+      "kd": 0.1
+    }
+  },
+  "actuator": {
+    "tau_s": 0.02,
+    "rate_dps": 450,
+    "limit_deg": 20
+  },
+  "geometry": {
+    "length_m": 5.0,
+    "diameter_m": 0.36,
+    "xcg_m": 2.8,
+    "mesh": "mesh.json"
+  }
+}
