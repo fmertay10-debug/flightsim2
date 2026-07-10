@@ -100,3 +100,32 @@ AeroForces RocketTableAero::compute(const State& state, const AirData& air,
                          Cn_total * qS * ref_.bref);
     return out;
 }
+
+int RocketTableAero::controlEffectiveness(const AirData& air, double xcg,
+                                          ControlEffect* out, int maxOut) const {
+    const double qS = air.qbar * ref_.sref;
+    const double mach = air.mach;
+    const double h = 0.0349;   // 2 deg central-difference step
+
+    // Per-rad slopes of the control tables about zero deflection.
+    const double dcm = (t_.dcmCtrl.eval(h, mach) - t_.dcmCtrl.eval(-h, mach)) / (2.0 * h);
+    const double dcl = (t_.dclCtrl.eval(h, mach) - t_.dclCtrl.eval(-h, mach)) / (2.0 * h);
+    const double dclr = (t_.clRoll.eval(h, mach) - t_.clRoll.eval(-h, mach)) / (2.0 * h);
+
+    // The compute() sign structure gives dMy_ref/de = qS*cbar*dcm and (via the
+    // mirrored, negated rudder lookup) dMz_ref/dr = qS*cbar*dcm; the fin force
+    // (dFz/de = -qS*dcl, dFy/dr = +qS*dcl) moves those moments to the CG the
+    // same way the Entity transfers the full wrench. Cruciform symmetry makes
+    // both axes come out identical.
+    const double dx = (std::isfinite(xref_) && std::isfinite(xcg)) ? (xcg - xref_) : 0.0;
+    const double dM = qS * (ref_.cbar * dcm + dx * dcl);
+
+    int n = 0;
+    if (elevator_.valid() && n < maxOut)
+        out[n++] = { elevator_, Vector3(0.0, dM, 0.0) };
+    if (rudder_.valid() && n < maxOut)
+        out[n++] = { rudder_, Vector3(0.0, 0.0, dM) };
+    if (aileron_.valid() && n < maxOut)
+        out[n++] = { aileron_, Vector3(qS * ref_.bref * dclr, 0.0, 0.0) };
+    return n;
+}

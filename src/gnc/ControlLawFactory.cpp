@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "gnc/AircraftPidLaw.h"
+#include "gnc/AllocatedAttitudeLaw.h"
 #include "gnc/RocketPidLaw.h"
 #include "gnc/ScheduledLaw.h"
 #include "gnc/TvcPidLaw.h"
@@ -33,6 +34,10 @@ std::map<std::string, Factory::Builder>& registry() {
         { "lqr",   // alias: the shipped schedules are LQR designs
           [](const json::Value& cfg, const std::string& baseDir) {
               return ScheduledLaw::fromJson(cfg, baseDir);
+          } },
+        { "allocated_attitude",
+          [](const json::Value& cfg, const std::string&) {
+              return AllocatedAttitudeLaw::fromJson(cfg);
           } },
     };
     return r;

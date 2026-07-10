@@ -38,6 +38,12 @@ public:
         return model_->propellantMass(time);
     }
 
+    // Gimbal moment sensitivities: dMy/d(tvc_pitch) = dMz/d(tvc_yaw) = L*T,
+    // using the LAST computed thrust (one-step lag; deterministic, and the
+    // first step's zero simply allocates nothing to the gimbal).
+    int controlEffectiveness(const ComponentContext& ctx,
+                             ControlEffect* out, int maxOut) const override;
+
 private:
     std::unique_ptr<PropulsionModel> model_;
     std::optional<Gimbal> gimbal_;

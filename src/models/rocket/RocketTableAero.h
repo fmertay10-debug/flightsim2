@@ -52,6 +52,11 @@ public:
 
     double momentReferenceStation() const override { return xref_; }
 
+    // Fin sensitivities by central-differencing the control tables about zero
+    // deflection at the current Mach, transferred from xref to the CG.
+    int controlEffectiveness(const AirData& air, double xcg,
+                             ControlEffect* out, int maxOut) const override;
+
 private:
     AeroReference ref_;
     Tables        t_;

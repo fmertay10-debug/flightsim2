@@ -16,6 +16,13 @@ struct ComponentContext {
     double xcg      = 0.0;   // CG station [m, nose datum, aft positive]; may be NaN
 };
 
+// One column of the control-effectiveness matrix B: how one channel moves the
+// vehicle. Sensitivities are about the CG (allocation happens in CG moments).
+struct ControlEffect {
+    ChannelHandle channel;
+    Vector3 dMoment;   // d(Mx,My,Mz)/d(channel) at the current condition [Nm/rad]
+};
+
 // Strategy: a FORCE COMPONENT -- anything that produces a body-frame wrench on
 // the vehicle from flight state, environment, and channel inputs. Aerodynamics,
 // motors, gimbaled nozzles, and future RCS/rotors/buoyancy are peers behind
@@ -48,4 +55,15 @@ public:
     // Onboard propellant remaining at sim time [kg]. Only used by the legacy
     // "dry mass + motor propellant" mass path; 0 for everything else.
     virtual double propellantMass(double time) const { (void)time; return 0.0; }
+
+    // Control effectiveness at the current condition, for allocation-based
+    // control laws: append one ControlEffect per control channel this
+    // component consumes (linearized about zero deflection, CG-referenced).
+    // At most maxOut entries; returns the count appended. Components with no
+    // control authority (or that nobody allocates over) keep the default 0.
+    virtual int controlEffectiveness(const ComponentContext& ctx,
+                                     ControlEffect* out, int maxOut) const {
+        (void)ctx; (void)out; (void)maxOut;
+        return 0;
+    }
 };

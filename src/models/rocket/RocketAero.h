@@ -39,6 +39,11 @@ public:
     AeroForces compute(const State& state, const AirData& air,
                        const ChannelValues& control) const override;
 
+    // Fin moment sensitivities from the control derivatives (already about
+    // the CG -- derivative models report there).
+    int controlEffectiveness(const AirData& air, double xcg,
+                             ControlEffect* out, int maxOut) const override;
+
 private:
     AeroReference ref_;   // cbar = body length (pitch/yaw), bref = diameter (roll)
     Derivatives   d_;

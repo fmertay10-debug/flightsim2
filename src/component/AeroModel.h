@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "component/ForceComponent.h"
 #include "core/AirData.h"
 #include "core/Channel.h"
 #include "core/State.h"
@@ -46,4 +47,13 @@ public:
     // the current CG. Return NaN (the default) to opt out -- the moments are
     // already about the CG and no transfer is applied (derivative models).
     virtual double momentReferenceStation() const { return std::nan(""); }
+
+    // Fin control effectiveness for allocation (see ForceComponent). xcg is
+    // the current CG station, so table models can reference their sensitivity
+    // moments to the CG; NaN when unknown.
+    virtual int controlEffectiveness(const AirData& air, double xcg,
+                                     ControlEffect* out, int maxOut) const {
+        (void)air; (void)xcg; (void)out; (void)maxOut;
+        return 0;
+    }
 };

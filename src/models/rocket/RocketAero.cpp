@@ -73,3 +73,16 @@ AeroForces RocketAero::compute(const State& state, const AirData& air,
     out.moment.z = Cn * qS * ref_.cbar;
     return out;
 }
+
+int RocketAero::controlEffectiveness(const AirData& air, double /*xcg*/,
+                                     ControlEffect* out, int maxOut) const {
+    const double qS = air.qbar * ref_.sref;
+    int n = 0;
+    if (elevator_.valid() && n < maxOut)
+        out[n++] = { elevator_, Vector3(0.0, d_.cmde * qS * ref_.cbar, 0.0) };
+    if (rudder_.valid() && n < maxOut)
+        out[n++] = { rudder_, Vector3(0.0, 0.0, d_.cndr * qS * ref_.cbar) };
+    if (aileron_.valid() && n < maxOut)
+        out[n++] = { aileron_, Vector3(d_.clda * qS * ref_.bref, 0.0, 0.0) };
+    return n;
+}

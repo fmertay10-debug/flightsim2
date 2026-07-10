@@ -106,9 +106,12 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
 
         if (definition.has("gnc")) {
             const json::Value& gnc = definition.at("gnc");
-            if (gnc.has("control_law"))
+            if (gnc.has("control_law")) {
                 controller = gnc::Factory::create(gnc.at("control_law"),
-                                                      baseDir.string());
+                                                  baseDir.string());
+                // Allocation-based laws query the components' effectiveness.
+                controller->bindComponents(veh->components());
+            }
             if (gnc.has("actuator"))
                 actuators = ActuatorBank::fromJson(gnc.at("actuator"), channels);
         }

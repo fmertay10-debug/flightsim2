@@ -27,6 +27,11 @@ public:
         return model_->momentReferenceStation();
     }
 
+    int controlEffectiveness(const ComponentContext& ctx,
+                             ControlEffect* out, int maxOut) const override {
+        return model_->controlEffectiveness(ctx.air, ctx.xcg, out, maxOut);
+    }
+
 private:
     std::unique_ptr<AeroModel> model_;
 };

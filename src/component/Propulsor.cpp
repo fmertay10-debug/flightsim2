@@ -51,3 +51,17 @@ Wrench Propulsor::compute(const ComponentContext& ctx, const ChannelValues& u) {
     w.moment = Vector3(0.0, L * Fz, -L * Fy);
     return w;
 }
+
+int Propulsor::controlEffectiveness(const ComponentContext& ctx,
+                                    ControlEffect* out, int maxOut) const {
+    if (!gimbal_ || lastThrust_ <= 0.0) return 0;
+    const double L = std::isfinite(ctx.xcg) ? (gimbal_->nozzleStation - ctx.xcg)
+                                            : gimbal_->nozzleStation;
+    const double LT = L * lastThrust_;
+    int n = 0;
+    if (tvcPitch_.valid() && n < maxOut)
+        out[n++] = { tvcPitch_, Vector3(0.0, LT, 0.0) };
+    if (tvcYaw_.valid() && n < maxOut)
+        out[n++] = { tvcYaw_, Vector3(0.0, 0.0, LT) };
+    return n;
+}
