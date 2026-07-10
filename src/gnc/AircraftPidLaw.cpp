@@ -48,9 +48,11 @@ std::vector<ChannelHandle> AircraftPidLaw::bindChannels(const ChannelTable& t) {
     return {elevator_, aileron_, rudder_, throttle_};
 }
 
-void AircraftPidLaw::update(const State& state, const AirData& air,
-                                const CommandSet& cmd, double dt,
-                                ChannelValues& out) {
+void AircraftPidLaw::update(const GncContext& gc, const CommandSet& cmd,
+                      ChannelValues& out) {
+    const State& state = gc.state;
+    const AirData& air = gc.air;
+    const double dt = gc.dt;
     const Vector3 euler = state.eulerAngles();
     const double phi = euler.x, theta = euler.y, psi = euler.z;
     const double p = state.angularRate.x;

@@ -43,8 +43,8 @@ public:
     // All three surfaces are essential on a fixed-wing aircraft.
     std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
 
-    void update(const State& state, const AirData& air,
-                const CommandSet& cmd, double dt, ChannelValues& out) override;
+    void update(const GncContext& gc, const CommandSet& cmd,
+                ChannelValues& out) override;
 
 private:
     Gains g_;

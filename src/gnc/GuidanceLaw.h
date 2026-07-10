@@ -15,6 +15,10 @@ class GuidanceLaw {
 public:
     virtual ~GuidanceLaw() = default;
 
+    // The command vocabulary this law emits. Validated against the control
+    // law's accepts() when guidance is attached to an entity.
+    virtual CommandLevel emits() const { return CommandLevel::Attitude; }
+
     virtual CommandSet update(const State& self, const WorldView& world,
                               double dt) = 0;
 };

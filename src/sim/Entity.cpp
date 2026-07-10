@@ -49,7 +49,13 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     air.mach = (atm.soundSpeed > 1e-6) ? air.airspeed / atm.soundSpeed : 0.0;
     air.qbar = 0.5 * atm.density * air.airspeed * air.airspeed;
 
-    // 2. Flight plan + guidance overlay -> controller (COMMANDED) -> actuator
+    // 2. Mass properties. Mass/inertia/CG are time-varying (burn); computed
+    //    before control so allocation-based laws can use inertia and CG.
+    MassState ms;   // defaults: mass 1, identity inertia, NaN xcg
+    if (vehicle_) ms = vehicle_->massState(s.time);
+    const double mass = ms.mass;
+
+    // 3. Flight plan + guidance overlay -> control law (COMMANDED) -> actuator
     //    (ACTUAL). Guidance reads the target from the shared world snapshot
     //    and wins over the scripted plan on the fields it sets.
     ChannelValues commanded(channels_);
@@ -58,28 +64,20 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
         cmd = flightPlan_.at(s.time);
         if (guidance_) {
             const CommandSet g = guidance_->update(s, world, dt);
-            if (g.pitch)    cmd.pitch    = g.pitch;
-            if (g.roll)     cmd.roll     = g.roll;
-            if (g.heading)  cmd.heading  = g.heading;
-            if (g.altitude) cmd.altitude = g.altitude;
-            if (g.speed)    cmd.speed    = g.speed;
-            if (g.throttle) cmd.throttle = g.throttle;
+            if (g.pitch)      cmd.pitch      = g.pitch;
+            if (g.roll)       cmd.roll       = g.roll;
+            if (g.heading)    cmd.heading    = g.heading;
+            if (g.altitude)   cmd.altitude   = g.altitude;
+            if (g.speed)      cmd.speed      = g.speed;
+            if (g.throttle)   cmd.throttle   = g.throttle;
+            if (g.accelUp)    cmd.accelUp    = g.accelUp;
+            if (g.accelRight) cmd.accelRight = g.accelRight;
         }
-        controlLaw_->update(s, air, cmd, dt, commanded);
+        const GncContext gctx{ s, air, ms, dt };
+        controlLaw_->update(gctx, cmd, commanded);
     }
     const ChannelValues actual = actuators_ ? actuators_->apply(commanded, dt)
                                             : commanded;
-
-    // 3. Mass properties. Mass/inertia/CG are time-varying (burn).
-    double mass = 1.0;
-    Matrix3x3 inertia = Matrix3x3::identity();
-    double xcg = 0.0;
-    if (vehicle_) {
-        const MassState ms = vehicle_->massState(s.time);
-        mass = ms.mass;
-        inertia = ms.inertia;
-        xcg = ms.xcg;
-    }
 
     // 4. Force components (aero, motors, ...): each produces a body-frame
     //    wrench about its own reference station; transfer each to the CG:
@@ -90,12 +88,12 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     Vector3 force = s.attitude.rotate(Vector3(0.0, 0.0, mass * g));
     Vector3 moment;
     if (vehicle_) {
-        const ComponentContext cctx{ s, air, altitude, dt, xcg };
+        const ComponentContext cctx{ s, air, altitude, dt, ms.xcg };
         for (const auto& c : vehicle_->components()) {
             Wrench w = c->compute(cctx, actual);
             const double xref = c->momentReferenceStation();
-            if (std::isfinite(xref) && std::isfinite(xcg)) {
-                const double dx = xcg - xref;
+            if (std::isfinite(xref) && std::isfinite(ms.xcg)) {
+                const double dx = ms.xcg - xref;
                 w.moment.y -= dx * w.force.z;
                 w.moment.z += dx * w.force.y;
             }
@@ -114,5 +112,15 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     telem_.thrust     = vehicle_ ? vehicle_->thrustNewtons() : 0.0;
 
     // 5. One integration step (committed later by the Simulation).
-    return eom_->solve(s, force, moment, mass, inertia, dt);
+    return eom_->solve(s, force, moment, mass, ms.inertia, dt);
+}
+
+void Entity::setGuidance(std::unique_ptr<GuidanceLaw> guidance) {
+    // Vocabulary check: the guidance law's emitted command level must be one
+    // the control law tracks -- same validated-pairing idea as the channels.
+    if (guidance && controlLaw_ && !controlLaw_->accepts(guidance->emits()))
+        throw std::invalid_argument(
+            "Entity '" + name_ + "': guidance emits a command level the "
+            "control law does not accept");
+    guidance_ = std::move(guidance);
 }

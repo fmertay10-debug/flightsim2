@@ -53,9 +53,11 @@ std::vector<ChannelHandle> ScheduledLaw::bindChannels(const ChannelTable& t) {
     return {elevator_, rudder_, aileron_, throttle_};
 }
 
-void ScheduledLaw::update(const State& state, const AirData& air,
-                                 const CommandSet& cmd, double dt,
-                                 ChannelValues& out) {
+void ScheduledLaw::update(const GncContext& gc, const CommandSet& cmd,
+                    ChannelValues& out) {
+    const State& state = gc.state;
+    const AirData& air = gc.air;
+    const double dt = gc.dt;
     out.set(throttle_, cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0);
 
     if (air.airspeed < c_.minAirspeed) return;   // fins ineffective on the rail

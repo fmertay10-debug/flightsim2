@@ -37,8 +37,10 @@ std::vector<ChannelHandle> TvcPidLaw::bindChannels(const ChannelTable& t) {
     return {tvcPitch_, tvcYaw_, throttle_};
 }
 
-void TvcPidLaw::update(const State& state, const AirData& /*air*/,
-                           const CommandSet& cmd, double dt, ChannelValues& out) {
+void TvcPidLaw::update(const GncContext& gc, const CommandSet& cmd,
+                 ChannelValues& out) {
+    const State& state = gc.state;
+    const double dt = gc.dt;
     out.set(throttle_, cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0);
 
     const Vector3 euler = state.eulerAngles();

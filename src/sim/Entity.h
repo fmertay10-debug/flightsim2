@@ -42,9 +42,9 @@ public:
 
     // Guidance overlays the flight plan: fields the law sets win over the
     // scripted values. Attached after construction (needs the target's id).
-    void setGuidance(std::unique_ptr<GuidanceLaw> guidance) {
-        guidance_ = std::move(guidance);
-    }
+    // Throws if the guidance law emits a command level the control law does
+    // not accept (vocabulary pairing is validated like the channel graph).
+    void setGuidance(std::unique_ptr<GuidanceLaw> guidance);
 
     // Phase 1: next state from the shared snapshot. No mutation of state_.
     State propagate(const Environment& env, const WorldView& world, double dt);
