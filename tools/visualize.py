@@ -283,9 +283,12 @@ body.withplots #scene{right:var(--dockw)}
 body.withplots #dockresize{display:block}
 .pane{flex:0 0 auto;background:#0e1218;border:1px solid #1a2230;
   border-radius:6px;padding:4px 6px 2px}
-.pane h4{margin:2px 0 0 6px;font-size:12px;color:#9fb2cc;font-weight:600;
-  cursor:grab;user-select:none}
-.pane h4::before{content:'\2630  ';color:#3d4a5e;font-size:10px}
+.pane h4{display:flex;align-items:center;margin:2px 0 0 6px;font-size:12px;
+  color:#9fb2cc;font-weight:600;cursor:grab;user-select:none}
+.pane h4::before{content:'\2630  ';color:#3d4a5e;font-size:10px;margin-right:6px}
+.pane .close{margin-left:auto;background:none;border:none;color:#5d6c82;
+  font-size:15px;line-height:1;padding:0 4px;cursor:pointer}
+.pane .close:hover{color:#ff5f6b}
 .pane.dragging{opacity:.45;border-color:#3a5f9e}
 .u-legend{font-size:11px;color:#cfd6e1}
 .u-legend .u-marker{width:0.8em;height:0.8em}
@@ -850,6 +853,18 @@ function buildPlots(){
       dock.insertBefore(dragging,
         e.clientY < r.top + r.height/2 ? el : el.nextSibling);
     });
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'close';
+    closeBtn.title = 'close plot';
+    closeBtn.innerHTML = '&#10005;';
+    closeBtn.onclick = ()=>{
+      const [pid, idx] = key.split(':');
+      paneSel[pid] = (paneSel[pid] || []).filter(i => i !== +idx);
+      store.setItem('viz_panes', JSON.stringify(paneSel));
+      window.__rebuildPresets();
+      buildPlots();
+    };
+    h.appendChild(closeBtn);
     el.appendChild(h);
     dock.appendChild(el);
     const w = dock.clientWidth - 42;
