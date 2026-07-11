@@ -2,8 +2,14 @@
 
 Body frame matches the sim: +x forward (nose), +y right, +z down. Meshes are
 centered near the CG so attitude rotation looks right. Returned as a dict:
-    {"parts": [{"name","color","vertices":[[x,y,z]...],"faces":[[i,j,k]...]}]}
-Kept small (a few hundred faces) so the browser animates smoothly.
+    {"parts": [{"name","color","vertices":[[x,y,z]...],"faces":[[i,j,k]...],
+                "hinges": [{"channel","axis","origin","sign"}, ...]}]}
+A part with hinges rotates at runtime by sum(sign * channel_value) about each
+axis (unit vector, body frame) through its origin -- this is how fin, control
+surface, and TVC-nozzle deflections animate. Hinge signs are chosen for
+VISUAL plausibility against the channel sign conventions (core/Channel.h),
+not aerodynamic exactness. Kept small (a few hundred faces) so the browser
+animates smoothly.
 """
 import math
 
@@ -62,7 +68,10 @@ def rocket_mesh(length, diameter, n_fins=4, nose_frac=0.18,
 
     parts = [{"name": "body", "color": body_color, "vertices": body_v, "faces": body_f}]
 
-    # Fins: flat trapezoids around the tail, in body y-z plane.
+    # Fins: flat trapezoids around the tail, each hinged about its outward
+    # radial axis so channel deflections animate. Cruciform mapping: the
+    # horizontal pair carries elevator, the vertical pair rudder, all four
+    # carry differential aileron (same handedness about the outward axis).
     fin_len = fin_frac * length
     fin_h = r * 2.2
     root_x0, root_x1 = xtail + fin_len, xtail
@@ -74,8 +83,34 @@ def rocket_mesh(length, diameter, n_fins=4, nose_frac=0.18,
         fv = [pt(root_x0, r), pt(root_x1, r),
               pt(root_x1, r + fin_h), pt(root_x0 + fin_len * 0.3, r + fin_h)]
         ff = [[0, 1, 2], [0, 2, 3]]
+        axis = [0.0, ca, sa]                       # outward radial
+        origin = [(root_x0 + root_x1) / 2.0, r * ca, r * sa]
+        hinges = [{"channel": "aileron", "axis": axis, "origin": origin, "sign": 1.0}]
+        horizontal = abs(ca) > 0.7071
+        if horizontal:
+            hinges.append({"channel": "elevator", "axis": axis, "origin": origin,
+                           "sign": 1.0 if ca > 0 else -1.0})
+        else:
+            hinges.append({"channel": "rudder", "axis": axis, "origin": origin,
+                           "sign": 1.0 if sa > 0 else -1.0})
         parts.append({"name": f"fin_{i+1}", "color": fin_color,
-                      "vertices": fv, "faces": ff})
+                      "vertices": fv, "faces": ff, "hinges": hinges})
+
+    # TVC nozzle: a short bell aft of the tail, gimbaled by the tvc channels.
+    # The bell tilts opposite the thrust deflection (exhaust points where the
+    # thrust does not): +tvc_pitch -> thrust +z -> bell aft end -z.
+    noz_v, noz_f = [], []
+    noz_len = 0.06 * length
+    _tube(noz_v, noz_f, xtail, r * 0.55, xtail - noz_len, r * 0.8, 12, 0)
+    origin = [xtail, 0.0, 0.0]
+    parts.append({"name": "nozzle", "color": "#6b6f78",
+                  "vertices": noz_v, "faces": noz_f,
+                  "hinges": [
+                      {"channel": "tvc_pitch", "axis": [0, 1, 0],
+                       "origin": origin, "sign": -1.0},
+                      {"channel": "tvc_yaw", "axis": [0, 0, 1],
+                       "origin": origin, "sign": -1.0},
+                  ]})
     return {"parts": parts}
 
 
@@ -102,11 +137,16 @@ def aircraft_mesh(span, length, body_color="#8892a0",
         v = [[xle, 0, 0], [xle - cr, 0, 0],
              [xle - sweep - ct, y, 0], [xle - sweep, y, 0]]
         f = [[0, 1, 2], [0, 2, 3]] if sign > 0 else [[0, 2, 1], [0, 3, 2]]
-        return {"name": "wing", "color": wing_color, "vertices": v, "faces": f}
+        # Whole-wing aileron animation: +aileron = right roll = right TE up.
+        return {"name": "wing", "color": wing_color, "vertices": v, "faces": f,
+                "hinges": [{"channel": "aileron", "axis": [0, 1, 0],
+                            "origin": [xle - cr * 0.3, 0, 0],
+                            "sign": -0.5 if sign > 0 else 0.5}]}
     parts.append(wing(+1))
     parts.append(wing(-1))
 
-    # Horizontal stabilizer.
+    # Horizontal stabilizer (all-moving: carries the elevator deflection,
+    # +elevator = trailing edge down).
     hb = span * 0.34
     xh = tail + length * 0.14
     ch = length * 0.14
@@ -115,15 +155,20 @@ def aircraft_mesh(span, length, body_color="#8892a0",
         v = [[xh, 0, 0], [xh - ch, 0, 0],
              [xh - ch - length * 0.05, y, 0], [xh - length * 0.04, y, 0]]
         f = [[0, 1, 2], [0, 2, 3]] if sign > 0 else [[0, 2, 1], [0, 3, 2]]
-        parts.append({"name": "htail", "color": tail_color, "vertices": v, "faces": f})
+        parts.append({"name": "htail", "color": tail_color, "vertices": v,
+                      "faces": f,
+                      "hinges": [{"channel": "elevator", "axis": [0, 1, 0],
+                                  "origin": [xh - ch * 0.3, 0, 0], "sign": 1.0}]})
 
-    # Vertical tail (in x-z plane, up = -z).
+    # Vertical tail (in x-z plane, up = -z; +rudder = trailing edge left).
     xv = tail + length * 0.16
     vh = length * 0.16
     v = [[xv, 0, 0], [xv - length * 0.13, 0, 0],
          [xv - length * 0.15, 0, -vh], [xv - length * 0.04, 0, -vh]]
     parts.append({"name": "vtail", "color": tail_color,
-                  "vertices": v, "faces": [[0, 1, 2], [0, 2, 3]]})
+                  "vertices": v, "faces": [[0, 1, 2], [0, 2, 3]],
+                  "hinges": [{"channel": "rudder", "axis": [0, 0, 1],
+                              "origin": [xv - length * 0.04, 0, 0], "sign": 1.0}]})
     return {"parts": parts}
 
 
