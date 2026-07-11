@@ -147,5 +147,35 @@ if (hingedVeh) {
   }
 }
 
+// Overlays: at a thrust-active frame the plume shows; toggling kills it.
+const vf0 = vObjs[0].v.frames;
+const kT = vf0.thrust ? vf0.thrust.findIndex(t => t > 0) : -1;
+if (kT >= 0) {
+  vm.runInContext(`applyFrame(${kT})`, sandbox);
+  if (!vObjs[0].plume.visible) { console.error("FAIL: plume not visible under thrust"); failures++; }
+  vm.runInContext(`ovState.plume = false; applyFrame(${kT})`, sandbox);
+  if (vObjs[0].plume.visible) { console.error("FAIL: plume toggle ignored"); failures++; }
+  vm.runInContext(`ovState.plume = true`, sandbox);
+}
+// Triad/velocity glyphs on the focus vehicle at a live frame.
+vm.runInContext("applyFrame(5)", sandbox);
+if (!vObjs[0].triad.visible) { console.error("FAIL: triad not visible on focus"); failures++; }
+if (!vObjs[0].velArrow.visible) { console.error("FAIL: velocity arrow not visible"); failures++; }
+// LOS shows when the focus vehicle has a target.
+const losLine = vm.runInContext("losLine", sandbox);
+const hasTarget = DATA.vehicles.some(v => v.target &&
+  DATA.vehicles.some(w => w.name === v.target));
+if (hasTarget) {
+  const pi = DATA.vehicles.findIndex(v => v.target);
+  vm.runInContext(`focusSel.value=${pi}`, sandbox);   // fake select: set ignored...
+  // fake elements drop assignments; drive via ovState only if select stub works
+  if (pi === 0) {
+    vm.runInContext("applyFrame(5)", sandbox);
+    if (!losLine.visible) { console.error("FAIL: LOS not visible for paired focus"); failures++; }
+  } else {
+    console.log("check_viz: LOS untested (pursuer is not vehicle 0; select stub is inert)");
+  }
+}
+
 if (failures) { console.error(failures + " failures"); process.exit(1); }
 console.log("check_viz: app smoke passed (" + path + ")");

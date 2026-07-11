@@ -258,9 +258,23 @@ button,select{background:#1a212d;color:#cfd6e1;border:1px solid #2a3547;
 button:hover{background:#232d3d}
 #slider{flex:1;accent-color:#4da3ff}
 #timelab{min-width:88px;text-align:right;font-variant-numeric:tabular-nums}
+#panel{position:absolute;top:54px;left:10px;width:190px;z-index:10;
+  background:rgba(13,17,24,.88);border:1px solid #1e2633;border-radius:6px;
+  padding:8px 10px;max-height:calc(100% - 120px);overflow-y:auto}
+#panel details{margin-bottom:6px}
+#panel summary{cursor:pointer;color:#e8edf5;font-weight:600;margin-bottom:4px}
+#panel label{display:flex;gap:6px;align-items:center;padding:2px 0;cursor:pointer}
+#panel input{accent-color:#4da3ff}
+#panel .sep{border-top:1px solid #1e2633;margin:6px 0}
 </style></head>
 <body>
 <div id="scene"></div>
+<div id="panel">
+  <details open><summary>Overlays</summary><div id="ovlist"></div>
+    <div class="sep"></div>
+    <label><input type="checkbox" id="showall"> triad/labels on all</label>
+  </details>
+</div>
 <div id="topbar">
   <b id="title"></b>
   <button id="play">&#9654;</button>
@@ -388,6 +402,270 @@ function chanAt(v, name, k){
   return c ? c[k] : 0;
 }
 
+// ---------------------------------------------------------------- overlays
+const DEG = 180/Math.PI;
+function vehSize(v){
+  let m = 1;
+  for (const p of v.mesh.parts) for (const vv of p.vertices)
+    m = Math.max(m, Math.abs(vv[0]),Math.abs(vv[1]),Math.abs(vv[2]));
+  return m;
+}
+function makeArrow(colorHex, headFrac=0.22){
+  const a = new THREE.ArrowHelper(new THREE.Vector3(1,0,0),
+                                  new THREE.Vector3(), 1, colorHex, headFrac, headFrac*0.6);
+  a.visible = false;
+  return a;
+}
+function makeTextSprite(){
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial(
+    {map:tex, transparent:true, depthTest:false}));
+  sp.userData = {canvas, ctx, tex, last:""};
+  sp.visible = false;
+  return sp;
+}
+function setSpriteText(sp, text){
+  if (sp.userData.last === text) return;
+  sp.userData.last = text;
+  const {canvas, ctx, tex} = sp.userData;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.font = '600 34px system-ui,sans-serif';
+  ctx.fillStyle = 'rgba(10,14,20,0.55)';
+  const w = ctx.measureText(text).width + 24;
+  ctx.fillRect((canvas.width-w)/2, 14, w, 58);
+  ctx.fillStyle = '#e8edf5';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width/2, 44);
+  tex.needsUpdate = true;
+}
+// Arc fan in a body plane: origin -> arc(0..angle) -> origin, radius r.
+const ARC_N = 20;
+function makeArc(colorHex){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position',
+    new THREE.BufferAttribute(new Float32Array((ARC_N+2)*3), 3));
+  const line = new THREE.Line(g, new THREE.LineBasicMaterial(
+    {color:colorHex, transparent:true, opacity:0.9}));
+  line.matrixAutoUpdate = false;   // body frame child
+  line.visible = false;
+  return line;
+}
+function setArc(line, angle, r, plane){   // plane 'xz' (alpha) | 'xy' (beta)
+  const a = line.geometry.attributes.position.array;
+  a[0]=0; a[1]=0; a[2]=0;
+  for (let i=0;i<=ARC_N;i++){
+    const t = angle*i/ARC_N, c = r*Math.cos(t), s = r*Math.sin(t);
+    const j = 3*(i+1);
+    if (plane==='xz'){ a[j]=c; a[j+1]=0; a[j+2]=s; }
+    else             { a[j]=c; a[j+1]=s; a[j+2]=0; }
+  }
+  line.geometry.attributes.position.needsUpdate = true;
+  line.geometry.computeBoundingSphere();
+}
+
+const OVERLAYS = [
+  {id:'triad',   label:'body axes',      def:true},
+  {id:'vel',     label:'velocity vector',def:true},
+  {id:'arcs',    label:'alpha/beta arcs',def:true},
+  {id:'los',     label:'LOS + closing',  def:true},
+  {id:'thrust',  label:'thrust vector',  def:false},
+  {id:'plume',   label:'exhaust plume',  def:true},
+  {id:'aero',    label:'aero force',     def:false},
+  {id:'ghost',   label:'setpoint ghost', def:true},
+  {id:'trail',   label:'trails',         def:true},
+  {id:'label',   label:'info labels',    def:true},
+];
+const store = (typeof localStorage !== 'undefined') ? localStorage
+  : {getItem:()=>null, setItem:()=>{}};
+const ovState = JSON.parse(store.getItem('viz_overlays')||'{}');
+for (const o of OVERLAYS) if (!(o.id in ovState)) ovState[o.id] = o.def;
+let showAll = !!ovState._showAll;
+
+for (const o of vObjs){
+  const L = vehSize(o.v);
+  const f = o.v.frames;
+  o.size = L;
+  o.maxThrust = Math.max(1, ...(f.thrust||[0]));
+  o.maxAero = 1;
+  if (f.aeroF) for (const F of f.aeroF)
+    o.maxAero = Math.max(o.maxAero, Math.hypot(F[0],F[1],F[2]));
+
+  // Body-frame children (transform with the vehicle automatically).
+  o.triad = new THREE.AxesHelper(L*1.8);      // x red, y green, z blue
+  o.triad.visible = false;
+  o.grp.add(o.triad);
+  o.arcA = makeArc(0xffa14e); o.arcB = makeArc(0xda6ee8);
+  o.grp.add(o.arcA); o.grp.add(o.arcB);
+  o.thrustArrow = makeArrow(0xffc94d); o.thrustArrow.matrixAutoUpdate = true;
+  o.grp.add(o.thrustArrow);
+  o.aeroArrow = makeArrow(0x6fdc8c);
+  o.grp.add(o.aeroArrow);
+  const plumeGeo = new THREE.ConeGeometry(L*0.07, 1, 10);
+  plumeGeo.translate(0, -0.5, 0);             // apex at origin, extends -y
+  o.plume = new THREE.Mesh(plumeGeo, new THREE.MeshBasicMaterial(
+    {color:0xff9a3d, transparent:true, opacity:0.75,
+     blending:THREE.AdditiveBlending, depthWrite:false}));
+  o.plume.visible = false;
+  o.grp.add(o.plume);
+  o.labelSp = makeTextSprite();
+  o.labelSp.scale.set(L*5, L*0.94, 1);
+  scene.add(o.labelSp);                       // world space (billboard)
+  o.arcASp = makeTextSprite(); o.arcASp.scale.set(L*3.2, L*0.6, 1);
+  scene.add(o.arcASp);
+
+  // World-space glyphs (direction lives in NED, not body).
+  o.velArrow = makeArrow(0x4dd7ff); scene.add(o.velArrow);
+  o.ghostArrow = makeArrow(0xffffff, 0.18);
+  o.ghostArrow.line.material.transparent = true;
+  o.ghostArrow.line.material.opacity = 0.55;
+  o.ghostArrow.cone.material.transparent = true;
+  o.ghostArrow.cone.material.opacity = 0.55;
+  scene.add(o.ghostArrow);
+}
+// LOS: one line + label for the focus vehicle.
+const losGeo = new THREE.BufferGeometry();
+losGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6),3));
+const losLine = new THREE.Line(losGeo, new THREE.LineDashedMaterial(
+  {color:0xff5f6b, dashSize:1, gapSize:1}));
+losLine.frustumCulled = false;
+losLine.visible = false;
+scene.add(losLine);
+const losSp = makeTextSprite();
+scene.add(losSp);
+
+const V3a = new THREE.Vector3(), V3b = new THREE.Vector3();
+
+function updateOverlays(k){
+  const focusI = +focusSel.value;
+  const focus = vObjs[focusI];
+  for (const o of vObjs){
+    const isF = o === focus;
+    const f = o.v.frames, L = o.size;
+    const on = id => ovState[id] && f.alive[k] &&
+                     (isF || (showAll && (id==='triad'||id==='label')));
+    o.triad.visible = on('triad');
+    o.trail.visible = ovState.trail;
+
+    const s = nedToScene(f.pos[k]);
+    // Velocity vector (NED direction, world space).
+    const vv = f.vel[k], vmag = Math.hypot(vv[0],vv[1],vv[2]);
+    o.velArrow.visible = on('vel') && vmag > 1;
+    if (o.velArrow.visible){
+      const d = nedToScene(vv);
+      o.velArrow.position.set(s[0],s[1],s[2]);
+      o.velArrow.setDirection(V3a.set(d[0],d[1],d[2]).normalize());
+      o.velArrow.setLength(L*2.6, L*0.5, L*0.25);
+    }
+    // Alpha / beta arcs + readout (body-frame children).
+    const showArcs = on('arcs') && f.alpha;
+    o.arcA.visible = o.arcB.visible = !!showArcs;
+    o.arcASp.visible = !!showArcs;
+    if (showArcs){
+      setArc(o.arcA, f.alpha[k], L*1.5, 'xz');
+      setArc(o.arcB, f.beta[k],  L*1.5, 'xy');
+      o.arcASp.position.set(s[0], s[1]+L*2.4, s[2]);
+      setSpriteText(o.arcASp,
+        'a ' + (f.alpha[k]*DEG).toFixed(1) + '°   b ' +
+        (f.beta[k]*DEG).toFixed(1) + '°');
+    }
+    // Thrust vector: body direction incl. gimbal (matches Propulsor).
+    const T = f.thrust ? f.thrust[k] : 0;
+    o.thrustArrow.visible = on('thrust') && T > 0;
+    if (o.thrustArrow.visible){
+      const dp = chanAt(o.v,'tvc_pitch',k), dy = chanAt(o.v,'tvc_yaw',k);
+      V3a.set(Math.cos(dp)*Math.cos(dy), -Math.cos(dp)*Math.sin(dy), Math.sin(dp));
+      o.thrustArrow.setDirection(V3a);
+      o.thrustArrow.setLength(L*(0.8 + 2.2*T/o.maxThrust), L*0.4, L*0.2);
+    }
+    // Exhaust plume: cone off the tail along -thrust direction, scaled by T.
+    o.plume.visible = ovState.plume && f.alive[k] && T > 0;
+    if (o.plume.visible){
+      const dp = chanAt(o.v,'tvc_pitch',k), dy = chanAt(o.v,'tvc_yaw',k);
+      V3a.set(-Math.cos(dp)*Math.cos(dy), Math.cos(dp)*Math.sin(dy), -Math.sin(dp));
+      o.plume.position.set(-L*0.98, 0, 0);
+      o.plume.quaternion.setFromUnitVectors(V3b.set(0,-1,0).normalize(), V3a);
+      const flick = 0.92 + 0.16*Math.random();
+      o.plume.scale.set(1, L*(0.6 + 2.8*T/o.maxThrust)*flick, 1);
+    }
+    // Aero force (body-frame child arrow).
+    o.aeroArrow.visible = on('aero') && !!f.aeroF;
+    if (o.aeroArrow.visible){
+      const F = f.aeroF[k], mag = Math.hypot(F[0],F[1],F[2]);
+      o.aeroArrow.visible = mag > 1e-3;
+      if (o.aeroArrow.visible){
+        o.aeroArrow.setDirection(V3a.set(F[0],F[1],F[2]).normalize());
+        o.aeroArrow.setLength(L*(0.5 + 2.0*mag/o.maxAero), L*0.4, L*0.2);
+      }
+    }
+    // Setpoint ghost: commanded attitude direction (NED), translucent.
+    const spP = f.spPitch ? f.spPitch[k] : NaN;
+    const spH = f.spHeading ? f.spHeading[k] : NaN;
+    const hasSp = Number.isFinite(spP) || Number.isFinite(spH);
+    o.ghostArrow.visible = on('ghost') && hasSp;
+    if (o.ghostArrow.visible){
+      const e = f.eul[k];
+      const p = Number.isFinite(spP) ? spP : e[1];
+      const h = Number.isFinite(spH) ? spH : e[2];
+      const d = nedToScene([Math.cos(p)*Math.cos(h), Math.cos(p)*Math.sin(h), -Math.sin(p)]);
+      o.ghostArrow.position.set(s[0],s[1],s[2]);
+      o.ghostArrow.setDirection(V3a.set(d[0],d[1],d[2]).normalize());
+      o.ghostArrow.setLength(L*3.2, L*0.55, L*0.28);
+    }
+    // Info label above the vehicle.
+    o.labelSp.visible = on('label');
+    if (o.labelSp.visible){
+      o.labelSp.position.set(s[0], s[1]+L*1.6, s[2]);
+      const alt = -f.pos[k][2];
+      setSpriteText(o.labelSp, o.v.name + '  ' + Math.round(alt) + ' m  M' +
+                    (f.mach ? f.mach[k].toFixed(2) : '?'));
+    }
+  }
+  // LOS from the focus vehicle to its target.
+  const tgtI = DATA.vehicles.findIndex(v => v.name === focus.v.target);
+  const showLos = ovState.los && tgtI >= 0 &&
+                  focus.v.frames.alive[k] && DATA.vehicles[tgtI].frames.alive[k];
+  losLine.visible = losSp.visible = showLos;
+  if (showLos){
+    const a = focus.v.frames, b = DATA.vehicles[tgtI].frames;
+    const pa = nedToScene(a.pos[k]), pb = nedToScene(b.pos[k]);
+    const arr = losGeo.attributes.position.array;
+    arr[0]=pa[0];arr[1]=pa[1];arr[2]=pa[2];arr[3]=pb[0];arr[4]=pb[1];arr[5]=pb[2];
+    losGeo.attributes.position.needsUpdate = true;
+    losGeo.computeBoundingSphere();
+    losLine.computeLineDistances();
+    const dx=b.pos[k][0]-a.pos[k][0], dy=b.pos[k][1]-a.pos[k][1], dz=b.pos[k][2]-a.pos[k][2];
+    const rng = Math.hypot(dx,dy,dz);
+    const vc = -((b.vel[k][0]-a.vel[k][0])*dx + (b.vel[k][1]-a.vel[k][1])*dy +
+                 (b.vel[k][2]-a.vel[k][2])*dz) / Math.max(rng,1e-6);
+    losSp.position.set((pa[0]+pb[0])/2, (pa[1]+pb[1])/2 + focus.size*2, (pa[2]+pb[2])/2);
+    const sc = Math.max(focus.size*6, rng*0.06);
+    losSp.scale.set(sc, sc*0.19, 1);
+    setSpriteText(losSp, 'R ' + Math.round(rng) + ' m   Vc ' + Math.round(vc) + ' m/s');
+    const dash = Math.max(1, rng/60);
+    losLine.material.dashSize = dash; losLine.material.gapSize = dash*0.6;
+  }
+}
+
+// Panel wiring.
+const ovlist = document.getElementById('ovlist');
+for (const o of OVERLAYS){
+  const lab = document.createElement('label');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox'; cb.checked = !!ovState[o.id];
+  cb.onchange = ()=>{ ovState[o.id] = cb.checked; saveOv(); };
+  lab.appendChild(cb); lab.appendChild(document.createTextNode(o.label));
+  ovlist.appendChild(lab);
+}
+const showallCb = document.getElementById('showall');
+showallCb.checked = showAll;
+showallCb.onchange = ()=>{ showAll = showallCb.checked;
+                           ovState._showAll = showAll; saveOv(); };
+function saveOv(){ store.setItem('viz_overlays', JSON.stringify(ovState)); }
+
 function applyFrame(k){
   for (const o of vObjs){
     const f = o.v.frames;
@@ -414,6 +692,7 @@ function applyFrame(k){
       h.mesh.matrix.copy(M4);
     }
   }
+  updateOverlays(k);
 }
 
 // -------------------------------------------------------------- playback
