@@ -177,5 +177,22 @@ if (hasTarget) {
   }
 }
 
+// Preset library: every vehicle with a full log must offer the core stories;
+// paired vehicles must offer Intercept; component wrenches must give Allocation.
+const presets = vm.runInContext("presetsFor(DATA.vehicles[0])", sandbox);
+const ids = presets.map(p => p.id);
+for (const want of ["tracking", "rates", "airdata", "traj", "prop"])
+  if (!ids.includes(want)) { console.error("FAIL: preset missing: " + want); failures++; }
+if (DATA.vehicles[0].components?.length && !ids.includes("alloc"))
+  { console.error("FAIL: alloc preset missing despite component data"); failures++; }
+if (DATA.vehicles[0].target && "range" in DATA.vehicles[0].series && !ids.includes("intercept"))
+  { console.error("FAIL: intercept preset missing for paired vehicle"); failures++; }
+for (const p of presets)
+  for (const pane of p.panes)
+    for (const sp of pane.series)
+      if (!(sp.col in DATA.vehicles[0].series))
+        { console.error(`FAIL: preset ${p.id} references missing column ${sp.col}`); failures++; }
+console.log("check_viz: presets ok (" + ids.join(", ") + ")");
+
 if (failures) { console.error(failures + " failures"); process.exit(1); }
 console.log("check_viz: app smoke passed (" + path + ")");

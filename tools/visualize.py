@@ -266,6 +266,20 @@ button:hover{background:#232d3d}
 #panel label{display:flex;gap:6px;align-items:center;padding:2px 0;cursor:pointer}
 #panel input{accent-color:#4da3ff}
 #panel .sep{border-top:1px solid #1e2633;margin:6px 0}
+#panel .preset{display:block;width:100%;text-align:left;margin:2px 0;
+  padding:3px 8px;border-radius:4px;background:transparent;border:1px solid transparent}
+#panel .preset:hover{background:#1a212d}
+#panel .preset.active{background:#1d3250;border-color:#2f5f9e;color:#e8edf5}
+#plotdock{position:absolute;left:0;right:0;bottom:0;height:290px;z-index:9;
+  display:none;gap:8px;padding:8px 10px;overflow-x:auto;overflow-y:hidden;
+  background:rgba(11,14,19,.94);border-top:1px solid #1e2633}
+body.withplots #plotdock{display:flex}
+body.withplots #scene{bottom:290px}
+.pane{flex:1 0 360px;min-width:340px;background:#0e1218;border:1px solid #1a2230;
+  border-radius:6px;padding:4px 6px 0}
+.pane h4{margin:2px 0 0 6px;font-size:12px;color:#9fb2cc;font-weight:600}
+.u-legend{font-size:11px;color:#cfd6e1}
+.u-legend .u-marker{width:0.8em;height:0.8em}
 </style></head>
 <body>
 <div id="scene"></div>
@@ -274,7 +288,9 @@ button:hover{background:#232d3d}
     <div class="sep"></div>
     <label><input type="checkbox" id="showall"> triad/labels on all</label>
   </details>
+  <details open><summary>Plots</summary><div id="presetlist"></div></details>
 </div>
+<div id="plotdock"></div>
 <div id="topbar">
   <b id="title"></b>
   <button id="play">&#9654;</button>
@@ -684,6 +700,172 @@ showallCb.onchange = ()=>{ showAll = showallCb.checked;
                            ovState._showAll = showAll; saveOv(); };
 function saveOv(){ store.setItem('viz_overlays', JSON.stringify(ovState)); }
 
+// ------------------------------------------------------------ preset plots
+const PALETTE = ['#4da3ff','#ffa14e','#6fdc8c','#da6ee8','#ff5f6b','#ffd24d','#7ee0e8'];
+const SETPOINT_DASH = [7,5];
+
+// Preset library: built per focus vehicle from the columns its log has.
+// s(col,label,{deg,sp}) -> series spec; a pane is dropped when no series
+// exists; a preset is dropped when no pane survives.
+function presetsFor(v){
+  const has = c => c in v.series;
+  const s = (col,label,o={}) => has(col) ? {col,label,deg:!!o.deg,sp:!!o.sp} : null;
+  const P = [];
+  const add = (id,label,panes)=>{
+    panes = panes.map(p=>({title:p.title, series:p.series.filter(Boolean)}))
+                 .filter(p=>p.series.length);
+    if (panes.length) P.push({id,label,panes});
+  };
+  add('tracking','Tracking',[
+    {title:'pitch [deg]',   series:[s('theta','actual',{deg:1}), s('pitch_sp','setpoint',{deg:1,sp:1})]},
+    {title:'heading [deg]', series:[s('psi','actual',{deg:1}), s('heading_sp','setpoint',{deg:1,sp:1})]},
+    {title:'roll [deg]',    series:[s('phi','actual',{deg:1}), s('roll_sp','setpoint',{deg:1,sp:1})]},
+  ]);
+  add('rates','Rates & load',[
+    {title:'body rates [deg/s]', series:[s('p','p',{deg:1}), s('q','q',{deg:1}), s('r','r',{deg:1})]},
+    {title:'incidence [deg]',    series:[s('alpha','alpha',{deg:1}), s('beta','beta',{deg:1})]},
+    {title:'load factor [g]',    series:[s('gload','n')]},
+  ]);
+  add('airdata','Air data',[
+    {title:'Mach',        series:[s('mach','Mach')]},
+    {title:'qbar [kPa]',  series:[has('qbar')?{col:'qbar',label:'qbar',mult:1e-3}:null]},
+    {title:'speeds [m/s]',series:[s('airspeed','airspeed'), s('vground','ground'), s('vspeed','vertical')]},
+  ]);
+  add('traj','Trajectory',[
+    {title:'altitude [m]',    series:[s('altitude','altitude')]},
+    {title:'flight path [deg]',series:[s('gamma','gamma',{deg:1})]},
+    {title:'speed [m/s]',     series:[s('airspeed','airspeed')]},
+  ]);
+  add('control','Control activity',[
+    {title:'elevator [deg]', series:[s('elevator','actual',{deg:1}), s('elevator_cmd','commanded',{deg:1,sp:1})]},
+    {title:'aileron [deg]',  series:[s('aileron','actual',{deg:1}), s('aileron_cmd','commanded',{deg:1,sp:1})]},
+    {title:'rudder [deg]',   series:[s('rudder','actual',{deg:1}), s('rudder_cmd','commanded',{deg:1,sp:1})]},
+    {title:'gimbal [deg]',   series:[s('tvc_pitch','tvc pitch',{deg:1}), s('tvc_yaw','tvc yaw',{deg:1})]},
+  ]);
+  add('prop','Propulsion & mass',[
+    {title:'thrust [kN]', series:[has('thrust')?{col:'thrust',label:'thrust',mult:1e-3}:null]},
+    {title:'mass [kg]',   series:[s('mass','mass')]},
+    {title:'throttle',    series:[s('throttle','actual'), s('throttle_cmd','commanded',{sp:1})]},
+  ]);
+  add('intercept','Intercept',[
+    {title:'range [m]',        series:[s('range','range')]},
+    {title:'closing [m/s]',    series:[s('closing','closing speed')]},
+    {title:'LOS angles [deg]', series:[s('los_az','azimuth',{deg:1}), s('los_el','elevation',{deg:1})]},
+  ]);
+  const comps = v.components || [];
+  add('alloc','Allocation',[
+    {title:'pitch moment [kNm]', series:comps.map((c,i)=>
+      has(c+'_my')?{col:c+'_my',label:c,mult:1e-3}:null)},
+    {title:'yaw moment [kNm]',   series:comps.map(c=>
+      has(c+'_mz')?{col:c+'_mz',label:c,mult:1e-3}:null)},
+    {title:'roll moment [kNm]',  series:comps.map(c=>
+      has(c+'_mx')?{col:c+'_mx',label:c,mult:1e-3}:null)},
+  ]);
+  return P;
+}
+
+let plots = [];
+let curPreset = store.getItem('viz_preset') || 'none';
+let seeking = false;
+
+function destroyPlots(){
+  for (const u of plots) u.destroy();
+  plots = [];
+  document.getElementById('plotdock').innerHTML = '';
+}
+
+function seriesData(v, spec){
+  const mult = spec.deg ? DEG : (spec.mult || 1);
+  return v.series[spec.col].map(x => Number.isFinite(x) ? x*mult : null);
+}
+
+function buildPlots(){
+  destroyPlots();
+  const v = DATA.vehicles[+focusSel.value];
+  const preset = presetsFor(v).find(p => p.id === curPreset);
+  document.body.classList.toggle('withplots', !!preset);
+  resize();
+  if (!preset) return;
+  const dock = document.getElementById('plotdock');
+  const t = v.series.time;
+  for (const pane of preset.panes){
+    const el = document.createElement('div');
+    el.className = 'pane';
+    const h = document.createElement('h4');
+    h.textContent = pane.title;
+    el.appendChild(h);
+    dock.appendChild(el);
+    const w = Math.max(340, Math.floor(dock.clientWidth/preset.panes.length) - 24);
+    const axis = {stroke:'#8ea0b8', grid:{stroke:'#1a2230'}, ticks:{stroke:'#1a2230'}};
+    const opts = {
+      width: w, height: 290-46,
+      cursor: {y:false, drag:{setScale:true, x:true, y:false}},
+      scales: {x:{time:false}},
+      axes: [axis, axis],
+      series: [{label:'t'}].concat(pane.series.map((sp,i)=>({
+        label: sp.label, stroke: PALETTE[i%PALETTE.length], width: sp.sp?1.4:1.8,
+        dash: sp.sp ? SETPOINT_DASH : undefined, points:{show:false},
+      }))),
+      hooks: {
+        draw: [u => {                     // animation time line
+          const x = u.valToPos(curTime, 'x', true);
+          if (x < u.bbox.left || x > u.bbox.left+u.bbox.width) return;
+          const ctx = u.ctx;
+          ctx.save();
+          ctx.strokeStyle = 'rgba(232,237,245,0.65)';
+          ctx.setLineDash([4,4]); ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, u.bbox.top); ctx.lineTo(x, u.bbox.top+u.bbox.height);
+          ctx.stroke();
+          ctx.restore();
+        }],
+        init: [u => {                     // click a plot -> seek the animation
+          u.over.addEventListener('click', e => {
+            if (seeking) return;
+            const rect = u.over.getBoundingClientRect();
+            const tt = u.posToVal(e.clientX - rect.left, 'x');
+            if (Number.isFinite(tt)) seek(tt);
+          });
+        }],
+      },
+    };
+    plots.push(new uPlot(opts, [t, ...pane.series.map(sp => seriesData(v, sp))], el));
+  }
+}
+
+let lastPlotK = -1;
+function updatePlotCursor(k){
+  if (k === lastPlotK || !plots.length) return;
+  lastPlotK = k;
+  for (const u of plots) u.redraw(false, false);
+}
+
+function seek(tt){
+  const T = DATA.times;
+  frame = Math.max(0, Math.min(T.length-1, tt/(T[1]-T[0])));
+  slider.value = Math.round(frame);
+}
+
+// Preset picker.
+{
+  const list = document.getElementById('presetlist');
+  const rebuild = ()=>{
+    list.innerHTML = '';
+    const avail = presetsFor(DATA.vehicles[+focusSel.value]);
+    const items = [{id:'none',label:'none'}].concat(avail);
+    if (!items.some(p=>p.id===curPreset)) curPreset = 'none';
+    for (const p of items){
+      const b = document.createElement('button');
+      b.className = 'preset' + (p.id===curPreset?' active':'');
+      b.textContent = p.label;
+      b.onclick = ()=>{ curPreset = p.id; store.setItem('viz_preset', p.id);
+                        rebuild(); buildPlots(); };
+      list.appendChild(b);
+    }
+  };
+  window.__rebuildPresets = rebuild;
+}
+
 function applyFrame(k){
   for (const o of vObjs){
     const f = o.v.frames;
@@ -727,7 +909,7 @@ DATA.vehicles.forEach((v,i)=>{
   focusSel.appendChild(opt);
 });
 
-let frame = 0, playing = true, lastNow = null;
+let frame = 0, playing = true, lastNow = null, curTime = 0;
 const frameDt = DATA.times[1] - DATA.times[0];
 playBtn.onclick = ()=>{ playing = !playing; playBtn.innerHTML = playing?'&#10074;&#10074;':'&#9654;'; };
 playBtn.innerHTML = '&#10074;&#10074;';
@@ -750,10 +932,17 @@ function frameCamera(){
   camera.position.set(p.x-d, p.y+d*0.5, p.z-d);
   controls.target.copy(p);
 }
-focusSel.onchange = frameCamera;
+focusSel.onchange = ()=>{ frameCamera(); window.__rebuildPresets(); buildPlots(); };
 camSel.onchange = ()=>{ if (camSel.value!=='orbit') frameCamera();
                         else { controls.target.copy(focusPos(Math.round(frame))); } };
 frameCamera();
+window.__rebuildPresets();
+buildPlots();
+let resizeTimer = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(buildPlots, 200);
+});
 
 function tick(now){
   requestAnimationFrame(tick);
@@ -765,7 +954,9 @@ function tick(now){
     slider.value = Math.round(frame);
   }
   const k = Math.min(Math.round(frame), DATA.times.length-1);
-  timelab.textContent = 't = ' + DATA.times[k].toFixed(2) + ' s';
+  curTime = DATA.times[k];
+  timelab.textContent = 't = ' + curTime.toFixed(2) + ' s';
+  updatePlotCursor(k);
 
   const prevT = controls.target.clone();
   applyFrame(k);
