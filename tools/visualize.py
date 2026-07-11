@@ -266,23 +266,24 @@ button:hover{background:#232d3d}
 #panel label{display:flex;gap:6px;align-items:center;padding:2px 0;cursor:pointer}
 #panel input{accent-color:#4da3ff}
 #panel .sep{border-top:1px solid #1e2633;margin:6px 0}
-#panel .preset{display:block;width:100%;text-align:left;margin:2px 0;
-  padding:3px 8px;border-radius:4px;background:transparent;border:1px solid transparent}
-#panel .preset:hover{background:#1a212d}
-#panel .preset.active{background:#1d3250;border-color:#2f5f9e;color:#e8edf5}
-#plotdock{position:absolute;left:0;right:0;bottom:0;height:290px;z-index:9;
-  display:none;gap:8px;padding:8px 10px;overflow-x:auto;overflow-y:hidden;
-  background:rgba(11,14,19,.94);border-top:1px solid #1e2633}
+#panel .tree details{margin:2px 0 4px}
+#panel .tree summary{display:flex;align-items:center;gap:6px;color:#cfd6e1;
+  font-weight:500;margin:0}
+#panel .tree .panes{margin-left:22px}
+#panel .clear{margin:2px 0 6px;width:100%}
+#plotdock{position:absolute;top:44px;right:0;bottom:0;width:400px;z-index:9;
+  display:none;flex-direction:column;gap:8px;padding:10px;overflow-y:auto;
+  overflow-x:hidden;background:rgba(11,14,19,.94);border-left:1px solid #1e2633}
 body.withplots #plotdock{display:flex}
-body.withplots #scene{bottom:290px}
-.pane{flex:1 0 360px;min-width:340px;background:#0e1218;border:1px solid #1a2230;
-  border-radius:6px;padding:4px 6px 0}
+body.withplots #scene{right:400px}
+.pane{flex:0 0 auto;background:#0e1218;border:1px solid #1a2230;
+  border-radius:6px;padding:4px 6px 2px}
 .pane h4{margin:2px 0 0 6px;font-size:12px;color:#9fb2cc;font-weight:600}
 .u-legend{font-size:11px;color:#cfd6e1}
 .u-legend .u-marker{width:0.8em;height:0.8em}
 #hint{position:absolute;right:12px;bottom:8px;z-index:8;color:#5d6c82;
   font-size:11px;pointer-events:none}
-body.withplots #hint{bottom:298px}
+body.withplots #hint{right:412px}
 </style></head>
 <body>
 <div id="scene"></div>
@@ -291,7 +292,10 @@ body.withplots #hint{bottom:298px}
     <div class="sep"></div>
     <label><input type="checkbox" id="showall"> triad/labels on all</label>
   </details>
-  <details open><summary>Plots</summary><div id="presetlist"></div></details>
+  <details open><summary>Plots</summary>
+    <div class="tree" id="presetlist"></div>
+    <button class="clear" id="clearplots">clear all</button>
+  </details>
 </div>
 <div id="plotdock"></div>
 <div id="hint">drag orbit &middot; scroll zoom &middot; space play/pause &middot;
@@ -770,7 +774,9 @@ function presetsFor(v){
 }
 
 let plots = [];
-let curPreset = store.getItem('viz_preset') || 'none';
+// Selected panes: {presetId: [paneIndex, ...]} -- a checkbox TREE in the
+// panel; every checked pane stacks in the right-side dock, top to bottom.
+let paneSel = JSON.parse(store.getItem('viz_panes') || '{}');
 let seeking = false;
 
 function destroyPlots(){
@@ -784,26 +790,35 @@ function seriesData(v, spec){
   return v.series[spec.col].map(x => Number.isFinite(x) ? x*mult : null);
 }
 
+function selectedPanes(){
+  const v = DATA.vehicles[+focusSel.value];
+  const out = [];
+  for (const p of presetsFor(v))
+    for (const i of (paneSel[p.id] || []))
+      if (p.panes[i]) out.push(p.panes[i]);
+  return out;
+}
+
 function buildPlots(){
   destroyPlots();
   const v = DATA.vehicles[+focusSel.value];
-  const preset = presetsFor(v).find(p => p.id === curPreset);
-  document.body.classList.toggle('withplots', !!preset);
+  const panes = selectedPanes();
+  document.body.classList.toggle('withplots', panes.length > 0);
   resize();
-  if (!preset) return;
+  if (!panes.length) return;
   const dock = document.getElementById('plotdock');
   const t = v.series.time;
-  for (const pane of preset.panes){
+  for (const pane of panes){
     const el = document.createElement('div');
     el.className = 'pane';
     const h = document.createElement('h4');
     h.textContent = pane.title;
     el.appendChild(h);
     dock.appendChild(el);
-    const w = Math.max(340, Math.floor(dock.clientWidth/preset.panes.length) - 24);
+    const w = dock.clientWidth - 42;
     const axis = {stroke:'#8ea0b8', grid:{stroke:'#1a2230'}, ticks:{stroke:'#1a2230'}};
     const opts = {
-      width: w, height: 290-46,
+      width: w, height: 190,
       cursor: {y:false, drag:{setScale:true, x:true, y:false}},
       scales: {x:{time:false}},
       axes: [axis, axis],
@@ -851,22 +866,55 @@ function seek(tt){
   slider.value = Math.round(frame);
 }
 
-// Preset picker.
+// Plot tree: preset groups expand into per-pane checkboxes; a group
+// checkbox toggles the whole story (indeterminate when partial).
 {
   const list = document.getElementById('presetlist');
+  const savePanes = ()=> store.setItem('viz_panes', JSON.stringify(paneSel));
   const rebuild = ()=>{
+    const openState = {};
+    for (const d of list.children) openState[d.dataset.pid] = d.open;
     list.innerHTML = '';
-    const avail = presetsFor(DATA.vehicles[+focusSel.value]);
-    const items = [{id:'none',label:'none'}].concat(avail);
-    if (!items.some(p=>p.id===curPreset)) curPreset = 'none';
-    for (const p of items){
-      const b = document.createElement('button');
-      b.className = 'preset' + (p.id===curPreset?' active':'');
-      b.textContent = p.label;
-      b.onclick = ()=>{ curPreset = p.id; store.setItem('viz_preset', p.id);
-                        rebuild(); buildPlots(); };
-      list.appendChild(b);
+    for (const p of presetsFor(DATA.vehicles[+focusSel.value])){
+      const sel = new Set(paneSel[p.id] || []);
+      const det = document.createElement('details');
+      det.dataset.pid = p.id;
+      det.open = (p.id in openState) ? openState[p.id] : sel.size > 0;
+      const sum = document.createElement('summary');
+      const gcb = document.createElement('input');
+      gcb.type = 'checkbox';
+      gcb.checked = sel.size === p.panes.length;
+      gcb.indeterminate = sel.size > 0 && sel.size < p.panes.length;
+      gcb.addEventListener('click', e => e.stopPropagation());
+      gcb.onchange = ()=>{
+        paneSel[p.id] = gcb.checked ? p.panes.map((_,i)=>i) : [];
+        savePanes(); rebuild(); buildPlots();
+      };
+      sum.appendChild(gcb);
+      sum.appendChild(document.createTextNode(p.label));
+      det.appendChild(sum);
+      const box = document.createElement('div');
+      box.className = 'panes';
+      p.panes.forEach((pane, i)=>{
+        const lab = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = sel.has(i);
+        cb.onchange = ()=>{
+          if (cb.checked) sel.add(i); else sel.delete(i);
+          paneSel[p.id] = [...sel].sort((a,b)=>a-b);
+          savePanes(); rebuild(); buildPlots();
+        };
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(pane.title));
+        box.appendChild(lab);
+      });
+      det.appendChild(box);
+      list.appendChild(det);
     }
+  };
+  document.getElementById('clearplots').onclick = ()=>{
+    paneSel = {}; savePanes(); rebuild(); buildPlots();
   };
   window.__rebuildPresets = rebuild;
 }
