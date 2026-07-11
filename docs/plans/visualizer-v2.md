@@ -1,5 +1,12 @@
 # Visualizer v2 — interactive portfolio-grade viewer
 
+STATUS: COMPLETE (2026-07-11). All six steps landed; gallery lives in
+docs/gallery/. Post-plan adjustments: arrow heads proportional to arrow
+length + kN readout on the aero force; fin planform fixed to a clipped
+delta; a mesh deflection-scale option was added then REMOVED at the user's
+request (real sub-degree deflections are the honest display; magnitudes
+live in the Control activity preset).
+
 Decisions from the grilling session (2026-07-11):
 
 1. **Platform**: browser, single self-contained HTML per scenario (offline,

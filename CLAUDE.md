@@ -153,11 +153,21 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
 
 ## Python tools
 
-- `tools/visualize.py` + `tools/meshes.py`: emit a self-contained HTML 3-D
-  viewer from a scenario's CSV logs. Hand-rolled canvas renderer (no deps).
-  Body-frame procedural meshes (+x fwd, +y right, +z down) so attitude is
-  exact. Verify changes headlessly with node: extract the `<script>`, stub
-  document/canvas, eval, and call drawTrajectory/drawAttitude across frames.
+- `tools/visualize.py` + `tools/meshes.py`: emit ONE self-contained offline
+  HTML viewer per scenario -- three.js r147 UMD + uPlot, vendored in
+  `tools/vendor/` and inlined at build (only place third-party code is
+  allowed). Articulated body-frame meshes (+x fwd, +y right, +z down; parts
+  carry `hinges` driven by channel columns -- fins, surfaces, TVC bell),
+  toggleable overlays (triad, velocity, alpha/beta arcs, LOS + closing,
+  thrust vector, plume, aero force w/ kN readout, setpoint ghost, labels),
+  focus vehicle with orbit/follow/chase cameras, and preset-only uPlot
+  plots (built per vehicle from available columns; click a plot to seek the
+  animation). NED->scene mapping is x=east, y=up, z=north; VERIFY any
+  renderer change with `node tools/check_viz.mjs <view.html>` -- it asserts
+  the attitude math on known angles and runs the whole app under stubs.
+- `tools/make_gallery.py`: runs the curated scenarios and writes the
+  COMMITTED portfolio gallery `docs/gallery/*.html` + index. Regenerate it
+  after any visualizer or vehicle change that alters those flights.
 - Python is invoked as `py` (Windows launcher, 3.13). numpy 2.x is available.
 
 ## Known behaviors (not bugs)

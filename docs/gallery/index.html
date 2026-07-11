@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>flightsim2 gallery</title>
+<style>
+body{margin:0;background:#0b0e13;color:#cfd6e1;
+  font:15px/1.55 system-ui,Segoe UI,sans-serif;padding:40px 20px}
+.wrap{max-width:980px;margin:0 auto}
+h1{color:#e8edf5;font-size:26px;margin:0 0 4px}
+.sub{color:#7d8ca3;margin-bottom:28px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+a.card{display:block;background:#11161f;border:1px solid #1e2633;border-radius:10px;
+  padding:18px 18px 14px;text-decoration:none;color:inherit;transition:border-color .15s}
+a.card:hover{border-color:#3a5f9e}
+.card h2{color:#e8edf5;font-size:17px;margin:0 0 8px}
+.card p{color:#9fb2cc;font-size:13px;margin:0 0 10px}
+.card .open{color:#4da3ff;font-size:13px}
+.foot{margin-top:30px;color:#5d6c82;font-size:13px}
+code{background:#161d29;border-radius:4px;padding:1px 6px}
+</style></head><body><div class="wrap">
+<h1>flightsim2 &mdash; interactive flight gallery</h1>
+<div class="sub">6-DOF scenario-driven flight simulator (C++17, no external
+dependencies) with component-based vehicles, control allocation, and
+auto-designed autopilots. Every viewer below is a single offline HTML file:
+articulated 3-D animation, toggleable overlays, and synced telemetry plots.</div>
+<div class="grid">
+<a class="card" href="hybrid_launch.html"><h2>Hybrid TVC+fin launcher</h2><p>One allocation-based control law flies a gimbaled nozzle AND fins: TVC steers off the pad, authority blends to the fins as dynamic pressure builds, and the fins track a post-burnout pitch command alone. Open the Allocation preset to watch the moment hand-off.</p>
+<span class="open">open viewer &rarr;</span></a>
+<a class="card" href="intercept.html"><h2>Missile intercept</h2><p>An agile interceptor under proportional navigation chases a turning drone to a hit. Chase camera + LOS overlay show the closing geometry; the Intercept preset plots range and closing speed to the endgame.</p>
+<span class="open">open viewer &rarr;</span></a>
+<a class="card" href="aam_intercept.html"><h2>Air-to-air missile</h2><p>Full-pipeline AAM -- DATCOM aerodynamics, auto-designed LQR gain schedule, ProNav guidance -- launched from a carrier aircraft against a maneuvering bandit.</p>
+<span class="open">open viewer &rarr;</span></a>
+<a class="card" href="tvc_launch.html"><h2>TVC rocket launch</h2><p>A finless rocket steered purely by thrust vectoring through its gravity-turn pitch program; after burnout the gimbal loses authority and it coasts ballistically. Watch the nozzle bell work.</p>
+<span class="open">open viewer &rarr;</span></a>
+<a class="card" href="f16_turn.html"><h2>F-16 turn</h2><p>The real Stevens & Lewis / NASA wind-tunnel F-16 model (statically unstable airframe + SAS autopilot) flying a commanded heading change.</p>
+<span class="open">open viewer &rarr;</span></a>
+<a class="card" href="datcom_rocket_launch.html"><h2>DATCOM sounding rocket</h2><p>A sounding rocket whose aerodynamic tables come straight from a Missile DATCOM run, flown by a hand-tuned PID through a pitch program to apogee.</p>
+<span class="open">open viewer &rarr;</span></a>
+</div>
+<div class="foot">Regenerate with <code>py tools/make_gallery.py</code> after
+building the sim. Source: the flightsim2 repository.</div>
+</div></body></html>

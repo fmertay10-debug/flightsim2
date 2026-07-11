@@ -85,6 +85,18 @@ component's live effectiveness — the gimbal steers off the pad (fins have no
 qbar), authority blends to the fins as speed builds, and after burnout the
 fins carry the tracking alone. No mode switching, no per-phase gains.
 
+## Interactive 3-D gallery
+
+**[docs/gallery/index.html](docs/gallery/index.html)** — six flights as
+single offline HTML files (open in any browser, no install, no internet):
+articulated 3-D animation (fins, control surfaces, and the TVC nozzle deflect
+with the logged commands), toggleable overlays (body axes, velocity, α/β
+arcs, line-of-sight with closing speed, thrust vector, exhaust plume, aero
+force, setpoint ghost), orbit/follow/chase cameras, and preset telemetry
+plots synced two-way with the animation — click a plot to jump the 3-D view
+to that moment. Built by `py tools/make_gallery.py`; any scenario gets the
+same viewer via `py tools/visualize.py scenarios/<name>.json`.
+
 **Missile examples** — AAM, SAM, AGM, and SSM, each built the whole way
 (`tools/make_missiles.py`): a DATCOM aero run → tables → vehicle → auto-designed
 LQR autopilot, flown to an intercept under proportional navigation

@@ -280,6 +280,9 @@ body.withplots #scene{bottom:290px}
 .pane h4{margin:2px 0 0 6px;font-size:12px;color:#9fb2cc;font-weight:600}
 .u-legend{font-size:11px;color:#cfd6e1}
 .u-legend .u-marker{width:0.8em;height:0.8em}
+#hint{position:absolute;right:12px;bottom:8px;z-index:8;color:#5d6c82;
+  font-size:11px;pointer-events:none}
+body.withplots #hint{bottom:298px}
 </style></head>
 <body>
 <div id="scene"></div>
@@ -287,15 +290,12 @@ body.withplots #scene{bottom:290px}
   <details open><summary>Overlays</summary><div id="ovlist"></div>
     <div class="sep"></div>
     <label><input type="checkbox" id="showall"> triad/labels on all</label>
-    <label>deflection scale
-      <select id="defscale">
-        <option value="1">x1</option><option value="3">x3</option>
-        <option value="10">x10</option>
-      </select></label>
   </details>
   <details open><summary>Plots</summary><div id="presetlist"></div></details>
 </div>
 <div id="plotdock"></div>
+<div id="hint">drag orbit &middot; scroll zoom &middot; space play/pause &middot;
+&larr;/&rarr; step &middot; click a plot to seek</div>
 <div id="topbar">
   <b id="title"></b>
   <button id="play">&#9654;</button>
@@ -703,11 +703,6 @@ const showallCb = document.getElementById('showall');
 showallCb.checked = showAll;
 showallCb.onchange = ()=>{ showAll = showallCb.checked;
                            ovState._showAll = showAll; saveOv(); };
-let defScale = +(ovState._defScale || 3);
-const defSel = document.getElementById('defscale');
-defSel.value = String(defScale);
-defSel.onchange = ()=>{ defScale = +defSel.value;
-                        ovState._defScale = defScale; saveOv(); };
 function saveOv(){ store.setItem('viz_overlays', JSON.stringify(ovState)); }
 
 // ------------------------------------------------------------ preset plots
@@ -889,9 +884,7 @@ function applyFrame(k){
     for (const h of o.hinged){
       M4.identity();
       for (const hg of h.hinges){
-        // defScale exaggerates MESH articulation only (sub-degree allocated
-        // deflections are otherwise invisible); overlays and plots stay true.
-        const ang = hg.sign * chanAt(o.v, hg.channel, k) * defScale;
+        const ang = hg.sign * chanAt(o.v, hg.channel, k);
         if (!ang) continue;
         AXIS.set(hg.axis[0],hg.axis[1],hg.axis[2]);
         Ma.makeTranslation(hg.origin[0],hg.origin[1],hg.origin[2]);
@@ -954,6 +947,17 @@ let resizeTimer = null;
 window.addEventListener('resize', ()=>{
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(buildPlots, 200);
+});
+window.addEventListener('keydown', e=>{
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space'){ playBtn.onclick(); e.preventDefault(); }
+  else if (e.code === 'ArrowRight' || e.code === 'ArrowLeft'){
+    playing = false; playBtn.innerHTML = '&#9654;';
+    const step = (e.code === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 10 : 1);
+    frame = Math.max(0, Math.min(DATA.times.length-1, Math.round(frame)+step));
+    slider.value = Math.round(frame);
+    e.preventDefault();
+  }
 });
 
 function tick(now){
