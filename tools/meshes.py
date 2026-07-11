@@ -80,8 +80,9 @@ def rocket_mesh(length, diameter, n_fins=4, nose_frac=0.18,
         ca, sa = math.cos(ang), math.sin(ang)
         def pt(x, rad):
             return [x, rad * ca, rad * sa]
+        # Clipped delta: aft-swept leading edge, tip chord ~45% of root.
         fv = [pt(root_x0, r), pt(root_x1, r),
-              pt(root_x1, r + fin_h), pt(root_x0 + fin_len * 0.3, r + fin_h)]
+              pt(root_x1, r + fin_h), pt(root_x0 - fin_len * 0.55, r + fin_h)]
         ff = [[0, 1, 2], [0, 2, 3]]
         axis = [0.0, ca, sa]                       # outward radial
         origin = [(root_x0 + root_x1) / 2.0, r * ca, r * sa]

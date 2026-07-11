@@ -287,6 +287,11 @@ body.withplots #scene{bottom:290px}
   <details open><summary>Overlays</summary><div id="ovlist"></div>
     <div class="sep"></div>
     <label><input type="checkbox" id="showall"> triad/labels on all</label>
+    <label>deflection scale
+      <select id="defscale">
+        <option value="1">x1</option><option value="3">x3</option>
+        <option value="10">x10</option>
+      </select></label>
   </details>
   <details open><summary>Plots</summary><div id="presetlist"></div></details>
 </div>
@@ -698,6 +703,11 @@ const showallCb = document.getElementById('showall');
 showallCb.checked = showAll;
 showallCb.onchange = ()=>{ showAll = showallCb.checked;
                            ovState._showAll = showAll; saveOv(); };
+let defScale = +(ovState._defScale || 3);
+const defSel = document.getElementById('defscale');
+defSel.value = String(defScale);
+defSel.onchange = ()=>{ defScale = +defSel.value;
+                        ovState._defScale = defScale; saveOv(); };
 function saveOv(){ store.setItem('viz_overlays', JSON.stringify(ovState)); }
 
 // ------------------------------------------------------------ preset plots
@@ -879,7 +889,9 @@ function applyFrame(k){
     for (const h of o.hinged){
       M4.identity();
       for (const hg of h.hinges){
-        const ang = hg.sign * chanAt(o.v, hg.channel, k);
+        // defScale exaggerates MESH articulation only (sub-degree allocated
+        // deflections are otherwise invisible); overlays and plots stay true.
+        const ang = hg.sign * chanAt(o.v, hg.channel, k) * defScale;
         if (!ang) continue;
         AXIS.set(hg.axis[0],hg.axis[1],hg.axis[2]);
         Ma.makeTranslation(hg.origin[0],hg.origin[1],hg.origin[2]);
