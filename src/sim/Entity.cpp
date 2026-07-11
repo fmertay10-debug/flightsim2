@@ -27,6 +27,10 @@ Entity::Entity(std::string name,
         throw std::invalid_argument("Entity '" + name_ + "': EOM is required");
     telem_.name = name_;
     telem_.channels = &channels_;
+    if (vehicle_) {
+        telem_.componentNames = &vehicle_->componentNames();
+        telem_.componentLoads.resize(vehicle_->components().size());
+    }
 }
 
 State Entity::propagate(const Environment& env, const WorldView& world, double dt) {
@@ -89,14 +93,16 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
     Vector3 moment;
     if (vehicle_) {
         const ComponentContext cctx{ s, air, altitude, dt, ms.xcg };
-        for (const auto& c : vehicle_->components()) {
-            Wrench w = c->compute(cctx, actual);
-            const double xref = c->momentReferenceStation();
+        auto& comps = vehicle_->components();
+        for (std::size_t i = 0; i < comps.size(); ++i) {
+            Wrench w = comps[i]->compute(cctx, actual);
+            const double xref = comps[i]->momentReferenceStation();
             if (std::isfinite(xref) && std::isfinite(ms.xcg)) {
                 const double dx = ms.xcg - xref;
                 w.moment.y -= dx * w.force.z;
                 w.moment.z += dx * w.force.y;
             }
+            telem_.componentLoads[i] = w;   // CG-referenced, for observers
             force  = force + w.force;
             moment = moment + w.moment;
         }

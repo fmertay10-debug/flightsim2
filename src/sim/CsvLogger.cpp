@@ -19,8 +19,9 @@ CsvLogger::CsvLogger(int entityId, const std::string& path, int decimation)
     out_ << std::setprecision(8);
 }
 
-void CsvLogger::writeHeader(const ChannelTable* table) {
+void CsvLogger::writeHeader(const Telemetry* t) {
     headerWritten_ = true;
+    const ChannelTable* table = t ? t->channels : nullptr;
     if (table) {
         elevator_ = table->find(channels::kElevator);
         aileron_  = table->find(channels::kAileron);
@@ -46,7 +47,14 @@ void CsvLogger::writeHeader(const ChannelTable* table) {
         out_ << n << ',' << n << "_cmd,";
     }
     out_ << "alpha,beta,mach,airspeed,altitude,mass,thrust,"
-            "pitch_sp,roll_sp,heading_sp,altitude_sp,speed_sp\n";
+            "pitch_sp,roll_sp,heading_sp,altitude_sp,speed_sp,qbar";
+    if (t && t->componentNames) {
+        nComponents_ = static_cast<int>(t->componentNames->size());
+        for (const std::string& n : *t->componentNames)
+            out_ << ',' << n << "_fx," << n << "_fy," << n << "_fz,"
+                 << n << "_mx," << n << "_my," << n << "_mz";
+    }
+    out_ << '\n';
 }
 
 namespace {
@@ -60,7 +68,7 @@ double sp(const std::optional<double>& v) {
 void CsvLogger::onStep(const Telemetry& t) {
     if (t.id != entityId_) return;
     if (count_++ % decimation_ != 0) return;
-    if (!headerWritten_) writeHeader(t.channels);
+    if (!headerWritten_) writeHeader(&t);
 
     const State& s = t.state;
     const Vector3 e = s.eulerAngles();
@@ -81,7 +89,13 @@ void CsvLogger::onStep(const Telemetry& t) {
          << t.mass << ',' << t.thrust << ','
          << sp(t.setpoint.pitch) << ',' << sp(t.setpoint.roll) << ','
          << sp(t.setpoint.heading) << ',' << sp(t.setpoint.altitude) << ','
-         << sp(t.setpoint.speed) << '\n';
+         << sp(t.setpoint.speed) << ',' << t.air.qbar;
+    for (int i = 0; i < nComponents_; ++i) {
+        const Wrench& w = t.componentLoads[static_cast<std::size_t>(i)];
+        out_ << ',' << w.force.x << ',' << w.force.y << ',' << w.force.z
+             << ',' << w.moment.x << ',' << w.moment.y << ',' << w.moment.z;
+    }
+    out_ << '\n';
 }
 
 void CsvLogger::onFinish() {

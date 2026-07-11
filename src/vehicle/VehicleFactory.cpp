@@ -63,16 +63,26 @@ std::unique_ptr<Vehicle> create(const json::Value& def, const std::string& baseD
         throw std::invalid_argument("vehicle: 'components' must be an array");
 
     std::vector<std::unique_ptr<ForceComponent>> components;
+    std::vector<std::string> names;
     components.reserve(list.size());
+    names.reserve(list.size());
     bool hasSolidMotor = false;
     for (std::size_t i = 0; i < list.size(); ++i) {
-        hasSolidMotor = hasSolidMotor || (list[i].str("type") == "solid_motor");
+        const std::string type = list[i].str("type");
+        hasSolidMotor = hasSolidMotor || (type == "solid_motor");
         components.push_back(component::Factory::create(list[i], baseDir));
+        // Telemetry label = the config type, suffixed when it repeats.
+        std::string label = type;
+        int dup = 1;
+        for (const std::string& n : names)
+            if (n == type || n.rfind(type + "_", 0) == 0) ++dup;
+        if (dup > 1) label += "_" + std::to_string(dup);
+        names.push_back(std::move(label));
     }
 
     auto [mass, addPropellant] = buildMass(def, baseDir, hasSolidMotor);
     return std::make_unique<Vehicle>(std::move(mass), std::move(components),
-                                     addPropellant);
+                                     addPropellant, std::move(names));
 }
 
 } // namespace vehicle

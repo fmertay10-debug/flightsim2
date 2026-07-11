@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -14,11 +15,15 @@
 // Vehicle -- the GNC stack attaches to the Entity.
 class Vehicle {
 public:
+    // componentNames: one label per component (its config "type", deduped by
+    // the factory) -- used for telemetry column names; may be empty.
     Vehicle(std::unique_ptr<MassModel> mass,
             std::vector<std::unique_ptr<ForceComponent>> components,
-            bool addMotorPropellant = false)
+            bool addMotorPropellant = false,
+            std::vector<std::string> componentNames = {})
         : mass_(std::move(mass)),
           components_(std::move(components)),
+          componentNames_(std::move(componentNames)),
           addMotorPropellant_(addMotorPropellant) {}
 
     // Mass, inertia, CG at sim time. The legacy path (scalar dry mass + solid
@@ -31,6 +36,7 @@ public:
     }
 
     std::vector<std::unique_ptr<ForceComponent>>& components() { return components_; }
+    const std::vector<std::string>& componentNames() const { return componentNames_; }
 
     // Forward declaration phase to every component, in list order.
     void declareChannels(ChannelTable& table) {
@@ -47,5 +53,6 @@ public:
 private:
     std::unique_ptr<MassModel> mass_;
     std::vector<std::unique_ptr<ForceComponent>> components_;
+    std::vector<std::string> componentNames_;
     bool addMotorPropellant_;
 };
