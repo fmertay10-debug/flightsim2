@@ -63,9 +63,10 @@ const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(x => x[1
 if (scripts.length < 4) { console.error("expected 4 inline scripts"); process.exit(1); }
 const [threeSrc, /*orbit*/, /*uplot*/, appSrc] = scripts;
 
+const fakeStyle = () => new Proxy({}, { get: () => () => {}, set: () => true });
 const fakeEl = () => new Proxy(function(){}, {
   get(t, k) {
-    if (k === "style") return {};
+    if (k === "style") return fakeStyle();
     if (k === "value") return "0";
     if (k === "max") return 0;
     if (k === "children") return [];

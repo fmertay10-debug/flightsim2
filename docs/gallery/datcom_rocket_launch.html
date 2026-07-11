@@ -28,14 +28,22 @@ button:hover{background:#232d3d}
   font-weight:500;margin:0}
 #panel .tree .panes{margin-left:22px}
 #panel .clear{margin:2px 0 6px;width:100%}
-#plotdock{position:absolute;top:44px;right:0;bottom:0;width:400px;z-index:9;
+:root{--dockw:400px}
+#plotdock{position:absolute;top:44px;right:0;bottom:0;width:var(--dockw);z-index:9;
   display:none;flex-direction:column;gap:8px;padding:10px;overflow-y:auto;
   overflow-x:hidden;background:rgba(11,14,19,.94);border-left:1px solid #1e2633}
 body.withplots #plotdock{display:flex}
-body.withplots #scene{right:400px}
+body.withplots #scene{right:var(--dockw)}
+#dockresize{position:absolute;top:44px;bottom:0;right:calc(var(--dockw) - 3px);
+  width:7px;z-index:11;cursor:ew-resize;display:none}
+#dockresize:hover,#dockresize.active{background:rgba(77,163,255,.35)}
+body.withplots #dockresize{display:block}
 .pane{flex:0 0 auto;background:#0e1218;border:1px solid #1a2230;
   border-radius:6px;padding:4px 6px 2px}
-.pane h4{margin:2px 0 0 6px;font-size:12px;color:#9fb2cc;font-weight:600}
+.pane h4{margin:2px 0 0 6px;font-size:12px;color:#9fb2cc;font-weight:600;
+  cursor:grab;user-select:none}
+.pane h4::before{content:'\2630  ';color:#3d4a5e;font-size:10px}
+.pane.dragging{opacity:.45;border-color:#3a5f9e}
 .u-legend{font-size:11px;color:#cfd6e1}
 .u-legend .u-marker{width:0.8em;height:0.8em}
 #hint{position:absolute;right:12px;bottom:8px;z-index:8;color:#5d6c82;
@@ -55,6 +63,7 @@ body.withplots #hint{right:412px}
   </details>
 </div>
 <div id="plotdock"></div>
+<div id="dockresize"></div>
 <div id="hint">drag orbit &middot; scroll zoom &middot; space play/pause &middot;
 &larr;/&rarr; step &middot; click a plot to seek</div>
 <div id="topbar">
@@ -1656,12 +1665,20 @@ function seriesData(v, spec){
   return v.series[spec.col].map(x => Number.isFinite(x) ? x*mult : null);
 }
 
+// Custom pane order from drag-and-drop (array of "presetId:paneIdx" keys);
+// panes not in it fall back to tree order, appended at the end.
+let paneOrder = JSON.parse(store.getItem('viz_order') || '[]');
+
 function selectedPanes(){
   const v = DATA.vehicles[+focusSel.value];
   const out = [];
   for (const p of presetsFor(v))
     for (const i of (paneSel[p.id] || []))
-      if (p.panes[i]) out.push(p.panes[i]);
+      if (p.panes[i]) out.push({key: p.id + ':' + i, pane: p.panes[i]});
+  out.sort((a,b)=>{
+    const ia = paneOrder.indexOf(a.key), ib = paneOrder.indexOf(b.key);
+    return (ia<0 ? 1e9 : ia) - (ib<0 ? 1e9 : ib);
+  });
   return out;
 }
 
@@ -1674,11 +1691,31 @@ function buildPlots(){
   if (!panes.length) return;
   const dock = document.getElementById('plotdock');
   const t = v.series.time;
-  for (const pane of panes){
+  for (const {key, pane} of panes){
     const el = document.createElement('div');
     el.className = 'pane';
+    el.dataset.key = key;
     const h = document.createElement('h4');
     h.textContent = pane.title;
+    h.draggable = true;                          // drag the title to reorder
+    h.addEventListener('dragstart', e=>{
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', key);
+    });
+    h.addEventListener('dragend', ()=>{
+      el.classList.remove('dragging');
+      paneOrder = [...dock.children].map(c => c.dataset.key);
+      store.setItem('viz_order', JSON.stringify(paneOrder));
+    });
+    el.addEventListener('dragover', e=>{
+      e.preventDefault();
+      const dragging = dock.querySelector('.dragging');
+      if (!dragging || dragging === el) return;
+      const r = el.getBoundingClientRect();
+      dock.insertBefore(dragging,
+        e.clientY < r.top + r.height/2 ? el : el.nextSibling);
+    });
     el.appendChild(h);
     dock.appendChild(el);
     const w = dock.clientWidth - 42;
@@ -1783,6 +1820,39 @@ function seek(tt){
     paneSel = {}; savePanes(); rebuild(); buildPlots();
   };
   window.__rebuildPresets = rebuild;
+}
+
+// Resizable dock: drag the divider between the scene and the plots; the
+// renderer and every uPlot rescale live.
+{
+  const rs = document.getElementById('dockresize');
+  const setW = w => document.documentElement.style.setProperty('--dockw', w + 'px');
+  let dockW = +(store.getItem('viz_dockw') || 400);
+  setW(dockW);
+  let dragging = false, raf = 0;
+  rs.addEventListener('pointerdown', e=>{
+    dragging = true; rs.classList.add('active');
+    rs.setPointerCapture(e.pointerId);
+  });
+  rs.addEventListener('pointermove', e=>{
+    if (!dragging) return;
+    dockW = Math.max(280, Math.min(window.innerWidth*0.7,
+                                   window.innerWidth - e.clientX));
+    setW(dockW);
+    if (!raf) raf = requestAnimationFrame(()=>{
+      raf = 0;
+      resize();
+      const dock = document.getElementById('plotdock');
+      for (const u of plots) u.setSize({width: dock.clientWidth - 42, height: 190});
+    });
+  });
+  const stop = ()=>{
+    if (!dragging) return;
+    dragging = false; rs.classList.remove('active');
+    store.setItem('viz_dockw', String(Math.round(dockW)));
+  };
+  rs.addEventListener('pointerup', stop);
+  rs.addEventListener('pointercancel', stop);
 }
 
 function applyFrame(k){
