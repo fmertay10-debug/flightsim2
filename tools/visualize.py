@@ -416,6 +416,11 @@ function makeArrow(colorHex, headFrac=0.22){
   a.visible = false;
   return a;
 }
+// Length with the head a fixed FRACTION of it -- heads stay proportionate to
+// the arrow (and so to the vehicle) instead of ballooning in perspective.
+function setArrowLen(a, len){
+  a.setLength(len, len*0.16, len*0.07);
+}
 function makeTextSprite(){
   const canvas = document.createElement('canvas');
   canvas.width = 512; canvas.height = 96;
@@ -516,6 +521,8 @@ for (const o of vObjs){
   scene.add(o.labelSp);                       // world space (billboard)
   o.arcASp = makeTextSprite(); o.arcASp.scale.set(L*3.2, L*0.6, 1);
   scene.add(o.arcASp);
+  o.aeroSp = makeTextSprite(); o.aeroSp.scale.set(L*2.2, L*0.42, 1);
+  scene.add(o.aeroSp);
 
   // World-space glyphs (direction lives in NED, not body).
   o.velArrow = makeArrow(0x4dd7ff); scene.add(o.velArrow);
@@ -558,7 +565,7 @@ function updateOverlays(k){
       const d = nedToScene(vv);
       o.velArrow.position.set(s[0],s[1],s[2]);
       o.velArrow.setDirection(V3a.set(d[0],d[1],d[2]).normalize());
-      o.velArrow.setLength(L*2.6, L*0.5, L*0.25);
+      setArrowLen(o.velArrow, L*2.6);
     }
     // Alpha / beta arcs + readout (body-frame children).
     const showArcs = on('arcs') && f.alpha;
@@ -579,7 +586,7 @@ function updateOverlays(k){
       const dp = chanAt(o.v,'tvc_pitch',k), dy = chanAt(o.v,'tvc_yaw',k);
       V3a.set(Math.cos(dp)*Math.cos(dy), -Math.cos(dp)*Math.sin(dy), Math.sin(dp));
       o.thrustArrow.setDirection(V3a);
-      o.thrustArrow.setLength(L*(0.8 + 2.2*T/o.maxThrust), L*0.4, L*0.2);
+      setArrowLen(o.thrustArrow, L*(0.8 + 1.8*T/o.maxThrust));
     }
     // Exhaust plume: cone off the tail along -thrust direction, scaled by T.
     o.plume.visible = ovState.plume && f.alive[k] && T > 0;
@@ -591,14 +598,25 @@ function updateOverlays(k){
       const flick = 0.92 + 0.16*Math.random();
       o.plume.scale.set(1, L*(0.6 + 2.8*T/o.maxThrust)*flick, 1);
     }
-    // Aero force (body-frame child arrow).
+    // Aero force (body-frame child arrow). sqrt scaling keeps mid-range
+    // forces distinguishable; the label states the actual magnitude.
     o.aeroArrow.visible = on('aero') && !!f.aeroF;
+    o.aeroSp.visible = false;
     if (o.aeroArrow.visible){
       const F = f.aeroF[k], mag = Math.hypot(F[0],F[1],F[2]);
       o.aeroArrow.visible = mag > 1e-3;
       if (o.aeroArrow.visible){
         o.aeroArrow.setDirection(V3a.set(F[0],F[1],F[2]).normalize());
-        o.aeroArrow.setLength(L*(0.5 + 2.0*mag/o.maxAero), L*0.4, L*0.2);
+        const len = L*(0.4 + 1.6*Math.sqrt(mag/o.maxAero));
+        setArrowLen(o.aeroArrow, len);
+        // Magnitude readout near the arrow tip (world space).
+        o.aeroSp.visible = true;
+        o.grp.updateMatrixWorld();
+        V3b.set(F[0],F[1],F[2]).normalize().multiplyScalar(len*1.15)
+           .applyMatrix4(o.grp.matrixWorld);
+        o.aeroSp.position.copy(V3b);
+        setSpriteText(o.aeroSp, mag >= 1000 ? (mag/1000).toFixed(1)+' kN'
+                                            : Math.round(mag)+' N');
       }
     }
     // Setpoint ghost: commanded attitude direction (NED), translucent.
@@ -613,7 +631,7 @@ function updateOverlays(k){
       const d = nedToScene([Math.cos(p)*Math.cos(h), Math.cos(p)*Math.sin(h), -Math.sin(p)]);
       o.ghostArrow.position.set(s[0],s[1],s[2]);
       o.ghostArrow.setDirection(V3a.set(d[0],d[1],d[2]).normalize());
-      o.ghostArrow.setLength(L*3.2, L*0.55, L*0.28);
+      setArrowLen(o.ghostArrow, L*3.2);
     }
     // Info label above the vehicle.
     o.labelSp.visible = on('label');
