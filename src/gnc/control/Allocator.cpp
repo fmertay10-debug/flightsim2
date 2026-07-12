@@ -1,4 +1,4 @@
-#include "gnc/Allocator.h"
+#include "gnc/control/Allocator.h"
 
 #include <algorithm>
 

@@ -5,14 +5,14 @@
 #include <vector>
 
 #include "gnc/ActuatorBank.h"
-#include "gnc/ControlLaw.h"
-#include "gnc/FlightPlan.h"
+#include "gnc/control/ControlLaw.h"
+#include "gnc/guidance/FlightPlan.h"
 #include "core/Channel.h"
 #include "core/State.h"
 #include "core/Telemetry.h"
 #include "dynamics/EquationsOfMotion.h"
 #include "environment/Environment.h"
-#include "gnc/GuidanceLaw.h"
+#include "gnc/guidance/GuidanceLaw.h"
 #include "vehicle/Vehicle.h"
 
 // An object in the simulated world: kinematic state + an integrator,

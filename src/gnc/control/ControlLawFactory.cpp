@@ -1,13 +1,13 @@
-#include "gnc/ControlLawFactory.h"
+#include "gnc/control/ControlLawFactory.h"
 
 #include <map>
 #include <stdexcept>
 
-#include "gnc/AircraftPidLaw.h"
-#include "gnc/AllocatedAttitudeLaw.h"
-#include "gnc/RocketPidLaw.h"
-#include "gnc/ScheduledLaw.h"
-#include "gnc/TvcPidLaw.h"
+#include "gnc/control/laws/AircraftPidLaw.h"
+#include "gnc/control/laws/AllocatedAttitudeLaw.h"
+#include "gnc/control/laws/RocketPidLaw.h"
+#include "gnc/control/laws/ScheduledLaw.h"
+#include "gnc/control/laws/TvcPidLaw.h"
 
 namespace gnc {
 

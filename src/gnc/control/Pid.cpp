@@ -1,4 +1,4 @@
-#include "gnc/Pid.h"
+#include "gnc/control/Pid.h"
 
 #include <algorithm>
 

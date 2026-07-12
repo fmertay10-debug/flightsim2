@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gnc/ControlLaw.h"
-#include "gnc/Pid.h"
+#include "gnc/control/ControlLaw.h"
+#include "gnc/control/Pid.h"
 #include "io/Json.h"
 
 // Thrust-vector-control autopilot for a boost-phase rocket. Same pitch/yaw

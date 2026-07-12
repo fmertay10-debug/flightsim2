@@ -1,4 +1,4 @@
-#include "gnc/AircraftPidLaw.h"
+#include "gnc/control/laws/AircraftPidLaw.h"
 
 #include <algorithm>
 #include <cmath>

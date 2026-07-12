@@ -1,4 +1,4 @@
-#include "gnc/ScheduledLaw.h"
+#include "gnc/control/laws/ScheduledLaw.h"
 
 #include <algorithm>
 #include <filesystem>

@@ -1,4 +1,4 @@
-#include "gnc/PurePursuit.h"
+#include "gnc/guidance/PurePursuit.h"
 
 #include <cmath>
 

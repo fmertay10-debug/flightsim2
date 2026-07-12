@@ -46,11 +46,14 @@ src/
   models/          family-specific implementations: aircraft/ (derivative aero),
                    rocket/ (derivative + DATCOM table aero), f16/ (wind-tunnel aero
                    + turbofan)
-  gnc/             the GNC stack: ControlLaws (aircraft/rocket/tvc PIDs, ScheduledLaw
-                   LQR state feedback, AllocatedAttitudeLaw), Allocator (moment ->
-                   channels by live effectiveness), guidance (ProNav3D, PurePursuit),
-                   PID, flight plans, per-channel ActuatorBank; registries keyed on
-                   explicit "type" strings
+  gnc/             the GNC stack. CommandSet vocabulary + per-channel ActuatorBank
+                   at the root; registries keyed on explicit "type" strings
+    control/       framework: ControlLaw iface + factory + building blocks
+                   (Pid, Allocator: moment -> channels by live effectiveness)
+      laws/        the concrete laws: aircraft/rocket/tvc PIDs, ScheduledLaw
+                   LQR state feedback, AllocatedAttitudeLaw
+    guidance/      GuidanceLaw iface + ProNav3D, PurePursuit + FlightPlan
+                   (scripted CommandSet segments)
   vehicle/         Vehicle (mass + ForceComponent list + declared channels) + factory
   sim/             Simulation (two-phase multi-vehicle loop, intercept watch, CG
                    moment transfer), Entity, WorldView, observers, CsvLogger

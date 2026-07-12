@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include "gnc/GuidanceLaw.h"
+#include "gnc/guidance/GuidanceLaw.h"
 #include "io/Json.h"
 
 // Registry for guidance laws, built from a scenario's "guidance" block. The

@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "gnc/Allocator.h"
-#include "gnc/ControlLaw.h"
+#include "gnc/control/Allocator.h"
+#include "gnc/control/ControlLaw.h"
 #include "io/Json.h"
 
 // Allocation-based attitude autopilot (ADR-0002's standard path): a PID on

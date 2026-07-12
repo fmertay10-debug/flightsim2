@@ -1,4 +1,4 @@
-#include "gnc/RocketPidLaw.h"
+#include "gnc/control/laws/RocketPidLaw.h"
 
 #include <algorithm>
 

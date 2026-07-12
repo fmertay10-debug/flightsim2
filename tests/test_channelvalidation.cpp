@@ -6,8 +6,8 @@
 
 #include "models/rocket/RocketAero.h"
 #include "component/Propulsor.h"
-#include "gnc/RocketPidLaw.h"
-#include "gnc/TvcPidLaw.h"
+#include "gnc/control/laws/RocketPidLaw.h"
+#include "gnc/control/laws/TvcPidLaw.h"
 #include "io/Json.h"
 #include "propulsion/SolidMotor.h"
 #include "scenario/ScenarioLoader.h"

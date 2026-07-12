@@ -1,4 +1,4 @@
-#include "gnc/AllocatedAttitudeLaw.h"
+#include "gnc/control/laws/AllocatedAttitudeLaw.h"
 
 #include <algorithm>
 #include <cmath>

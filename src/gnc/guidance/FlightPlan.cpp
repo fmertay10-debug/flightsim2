@@ -1,4 +1,4 @@
-#include "gnc/FlightPlan.h"
+#include "gnc/guidance/FlightPlan.h"
 
 #include <algorithm>
 

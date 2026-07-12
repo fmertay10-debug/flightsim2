@@ -1,4 +1,4 @@
-#include "gnc/ProNav3D.h"
+#include "gnc/guidance/ProNav3D.h"
 
 #include <algorithm>
 #include <cmath>

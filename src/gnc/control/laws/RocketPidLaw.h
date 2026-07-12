@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gnc/ControlLaw.h"
-#include "gnc/Pid.h"
+#include "gnc/control/ControlLaw.h"
+#include "gnc/control/Pid.h"
 #include "io/Json.h"
 
 // Finned-rocket attitude autopilot: three independent PID loops on the fins.

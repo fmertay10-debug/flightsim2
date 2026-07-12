@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include "gnc/ControlLaw.h"
+#include "gnc/control/ControlLaw.h"
 #include "io/Json.h"
 
 // Registry for control laws -- the Lego "control block". The gnc.control_law

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gnc/GuidanceLaw.h"
+#include "gnc/guidance/GuidanceLaw.h"
 
 // 3D proportional navigation, skid-to-turn: the LOS rate is split into an
 // elevation channel (-> pitch command) and an azimuth channel (-> heading

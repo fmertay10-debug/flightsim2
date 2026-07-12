@@ -1,4 +1,4 @@
-#include "gnc/TvcPidLaw.h"
+#include "gnc/control/laws/TvcPidLaw.h"
 
 #include <algorithm>
 #include <cmath>

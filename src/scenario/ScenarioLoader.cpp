@@ -6,9 +6,9 @@
 #include <stdexcept>
 
 #include "gnc/ActuatorBank.h"
-#include "gnc/ControlLawFactory.h"
+#include "gnc/control/ControlLawFactory.h"
 #include "dynamics/EomFactory.h"
-#include "gnc/GuidanceFactory.h"
+#include "gnc/guidance/GuidanceFactory.h"
 #include "io/Json.h"
 #include "math/Units.h"
 #include "sim/CsvLogger.h"

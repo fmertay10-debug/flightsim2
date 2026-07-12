@@ -2,8 +2,8 @@
 
 #include <string>
 
-#include "gnc/ControlLaw.h"
-#include "gnc/Pid.h"
+#include "gnc/control/ControlLaw.h"
+#include "gnc/control/Pid.h"
 #include "math/LookupTable1D.h"
 #include "io/Json.h"
 

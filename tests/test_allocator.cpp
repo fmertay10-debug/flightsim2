@@ -4,7 +4,7 @@
 #include "core/Channel.h"
 #include "core/State.h"
 #include "component/Propulsor.h"
-#include "gnc/Allocator.h"
+#include "gnc/control/Allocator.h"
 #include "io/Json.h"
 #include "models/rocket/RocketAero.h"
 #include "test_util.h"

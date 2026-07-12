@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gnc/GuidanceLaw.h"
+#include "gnc/guidance/GuidanceLaw.h"
 
 // Pure pursuit: always point at the target's CURRENT position -- pitch
 // command = LOS elevation, heading command = LOS azimuth. Simple and robust;
