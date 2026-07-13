@@ -4,3 +4,7 @@ golden/
 *.csv
 !vehicles/**/*.csv
 !tests/fixtures/*.csv
+
+# Python bytecode
+__pycache__/
+*.pyc
