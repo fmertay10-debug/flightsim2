@@ -88,7 +88,7 @@ def compare_csv(golden_path, output_path, atol, rtol):
             if (isinstance(fa, float) and isinstance(fb, float)
                     and not math.isnan(fa) and not math.isinf(fa)):
                 max_abs = max(max_abs, abs(fa - fb))
-    return True, f"max|Δ|={max_abs:.2e}"
+    return True, f"max|delta|={max_abs:.2e}"
 
 
 def compare_stdout(name, actual, atol, rtol):
@@ -185,7 +185,10 @@ def main():
 
         if args.update:
             update_golden(name)
-            print(f"[UPDATED] {name}: goldens re-baselined from output/")
+            with open(os.path.join(GOLDEN, f"{name}.stdout.txt"), "w",
+                      newline="") as f:
+                f.write(stdout)
+            print(f"[UPDATED] {name}: CSVs + stdout re-baselined from output/")
             continue
 
         gdir = os.path.join(GOLDEN, name)

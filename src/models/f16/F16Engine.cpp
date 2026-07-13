@@ -8,7 +8,8 @@
 F16Engine::F16Engine(LookupTable2D idle, LookupTable2D mil, LookupTable2D mx,
                      double power0)
     : idle_(std::move(idle)), mil_(std::move(mil)), max_(std::move(mx)),
-      power_(std::clamp(power0, 0.0, 100.0)) {}
+      power_(std::clamp(power0, 0.0, 100.0)),
+      power0_(std::clamp(power0, 0.0, 100.0)) {}
 
 double F16Engine::commandedPower(double throttle) {
     const double thr = std::clamp(throttle, 0.0, 1.0);
@@ -46,6 +47,20 @@ double F16Engine::thrust(const PropulsionContext& ctx) {
     const double pcmd = commandedPower(ctx.throttle);
     power_ = std::clamp(power_ + powerRate(power_, pcmd) * ctx.dt, 0.0, 100.0);
     return blend(power_, ctx.altitude, ctx.mach);
+}
+
+void F16Engine::derivatives(const PropulsionContext& ctx,
+                            const double* x, double* xdot) const {
+    // Pdot = powerRate(P, tgear(throttle)). The Entity applies the dt step; the
+    // spool self-limits toward its target (gain*dt << 1), so P stays in [0,100]
+    // without an explicit clamp here.
+    xdot[0] = powerRate(x[0], commandedPower(ctx.throttle));
+}
+
+double F16Engine::thrustFromState(const PropulsionContext& ctx, const double* x) const {
+    // PURE: thrust from the CURRENT spool state (the Entity has not yet
+    // advanced it), unlike the legacy thrust() which reports post-step power.
+    return blend(x[0], ctx.altitude, ctx.mach);
 }
 
 double F16Engine::steadyThrust(double throttle, double altitude, double mach) const {

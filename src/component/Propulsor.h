@@ -33,6 +33,15 @@ public:
 
     Wrench compute(const ComponentContext& ctx, const ChannelValues& u) override;
 
+    // Externalized state (ADR-0003): forward to the wrapped model, which owns
+    // any spool/internal state. computeWrench() is the pure hot-path entry.
+    int    numStates() const override { return model_->numStates(); }
+    void   initializeState(double* x) const override { model_->initializeState(x); }
+    void   derivatives(const ComponentContext& ctx, const ChannelValues& u,
+                       const double* x, double* xdot) const override;
+    Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                         const double* x) const override;
+
     double thrustNewtons() const override { return lastThrust_; }
     double propellantMass(double time) const override {
         return model_->propellantMass(time);
@@ -45,8 +54,17 @@ public:
                              ControlEffect* out, int maxOut) const override;
 
 private:
+    // Assemble the PropulsionContext this component feeds its model.
+    PropulsionContext makeContext(const ComponentContext& ctx,
+                                  const ChannelValues& u) const;
+    // Turn a thrust magnitude into the body wrench (axial or gimbaled) and
+    // cache it for telemetry/effectiveness. Shared by compute()/computeWrench().
+    Wrench wrenchFromThrust(double thrust, const ComponentContext& ctx,
+                            const ChannelValues& u) const;
+
     std::unique_ptr<PropulsionModel> model_;
     std::optional<Gimbal> gimbal_;
     ChannelHandle throttle_, tvcPitch_, tvcYaw_;
-    double lastThrust_ = 0.0;
+    mutable double lastThrust_ = 0.0;   // telemetry/effectiveness cache (mutable:
+                                        // set by the const pure computeWrench)
 };

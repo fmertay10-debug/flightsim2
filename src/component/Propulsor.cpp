@@ -14,7 +14,8 @@ void Propulsor::declareChannels(ChannelTable& table) {
     }
 }
 
-Wrench Propulsor::compute(const ComponentContext& ctx, const ChannelValues& u) {
+PropulsionContext Propulsor::makeContext(const ComponentContext& ctx,
+                                         const ChannelValues& u) const {
     PropulsionContext pc;
     pc.time     = ctx.state.time;
     pc.throttle = u.get(throttle_);
@@ -22,7 +23,12 @@ Wrench Propulsor::compute(const ComponentContext& ctx, const ChannelValues& u) {
     pc.density  = ctx.air.atmosphere.density;
     pc.altitude = ctx.altitude;
     pc.dt       = ctx.dt;
-    lastThrust_ = model_->thrust(pc);
+    return pc;
+}
+
+Wrench Propulsor::wrenchFromThrust(double thrust, const ComponentContext& ctx,
+                                   const ChannelValues& u) const {
+    lastThrust_ = thrust;
 
     Wrench w;
     if (!gimbal_) {
@@ -50,6 +56,22 @@ Wrench Propulsor::compute(const ComponentContext& ctx, const ChannelValues& u) {
                                             : gimbal_->nozzleStation;
     w.moment = Vector3(0.0, L * Fz, -L * Fy);
     return w;
+}
+
+Wrench Propulsor::compute(const ComponentContext& ctx, const ChannelValues& u) {
+    // Legacy path: model self-integrates its spool inside thrust().
+    return wrenchFromThrust(model_->thrust(makeContext(ctx, u)), ctx, u);
+}
+
+Wrench Propulsor::computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                               const double* x) const {
+    // Pure path: thrust from the externalized state; the Entity integrates it.
+    return wrenchFromThrust(model_->thrustFromState(makeContext(ctx, u), x), ctx, u);
+}
+
+void Propulsor::derivatives(const ComponentContext& ctx, const ChannelValues& u,
+                            const double* x, double* xdot) const {
+    model_->derivatives(makeContext(ctx, u), x, xdot);
 }
 
 int Propulsor::controlEffectiveness(const ComponentContext& ctx,

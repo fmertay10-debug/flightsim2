@@ -16,13 +16,38 @@ struct PropulsionContext {
 };
 
 // Strategy: engine/motor model. Thrust acts along body +x through the CG
-// (force only, no thrust moment). thrust() is NON-const: throttleable engines
-// advance internal state by ctx.dt per call, so call it once per step.
+// (force only, no thrust moment). thrust() is the LEGACY, self-integrating
+// entry (a throttleable engine advances its own spool by ctx.dt here); it is
+// being retired in favor of the externalized-state trio below (ADR-0003).
 class PropulsionModel {
 public:
     virtual ~PropulsionModel() = default;
 
-    virtual double thrust(const PropulsionContext& ctx) = 0;      // [N]
+    virtual double thrust(const PropulsionContext& ctx) = 0;      // [N], legacy
+
+    // --- Externalized spool/internal state (ADR-0003) --------------------
+    // A stateful engine (F-16 spool) exposes its state so the Entity integrates
+    // it in the augmented vector and thrustFromState() is a PURE function of
+    // it. Stateless motors (solid, tabulated, turbojet) keep the defaults, and
+    // the bridge below makes thrustFromState() identical to thrust() for them.
+
+    virtual int  numStates() const { return 0; }
+    virtual void initializeState(double* x) const { (void)x; }
+
+    // d/dt of the internal state at this condition. PURE. Default no-op.
+    virtual void derivatives(const PropulsionContext& ctx,
+                             const double* x, double* xdot) const {
+        (void)ctx; (void)x; (void)xdot;
+    }
+
+    // Thrust [N] from the externalized state x (length numStates(); nullptr if
+    // stateless). PURE. Default BRIDGE: forward to legacy thrust() -- exact for
+    // stateless models (no state to advance); a stateful model overrides this.
+    virtual double thrustFromState(const PropulsionContext& ctx, const double* x) const {
+        (void)x;
+        return const_cast<PropulsionModel*>(this)->thrust(ctx);
+    }
+    // --------------------------------------------------------------------
 
     // Onboard propellant remaining at sim time [kg]. Only used by the legacy
     // "dry mass + motor propellant" path; tabulated mass models ignore it.
