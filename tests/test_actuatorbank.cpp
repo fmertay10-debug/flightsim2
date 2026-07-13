@@ -28,7 +28,9 @@ int main() {
     ActuatorBank bank(t, tau, rateLimit, posLimit, throttleTau, gimbalLimit);
 
     // Drive with a saturating step then a reversal; compare every substep
-    // against the reference dynamics for each channel kind.
+    // against the reference dynamics for each channel kind. The bank is now
+    // stateless -- thread the actual positions through step() ourselves.
+    ChannelValues actual(t);   // starts at neutral (zeros)
     double refElev = 0.0, refGim = 0.0, refThr = 0.0;
     for (int i = 0; i < 200; ++i) {
         const double cmd = (i < 100) ? 1.0 : -1.0;   // way past all limits
@@ -37,7 +39,7 @@ int main() {
         u.set(gim, cmd);
         u.set(thr, cmd * 0.8);
 
-        const ChannelValues actual = bank.apply(u, dt);
+        actual = bank.step(actual, u, dt);
 
         refElev = refStep(refElev, cmd, dt, tau, rateLimit, posLimit);
         refGim  = refStep(refGim,  cmd, dt, tau, rateLimit, gimbalLimit);
@@ -51,12 +53,12 @@ int main() {
         CHECK_NEAR(actual.get(thr),  refThr,  1e-15);
     }
 
-    // The surface must have saturated at the CONFIG stop (0.4), not the
-    // tighter declared channel limit (0.3) -- matching the old actuator.
-    ChannelValues hold(t);
+    // The surface must saturate at the CONFIG stop (0.4), not the tighter
+    // declared channel limit (0.3) -- matching the old actuator.
+    ChannelValues hold(t), held(t);
     hold.set(elev, 1.0);
-    for (int i = 0; i < 500; ++i) bank.apply(hold, dt);
-    CHECK_NEAR(bank.apply(hold, dt).get(elev), posLimit, 1e-12);
+    for (int i = 0; i < 500; ++i) held = bank.step(held, hold, dt);
+    CHECK_NEAR(bank.step(held, hold, dt).get(elev), posLimit, 1e-12);
 
     std::printf("test_actuatorbank: all checks passed\n");
     return 0;

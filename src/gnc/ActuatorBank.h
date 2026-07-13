@@ -32,7 +32,15 @@ public:
                  double tau, double rateLimit, double posLimit,
                  double throttleTau, double gimbalLimit);
 
-    ChannelValues apply(const ChannelValues& commanded, double dt);
+    // Stateless per-channel servo step (ADR-0003): advance the CURRENT actual
+    // positions toward `commanded` by dt (first-order lag + slew limit + hard
+    // stop) and return the new positions. The bank owns no state -- the Entity
+    // holds the actuator positions in the augmented state vector and integrates
+    // them here, so the servo dynamics are visible to the offline linearizer.
+    ChannelValues step(const ChannelValues& current,
+                       const ChannelValues& commanded, double dt) const;
+
+    int size() const { return static_cast<int>(servos_.size()); }
 
 private:
     struct Servo {
@@ -43,5 +51,4 @@ private:
     };
 
     std::vector<Servo> servos_;
-    ChannelValues state_;   // current actual positions
 };

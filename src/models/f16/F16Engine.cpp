@@ -58,8 +58,10 @@ void F16Engine::derivatives(const PropulsionContext& ctx,
 }
 
 double F16Engine::thrustFromState(const PropulsionContext& ctx, const double* x) const {
-    // PURE: thrust from the CURRENT spool state (the Entity has not yet
-    // advanced it), unlike the legacy thrust() which reports post-step power.
+    // PURE: thrust from the spool state x it is handed. The Entity advances the
+    // state before calling (advance-then-evaluate), so x is the post-step power
+    // -- reproducing the legacy thrust() bit-for-bit -- while the offline
+    // linearizer calls this at a frozen x to read the true dT/dP.
     return blend(x[0], ctx.altitude, ctx.mach);
 }
 

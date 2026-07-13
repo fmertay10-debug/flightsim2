@@ -18,8 +18,7 @@ std::unique_ptr<ActuatorBank> ActuatorBank::fromJson(const json::Value& cfg,
 
 ActuatorBank::ActuatorBank(const ChannelTable& table,
                            double tau, double rateLimit, double posLimit,
-                           double throttleTau, double gimbalLimit)
-    : state_(table) {
+                           double throttleTau, double gimbalLimit) {
     constexpr double kInf = std::numeric_limits<double>::infinity();
     servos_.reserve(table.size());
     for (int i = 0; i < table.size(); ++i) {
@@ -37,16 +36,18 @@ ActuatorBank::ActuatorBank(const ChannelTable& table,
     }
 }
 
-ChannelValues ActuatorBank::apply(const ChannelValues& commanded, double dt) {
+ChannelValues ActuatorBank::step(const ChannelValues& current,
+                                 const ChannelValues& commanded, double dt) const {
+    ChannelValues next = current;
     for (int i = 0; i < static_cast<int>(servos_.size()); ++i) {
         const Servo& s = servos_[i];
-        const double current = state_.at(i);
+        const double cur = current.at(i);
         double cmd = commanded.at(i);
         if (s.clampCommand) cmd = std::clamp(cmd, s.minPos, s.maxPos);
         // First-order lag toward the command, slew-rate limited, against a stop.
-        double rate = (cmd - current) / s.tau;
+        double rate = (cmd - cur) / s.tau;
         rate = std::clamp(rate, -s.rateLimit, s.rateLimit);
-        state_.setAt(i, std::clamp(current + rate * dt, s.minPos, s.maxPos));
+        next.setAt(i, std::clamp(cur + rate * dt, s.minPos, s.maxPos));
     }
-    return state_;
+    return next;
 }

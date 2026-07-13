@@ -27,6 +27,11 @@ Entity::Entity(std::string name,
         throw std::invalid_argument("Entity '" + name_ + "': EOM is required");
     telem_.name = name_;
     telem_.channels = &channels_;
+
+    // Actuator positions start at neutral (zeros), like the old bank state.
+    actState_     = ChannelValues(channels_);
+    nextActState_ = actState_;
+
     if (vehicle_) {
         telem_.componentNames = &vehicle_->componentNames();
         telem_.componentLoads.resize(vehicle_->components().size());
@@ -97,8 +102,16 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
         const GncContext gctx{ s, air, ms, dt };
         controlLaw_->update(gctx, cmd, commanded);
     }
-    const ChannelValues actual = actuators_ ? actuators_->apply(commanded, dt)
-                                            : commanded;
+    // Actuator dynamics (ADR-0003): advance the servo state toward the command,
+    // then hand the ADVANCED positions to the force components this step
+    // (advance-then-evaluate -- reproduces the validated stepping exactly, and
+    // the offline linearizer reads the pure servo derivatives at a frozen state
+    // independently). A null bank means ideal actuators (actual == commanded).
+    ChannelValues actual = commanded;
+    if (actuators_) {
+        nextActState_ = actuators_->step(actState_, commanded, dt);
+        actual        = nextActState_;
+    }
 
     // 4. Force components (aero, motors, ...): each produces a body-frame
     //    wrench about its own reference station; transfer each to the CG:
@@ -116,7 +129,19 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
             const int ns  = comps[i]->numStates();
             const double* x = ns > 0 ? compState_.data() + off : nullptr;
 
-            Wrench w = comps[i]->computeWrench(cctx, actual, x);
+            // Advance this component's state (forward Euler, same fixed dt as
+            // the EOM), then evaluate the wrench from the ADVANCED state, so the
+            // sim reproduces the legacy self-integrating "advance-then-report"
+            // behavior bit-for-bit. Staged into nextCompState_. No-op if stateless.
+            const double* xEval = x;
+            if (ns > 0) {
+                comps[i]->derivatives(cctx, actual, x, compRate_.data() + off);
+                for (int k = 0; k < ns; ++k)
+                    nextCompState_[off + k] = x[k] + compRate_[off + k] * dt;
+                xEval = nextCompState_.data() + off;
+            }
+
+            Wrench w = comps[i]->computeWrench(cctx, actual, xEval);
             const double xref = comps[i]->momentReferenceStation();
             if (std::isfinite(xref) && std::isfinite(ms.xcg)) {
                 const double dx = ms.xcg - xref;
@@ -126,14 +151,6 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
             telem_.componentLoads[i] = w;   // CG-referenced, for observers
             force  = force + w.force;
             moment = moment + w.moment;
-
-            // Integrate this component's own state (forward Euler, same fixed
-            // dt as the EOM), staged into nextCompState_. No-op when stateless.
-            if (ns > 0) {
-                comps[i]->derivatives(cctx, actual, x, compRate_.data() + off);
-                for (int k = 0; k < ns; ++k)
-                    nextCompState_[off + k] = x[k] + compRate_[off + k] * dt;
-            }
         }
     }
 

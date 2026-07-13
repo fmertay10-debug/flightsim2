@@ -49,10 +49,14 @@ public:
     // Phase 1: next state from the shared snapshot. No mutation of state_.
     State propagate(const Environment& env, const WorldView& world, double dt);
 
-    // Phase 2: adopt the state computed in phase 1 -- both the vehicle 6-DOF
-    // state and the externalized component states (ADR-0003) staged by
+    // Phase 2: adopt the state computed in phase 1 -- the vehicle 6-DOF state
+    // plus the externalized component and actuator states (ADR-0003) staged by
     // propagate. Staged, not committed, so the step stays order-independent.
-    void commit(const State& next) { state_ = next; compState_ = nextCompState_; }
+    void commit(const State& next) {
+        state_ = next;
+        compState_ = nextCompState_;
+        actState_  = nextActState_;
+    }
 
     const State&      state() const     { return state_; }
     const Telemetry&  telemetry() const { return telem_; }
@@ -88,4 +92,10 @@ private:
     std::vector<double> nextCompState_;    // staged by propagate, adopted by commit
     std::vector<double> compRate_;         // xdot scratch (sized once)
     std::vector<int>    compStateOffsets_;
+
+    // Externalized actuator (servo) positions (ADR-0003): one per channel, the
+    // ACTUAL positions the force components read. Integrated each step by the
+    // stateless ActuatorBank. Empty/unused when the entity has ideal actuators.
+    ChannelValues actState_;       // committed actual positions
+    ChannelValues nextActState_;   // staged by propagate, adopted by commit
 };
