@@ -41,7 +41,50 @@ public:
 
     // Body-frame wrench about momentReferenceStation(). Non-const: stateful
     // components (engine spool) advance by ctx.dt -- called once per step.
+    //
+    // LEGACY ENTRY POINT (ADR-0003 migration). Self-integrating: a stateful
+    // component mutates its own internals here. Being retired in favor of the
+    // externalized-state contract below (numStates/derivatives/computeWrench).
+    // Still the entry the Entity calls until a component is converted; do not
+    // remove until every stateful component overrides computeWrench().
     virtual Wrench compute(const ComponentContext& ctx, const ChannelValues& u) = 0;
+
+    // --- Externalized component state (ADR-0003) -------------------------
+    // A component may carry internal states (engine spool, actuator lag, fuel)
+    // that the Entity integrates alongside the vehicle's 6-DOF state in one
+    // augmented vector, so the whole dynamics xdot = f(x,u) is a PURE function
+    // the offline design tool can trim and linearize. Stateless components
+    // (all aero) keep the defaults and are unaffected.
+
+    // How many internal states this component owns. 0 (default) = stateless.
+    virtual int numStates() const { return 0; }
+
+    // Fill this component's initial state (a slice of length numStates()).
+    // Called once at load, after channels bind. Default: nothing to seed.
+    virtual void initializeState(double* x) const { (void)x; }
+
+    // d/dt of this component's own state at (state, air, inputs). PURE: must
+    // read x (length numStates()) and write xdot (same length) and touch no
+    // member. dt in ctx is NOT used here -- the integrator applies it. Default
+    // no-op (stateless, or not yet converted). This is the f(x,u) seam.
+    virtual void derivatives(const ComponentContext& ctx, const ChannelValues& u,
+                             const double* x, double* xdot) const {
+        (void)ctx; (void)u; (void)x; (void)xdot;
+    }
+
+    // Body-frame wrench about momentReferenceStation(), given the component's
+    // externalized state x (length numStates(); nullptr when stateless). PURE.
+    // Default BRIDGE: forward to the legacy compute() so unconverted components
+    // work unchanged during the ADR-0003 migration. The const_cast is the
+    // deliberate, temporary cost of that bridge -- a converted component
+    // overrides this with a genuinely pure implementation that reads x, and the
+    // bridge (and compute()) go away once all stateful components are converted.
+    virtual Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                                 const double* x) const {
+        (void)x;
+        return const_cast<ForceComponent*>(this)->compute(ctx, u);
+    }
+    // --------------------------------------------------------------------
 
     // Station (meters, increasing aft, same datum as MassState::xcg) the
     // reported moment is taken about; the Entity transfers it to the current
