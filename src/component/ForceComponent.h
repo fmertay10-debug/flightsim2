@@ -17,10 +17,15 @@ struct ComponentContext {
 };
 
 // One column of the control-effectiveness matrix B: how one channel moves the
-// vehicle. Sensitivities are about the CG (allocation happens in CG moments).
+// vehicle. Sensitivities are about the CG. dMoment drives attitude allocation;
+// dForce (ADR-0004) lets the allocator honour a WrenchCommand's force demand
+// (e.g. TVC lateral force, direct-lift). Default dForce = 0: a component that
+// reports only moment keeps the moment-only allocation path unchanged.
 struct ControlEffect {
     ChannelHandle channel;
-    Vector3 dMoment;   // d(Mx,My,Mz)/d(channel) at the current condition [Nm/rad]
+    Vector3 dMoment;      // d(Mx,My,Mz)/d(channel) at the current condition [Nm/rad]
+    Vector3 dForce = {};  // d(Fx,Fy,Fz)/d(channel) [N/rad]; default 0 keeps the
+                          // moment-only aggregate initializers {chan, dMoment} valid
 };
 
 // Strategy: a FORCE COMPONENT -- anything that produces a body-frame wrench on

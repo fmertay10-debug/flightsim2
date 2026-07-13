@@ -96,8 +96,11 @@ void AllocatedAttitudeLaw::update(const GncContext& gc, const CommandSet& cmd,
     }
 
     // ---- Pseudo-controls: nu = I * alpha_desired (diagonal terms) ----
+    // This law is attitude-only: it demands body moments and no net force, so
+    // the allocator runs its moment-only path.
     const Matrix3x3& I = gc.mass.inertia;
-    const Vector3 nu(I(0, 0) * aRoll, I(1, 1) * aPitch, I(2, 2) * aYaw);
+    const WrenchCommand nu{ Vector3(),
+                            Vector3(I(0, 0) * aRoll, I(1, 1) * aPitch, I(2, 2) * aYaw) };
 
     // ---- Allocation over the components' current effectiveness ----
     ControlEffect effects[ChannelTable::kMaxChannels];

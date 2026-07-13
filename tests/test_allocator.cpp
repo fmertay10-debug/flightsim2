@@ -23,7 +23,7 @@ int main() {
         const ChannelHandle e = t.add({"elevator", ChannelKind::Surface, -0.5, 0.5});
         const ControlEffect fx[] = { { e, Vector3(0.0, 1000.0, 0.0) } };
         ChannelValues u(t);
-        alloc.allocate(Vector3(0.0, 250.0, 0.0), fx, 1, t, u);
+        alloc.allocate({ Vector3(), Vector3(0.0, 250.0, 0.0) }, fx, 1, t, u);
         CHECK_NEAR(u.get(e), 0.25, 1e-6);
     }
 
@@ -35,7 +35,7 @@ int main() {
         const ControlEffect fx[] = { { fin, Vector3(0.0, 1000.0, 0.0) },
                                      { tvc, Vector3(0.0, 4000.0, 0.0) } };
         ChannelValues u(t);
-        alloc.allocate(Vector3(0.0, 1700.0, 0.0), fx, 2, t, u);
+        alloc.allocate({ Vector3(), Vector3(0.0, 1700.0, 0.0) }, fx, 2, t, u);
         // u = B^T(BB^T)^-1 nu: y = 1700/17e6 = 1e-4 -> u_fin=0.1, u_tvc=0.4
         CHECK_NEAR(u.get(fin), 0.1, 1e-4);
         CHECK_NEAR(u.get(tvc), 0.4, 1e-4);
@@ -49,7 +49,7 @@ int main() {
         const ChannelHandle e = t.add({"elevator", ChannelKind::Surface, -0.5, 0.5});
         const ControlEffect fx[] = { { e, Vector3(0.0, 1000.0, 0.0) } };
         ChannelValues u(t);
-        alloc.allocate(Vector3(500.0, 0.0, 0.0), fx, 1, t, u);   // roll demand
+        alloc.allocate({ Vector3(), Vector3(500.0, 0.0, 0.0) }, fx, 1, t, u);   // roll demand
         CHECK(std::isfinite(u.get(e)));
         CHECK_NEAR(u.get(e), 0.0, 1e-9);
     }
@@ -60,8 +60,38 @@ int main() {
         const ChannelHandle e = t.add({"elevator", ChannelKind::Surface, -0.1, 0.1});
         const ControlEffect fx[] = { { e, Vector3(0.0, 1000.0, 0.0) } };
         ChannelValues u(t);
-        alloc.allocate(Vector3(0.0, 5000.0, 0.0), fx, 1, t, u);
+        alloc.allocate({ Vector3(), Vector3(0.0, 5000.0, 0.0) }, fx, 1, t, u);
         CHECK_NEAR(u.get(e), 0.1, 1e-9);
+    }
+
+    // --- Force allocation (6-DOF path): a lateral-force effector ---
+    {
+        ChannelTable t;
+        const ChannelHandle j = t.add({"tvc_yaw", ChannelKind::Gimbal, -0.5, 0.5});
+        ControlEffect fx[1];
+        fx[0].channel = j;
+        fx[0].dForce  = Vector3(0.0, 2000.0, 0.0);   // +Y force per unit deflection
+        fx[0].dMoment = Vector3();
+        ChannelValues u(t);
+        alloc.allocate({ Vector3(0.0, 500.0, 0.0), Vector3() }, fx, 1, t, u);
+        CHECK(std::isfinite(u.get(j)));
+        CHECK_NEAR(u.get(j), 0.25, 1e-6);            // 500 / 2000
+    }
+
+    // --- Combined force+moment demand solved together (6x6) ---
+    {
+        ChannelTable t;
+        const ChannelHandle a = t.add({"chan_a", ChannelKind::Surface, -2.0, 2.0});
+        const ChannelHandle b = t.add({"chan_b", ChannelKind::Surface, -2.0, 2.0});
+        ControlEffect fx[2];
+        fx[0].channel = a; fx[0].dForce = Vector3(100.0, 0.0, 0.0); fx[0].dMoment = Vector3(0.0, 50.0, 0.0);
+        fx[1].channel = b; fx[1].dForce = Vector3();                fx[1].dMoment = Vector3(0.0, 80.0, 0.0);
+        ChannelValues u(t);
+        alloc.allocate({ Vector3(30.0, 0.0, 0.0), Vector3(0.0, 100.0, 0.0) }, fx, 2, t, u);
+        const double Fx = 100.0 * u.get(a);
+        const double My = 50.0 * u.get(a) + 80.0 * u.get(b);
+        CHECK_NEAR(Fx, 30.0,  1e-1);   // low damping -> achieved ~= demanded
+        CHECK_NEAR(My, 100.0, 1e-1);
     }
 
     // --- RocketAero effectiveness matches its derivatives ---
