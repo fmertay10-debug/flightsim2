@@ -30,6 +30,23 @@ Entity::Entity(std::string name,
     if (vehicle_) {
         telem_.componentNames = &vehicle_->componentNames();
         telem_.componentLoads.resize(vehicle_->components().size());
+
+        // Lay out the externalized component-state vector (ADR-0003): one
+        // contiguous slice per component, sized by numStates(), then seed each
+        // from its initial condition. Stateless components contribute nothing.
+        auto& comps = vehicle_->components();
+        compStateOffsets_.reserve(comps.size());
+        int total = 0;
+        for (auto& c : comps) {
+            compStateOffsets_.push_back(total);
+            total += c->numStates();
+        }
+        compState_.assign(static_cast<std::size_t>(total), 0.0);
+        compRate_.assign(static_cast<std::size_t>(total), 0.0);
+        for (std::size_t i = 0; i < comps.size(); ++i)
+            if (comps[i]->numStates() > 0)
+                comps[i]->initializeState(compState_.data() + compStateOffsets_[i]);
+        nextCompState_ = compState_;
     }
 }
 
@@ -95,7 +112,11 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
         const ComponentContext cctx{ s, air, altitude, dt, ms.xcg };
         auto& comps = vehicle_->components();
         for (std::size_t i = 0; i < comps.size(); ++i) {
-            Wrench w = comps[i]->compute(cctx, actual);
+            const int off = compStateOffsets_[i];
+            const int ns  = comps[i]->numStates();
+            const double* x = ns > 0 ? compState_.data() + off : nullptr;
+
+            Wrench w = comps[i]->computeWrench(cctx, actual, x);
             const double xref = comps[i]->momentReferenceStation();
             if (std::isfinite(xref) && std::isfinite(ms.xcg)) {
                 const double dx = ms.xcg - xref;
@@ -105,6 +126,14 @@ State Entity::propagate(const Environment& env, const WorldView& world, double d
             telem_.componentLoads[i] = w;   // CG-referenced, for observers
             force  = force + w.force;
             moment = moment + w.moment;
+
+            // Integrate this component's own state (forward Euler, same fixed
+            // dt as the EOM), staged into nextCompState_. No-op when stateless.
+            if (ns > 0) {
+                comps[i]->derivatives(cctx, actual, x, compRate_.data() + off);
+                for (int k = 0; k < ns; ++k)
+                    nextCompState_[off + k] = x[k] + compRate_[off + k] * dt;
+            }
         }
     }
 

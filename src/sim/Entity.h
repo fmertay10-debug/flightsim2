@@ -49,8 +49,10 @@ public:
     // Phase 1: next state from the shared snapshot. No mutation of state_.
     State propagate(const Environment& env, const WorldView& world, double dt);
 
-    // Phase 2: adopt the state computed in phase 1.
-    void commit(const State& next) { state_ = next; }
+    // Phase 2: adopt the state computed in phase 1 -- both the vehicle 6-DOF
+    // state and the externalized component states (ADR-0003) staged by
+    // propagate. Staged, not committed, so the step stays order-independent.
+    void commit(const State& next) { state_ = next; compState_ = nextCompState_; }
 
     const State&      state() const     { return state_; }
     const Telemetry&  telemetry() const { return telem_; }
@@ -77,4 +79,13 @@ private:
 
     State     state_;
     Telemetry telem_;
+
+    // Externalized component state (ADR-0003), integrated alongside state_ in
+    // the augmented vector. compStateOffsets_[i] is component i's slice start;
+    // total length = sum of numStates(). Empty while every component is
+    // stateless (the current case), so all of this is a no-op then.
+    std::vector<double> compState_;        // committed
+    std::vector<double> nextCompState_;    // staged by propagate, adopted by commit
+    std::vector<double> compRate_;         // xdot scratch (sized once)
+    std::vector<int>    compStateOffsets_;
 };
