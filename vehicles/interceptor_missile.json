@@ -3,8 +3,11 @@
 // rocket lacks -- this is what actually catches a maneuvering target.
 // Moderate static margin (cma) so it points fast without being unstable.
 {
-  "mass_kg": 65,
-  "inertia": { "ixx": 0.6, "iyy": 40, "izz": 40 },
+  "mass": {
+    "model": "dry_plus_propellant",
+    "dry_mass_kg": 65,
+    "inertia": { "ixx": 0.6, "iyy": 40, "izz": 40 }
+  },
 
   "components": [
     {
@@ -24,13 +27,13 @@
 
   "gnc": {
     "control_law": {
-      "type": "rocket_pid",
+      "type": "allocated_attitude",
       "gains": {
-        "pitch_kp": 1.4, "pitch_ki": 0.25, "pitch_kd": 0.5,
-        "yaw_kp": 1.4,   "yaw_ki": 0.25,   "yaw_kd": 0.5,
-        "roll_kp": 0.8,  "roll_kd": 0.25
+        "pitch_kp": 12000, "pitch_kd": 500, "pitch_ki": 1500,
+        "yaw_kp": 12000, "yaw_kd": 500,  "yaw_ki": 1500,
+        "roll_kp": 60,   "roll_kd": 20
       },
-      "limits": { "max_fin_deg": 25, "min_airspeed_ms": 20, "vertical_guard_deg": 80 }
+      "limits": { "max_ang_accel_dps2": 40000, "int_limit": 1.5, "vertical_guard_deg": 80 }
     },
     "actuator": { "tau_s": 0.02, "rate_dps": 400, "limit_deg": 25 }
   }
