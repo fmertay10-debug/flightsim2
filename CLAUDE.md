@@ -26,8 +26,8 @@ PATH cause 0xc0000139 crashes otherwise). Keep it.
 - Quaternion is scalar-first (w,x,y,z), inertial → body, `normalize()` every EOM step.
 - Forward Euler integration, fixed dt. Intentional (matches flightsim v1 behavior).
 - Control sign conventions (see `src/core/Channel.h`): +elevator = nose DOWN,
-  +rudder = nose LEFT, +aileron = right roll. Controllers flip signs accordingly
-  (`out.set(elevator_, -pitchPid...)`).
+  +rudder = nose LEFT, +aileron = right roll. Since ADR-0004 no law carries
+  channel signs; they live in the components' effectiveness columns.
 - RocketAero axisymmetric mirror defaults: `cnb=-cma`, `cnr=cmq`, `cndr=cmde`,
   `cyb=-cna`, `cydr=-cnde` — deliberate, overridable per config.
 - Config files: degrees/`_dps` keys, converted ONCE at the loading boundary
@@ -61,9 +61,7 @@ servo dynamics live in `ActuatorBank` (lag + slew rate + stop from the vehicle's
 `gnc.actuator` block, parameter set picked by ChannelKind).
 
 - Moment sign reminder: body My>0 = nose UP, Mz>0 = nose RIGHT (q_dot=My/Iyy).
-  Fin controllers flip elevator sign (`-pitchPid`); the TVC controller does NOT
-  (its gimbal sign is defined so +command = +attitude directly). The
-  allocation path (`allocated_attitude` -> Allocator) carries NO signs at all:
+  The allocation path (every law -> Allocator, ADR-0004) carries NO signs:
   they live in the effectiveness columns (`controlEffectiveness`, dM/dchannel
   about the CG) that components report -- fins analytically, table aero by
   differencing its control tables, the gimbal as arm*lastThrust (one-step
@@ -78,8 +76,9 @@ servo dynamics live in `ActuatorBank` (lag + slew rate + stop from the vehicle's
 
 ## Config schema (components[] + gnc, since increment 2)
 
-Vehicle JSON: `mass` block (or legacy flat `mass_kg`+`inertia`, which adds solid
-propellant to dry mass) + `"components": [...]` (each entry names its
+Vehicle JSON: `mass` block ("constant" | "dry_plus_propellant" | "tabulated";
+the legacy flat `mass_kg`+`inertia` form is a LOAD ERROR since 2026-07-19 --
+its behavior lives on as "dry_plus_propellant") + `"components": [...]` (each entry names its
 implementation via explicit `"type"` — no key-sniffing, no vehicle-type
 dispatch) + `"gnc": {"control_law": {"type": ...}, "actuator": {...}}`. The old
 schema (top-level aero/propulsion/thrust_vectoring/controller/actuator) is a
@@ -98,8 +97,9 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
 - New mass model = MassModel subclass + branch in `vehicle::create` (`mass`
   block: "constant" | "dry_plus_propellant" | "tabulated").
 - New control law = ControlLaw subclass + `gnc::Factory::registerControlLaw`
-  (types: aircraft_pid / rocket_pid / tvc_pid / scheduled / lqr /
-  allocated_attitude). Chosen independent of the airframe. Laws take a
+  (types: allocated_attitude / aircraft_allocated / scheduled / lqr -- the
+  direct-write PIDs were retired when ADR-0004 completed, 2026-07-19).
+  Chosen independent of the airframe. Laws take a
   GncContext {state, air, mass, dt}.
 - New guidance law = GuidanceLaw subclass + `guidance::Factory::registerLaw`
   (types: pro_nav / pure_pursuit). Guidance declares its command level
@@ -128,7 +128,8 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
   k_q*q + k_theta*e + k_i*z)`, gains interpolated on Mach, yaw mirrored, roll PD.
   Default LQR weights (r=80, q_theta=20, q_int=2) keep fin commands within ~15 deg.
 - Design signs are baked into K via the plant's B, so the controller applies
-  `-(K.x)` with NO extra sign flip (unlike the PID's `-pitchPid`).
+  `-(K.x)` with NO extra sign flip; since ADR-0004 the resulting deflection is
+  converted to a WrenchCommand at the law's boundary and allocated back.
 
 ## DATCOM / Python side
 

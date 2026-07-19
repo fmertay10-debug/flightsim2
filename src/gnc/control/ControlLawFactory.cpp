@@ -4,11 +4,8 @@
 #include <stdexcept>
 
 #include "gnc/control/laws/AircraftAllocatedLaw.h"
-#include "gnc/control/laws/AircraftPidLaw.h"
 #include "gnc/control/laws/AllocatedAttitudeLaw.h"
-#include "gnc/control/laws/RocketPidLaw.h"
 #include "gnc/control/laws/ScheduledLaw.h"
-#include "gnc/control/laws/TvcPidLaw.h"
 
 namespace gnc {
 
@@ -16,18 +13,6 @@ namespace {
 
 std::map<std::string, Factory::Builder>& registry() {
     static std::map<std::string, Factory::Builder> r = {
-        { "aircraft_pid",
-          [](const json::Value& cfg, const std::string&) {
-              return AircraftPidLaw::fromJson(cfg);
-          } },
-        { "rocket_pid",
-          [](const json::Value& cfg, const std::string&) {
-              return RocketPidLaw::fromJson(cfg);
-          } },
-        { "tvc_pid",
-          [](const json::Value& cfg, const std::string&) {
-              return TvcPidLaw::fromJson(cfg);
-          } },
         { "scheduled",
           [](const json::Value& cfg, const std::string& baseDir) {
               return ScheduledLaw::fromJson(cfg, baseDir);

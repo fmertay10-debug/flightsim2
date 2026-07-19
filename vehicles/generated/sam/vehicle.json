@@ -1,9 +1,12 @@
 {
-  "mass_kg": 100,
-  "inertia": {
-    "ixx": 6.0,
-    "iyy": 150,
-    "izz": 150
+  "mass": {
+    "model": "dry_plus_propellant",
+    "dry_mass_kg": 100,
+    "inertia": {
+      "ixx": 6.0,
+      "iyy": 150,
+      "izz": 150
+    }
   },
   "components": [
     {

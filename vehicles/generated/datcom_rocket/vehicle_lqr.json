@@ -5,8 +5,11 @@
 // gnc.control_law changed, and its gains were auto-generated rather than
 // hand-tuned.
 {
-  "mass_kg": 59.5,
-  "inertia": { "ixx": 1.755, "iyy": 479.7, "izz": 479.7 },
+  "mass": {
+    "model": "dry_plus_propellant",
+    "dry_mass_kg": 59.5,
+    "inertia": { "ixx": 1.755, "iyy": 479.7, "izz": 479.7 }
+  },
 
   "components": [
     {

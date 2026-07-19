@@ -7,28 +7,12 @@
 #include "models/rocket/RocketAero.h"
 #include "component/ComponentFactory.h"
 #include "component/Propulsor.h"
-#include "gnc/control/laws/RocketPidLaw.h"
-#include "gnc/control/laws/TvcPidLaw.h"
+#include "gnc/control/laws/AllocatedAttitudeLaw.h"
+#include "gnc/control/laws/ScheduledLaw.h"
 #include "io/Json.h"
 #include "propulsion/SolidMotor.h"
 #include "scenario/ScenarioLoader.h"
 #include "test_util.h"
-
-// A broken-by-design component: declares an elevator but reports no control
-// effectiveness -- the situation the loader's authority probe must catch when
-// an allocating law is attached (pre-probe, this loaded fine and flew
-// open-loop; the F-16 had exactly this failure mode before its aero model
-// implemented controlEffectiveness).
-struct DeadSurface : ForceComponent {
-    ChannelHandle elevator_;
-    void declareChannels(ChannelTable& t) override {
-        elevator_ = t.add({channels::kElevator, ChannelKind::Surface, -0.4, 0.4});
-    }
-    Wrench computeWrench(const ComponentContext&, const ChannelValues&,
-                         const double*) const override {
-        return {};
-    }
-};
 
 // The channel write/read graph is validated at LOAD: a controller whose
 // required channels no component declares must throw, not fly open-loop.
@@ -51,6 +35,22 @@ static std::unique_ptr<Propulsor> motor(std::optional<Propulsor::Gimbal> gimbal)
         gimbal);
 }
 
+// A broken-by-design component: declares an elevator but reports no control
+// effectiveness -- the situation the loader's authority probe must catch when
+// an allocating law is attached (pre-probe, this loaded fine and flew
+// open-loop; the F-16 had exactly this failure mode before its aero model
+// implemented controlEffectiveness).
+struct DeadSurface : ForceComponent {
+    ChannelHandle elevator_;
+    void declareChannels(ChannelTable& t) override {
+        elevator_ = t.add({channels::kElevator, ChannelKind::Surface, -0.4, 0.4});
+    }
+    Wrench computeWrench(const ComponentContext&, const ChannelValues&,
+                         const double*) const override {
+        return {};
+    }
+};
+
 int main() {
     // A TVC airframe: stability derivatives only, no fin authority.
     const json::Value tvcAero = json::Value::parse(R"({
@@ -64,24 +64,27 @@ int main() {
         "cnde": 1.5, "cmde": -8.0, "clda": 3.0
     })");
 
-    // --- TVC controller on a fin-only vehicle: fails naming the gimbal ---
-    {
-        ChannelTable t;
-        auto aero = RocketAero::fromJson(finAero);
-        aero->declareChannels(t);
-        motor(std::nullopt)->declareChannels(t);       // axial mount: no gimbal
-        auto ctl = TvcPidLaw::fromJson(json::Value::parse("{}"));
-        CHECK(throwsMentioning([&] { ctl->bindChannels(t); }, "tvc_pitch"));
-    }
-
-    // --- Fin controller on a TVC-only vehicle: fails naming the fin ---
+    // --- A fin-requiring law on a TVC-only vehicle: fails naming the fin ---
+    // (ScheduledLaw requires elevator+rudder; the TVC aero declares nothing.)
     {
         ChannelTable t;
         auto aero = RocketAero::fromJson(tvcAero);
         aero->declareChannels(t);                      // declares NOTHING
         motor(Propulsor::Gimbal{6.0, 0.1})->declareChannels(t);
-        auto ctl = RocketPidLaw::fromJson(json::Value::parse("{}"));
-        CHECK(throwsMentioning([&] { ctl->bindChannels(t); }, "elevator"));
+        ScheduledLaw ctl(ScheduledLaw::Config{});
+        CHECK(throwsMentioning([&] { ctl.bindChannels(t); }, "elevator"));
+    }
+
+    // --- require() lists what IS declared when a channel is missing ---
+    {
+        ChannelTable t;
+        auto aero = RocketAero::fromJson(finAero);
+        aero->declareChannels(t);
+        motor(std::nullopt)->declareChannels(t);       // axial mount: no gimbal
+        CHECK(throwsMentioning([&] { t.require(channels::kTvcPitch); },
+                               "tvc_pitch"));
+        CHECK(throwsMentioning([&] { t.require(channels::kTvcPitch); },
+                               "elevator"));           // the listing
     }
 
     // --- Matched pairings bind cleanly ---
@@ -89,15 +92,16 @@ int main() {
         ChannelTable t;
         auto aero = RocketAero::fromJson(finAero);
         aero->declareChannels(t);
-        auto ctl = RocketPidLaw::fromJson(json::Value::parse("{}"));
-        for (const ChannelHandle h : ctl->bindChannels(t))
+        ScheduledLaw ctl(ScheduledLaw::Config{});
+        for (const ChannelHandle h : ctl.bindChannels(t))
             (void)h;                                    // no throw is the check
         CHECK(t.find("elevator").valid());
         CHECK(t.find("aileron").valid());
         CHECK(!t.find("tvc_pitch").valid());
     }
 
-    // --- End-to-end through the scenario loader (inline definition) ---
+    // --- End-to-end through the scenario loader (inline definition): an
+    //     allocating law on an airframe with no control channels at all ---
     {
         const std::string path = "output/_test_bad_pairing_scenario.json";
         std::ofstream(path) << R"({
@@ -105,18 +109,19 @@ int main() {
             "vehicles": [{
                 "name": "bad",
                 "definition": {
-                    "mass_kg": 40, "inertia": {"ixx": 1, "iyy": 60, "izz": 60},
+                    "mass": {"model": "constant", "mass_kg": 40,
+                             "inertia": {"ixx": 1, "iyy": 60, "izz": 60}},
                     "components": [
                         {"type": "rocket_aero",
                          "sref_m2": 0.2, "lref_m": 8.0, "dref_m": 0.5,
                          "ca0": 0.3, "cna": 20.0, "cma": -1.5,
                          "cmq": -60.0, "clp": -4.0}
                     ],
-                    "gnc": { "control_law": {"type": "tvc_pid"} }
+                    "gnc": { "control_law": {"type": "allocated_attitude"} }
                 }
             }]
         })";
-        CHECK(throwsMentioning([&] { scenario::load(path); }, "tvc_pitch"));
+        CHECK(throwsMentioning([&] { scenario::load(path); }, "no control"));
     }
 
     // --- Authority probe: an allocating law over a surface channel with no
@@ -133,7 +138,8 @@ int main() {
             "vehicles": [{
                 "name": "dead",
                 "definition": {
-                    "mass_kg": 40, "inertia": {"ixx": 1, "iyy": 60, "izz": 60},
+                    "mass": {"model": "constant", "mass_kg": 40,
+                             "inertia": {"ixx": 1, "iyy": 60, "izz": 60}},
                     "components": [ {"type": "test_dead_surface"} ],
                     "gnc": { "control_law": {"type": "allocated_attitude"} }
                 }
@@ -142,6 +148,29 @@ int main() {
         CHECK(throwsMentioning([&] { scenario::load(path); },
                                "control effectiveness"));
         CHECK(throwsMentioning([&] { scenario::load(path); }, "elevator"));
+    }
+
+    // --- The retired flat mass schema is rejected, pointing at the block ---
+    {
+        const std::string path = "output/_test_flat_mass_scenario.json";
+        std::ofstream(path) << R"({
+            "simulation": {"dt_s": 0.01, "duration_s": 1},
+            "vehicles": [{
+                "name": "legacy_mass",
+                "definition": {
+                    "mass_kg": 40, "inertia": {"ixx": 1, "iyy": 60, "izz": 60},
+                    "components": [
+                        {"type": "rocket_aero",
+                         "sref_m2": 0.2, "lref_m": 8.0, "dref_m": 0.5,
+                         "ca0": 0.3, "cna": 20.0, "cma": -1.5,
+                         "cmq": -60.0, "clp": -4.0}
+                    ]
+                }
+            }]
+        })";
+        CHECK(throwsMentioning([&] { scenario::load(path); }, "mass"));
+        CHECK(throwsMentioning([&] { scenario::load(path); },
+                               "dry_plus_propellant"));
     }
 
     // --- The old schema is rejected with a pointer to the new one ---

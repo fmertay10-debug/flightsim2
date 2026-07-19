@@ -200,10 +200,14 @@ def build_vehicle_json(d, veh, scale, mass_kg, controlled, outdir, variable=Fals
         cfg["mass"] = {"model": "tabulated", "table": "mass_props.csv"}
         motor = {"type": "tabulated_thrust", "table": "thrust.csv"}
     else:
-        # Constant mass (dry) + solid motor adds propellant; no CG travel.
-        cfg["mass_kg"] = round(dry, 2)
-        cfg["inertia"] = {"ixx": round(ixx, 3), "iyy": round(iyy, 1),
-                          "izz": round(iyy, 1)}
+        # Constant dry mass + the motor's remaining propellant on top; no CG
+        # travel (explicit form of the retired legacy flat schema).
+        cfg["mass"] = {
+            "model": "dry_plus_propellant",
+            "dry_mass_kg": round(dry, 2),
+            "inertia": {"ixx": round(ixx, 3), "iyy": round(iyy, 1),
+                        "izz": round(iyy, 1)},
+        }
         motor = {
             "type": "solid_motor",
             "propellant_kg": round(prop, 2),
@@ -215,13 +219,16 @@ def build_vehicle_json(d, veh, scale, mass_kg, controlled, outdir, variable=Fals
     if controlled:
         cfg["gnc"] = {
             "control_law": {
-                "type": "rocket_pid",
+                # WrenchCommand + Allocator (ADR-0004); gains are the shared
+                # rocket set proven on the datcom/sounding rockets.
+                "type": "allocated_attitude",
                 "gains": {
-                    "pitch_kp": 0.08, "pitch_ki": 0.02, "pitch_kd": 0.05,
-                    "yaw_kp": 0.08, "yaw_ki": 0.02, "yaw_kd": 0.05,
-                    "roll_kp": 0.05, "roll_kd": 0.02,
+                    "pitch_kp": 150, "pitch_kd": 60, "pitch_ki": 30,
+                    "yaw_kp": 150, "yaw_kd": 60, "yaw_ki": 30,
+                    "roll_kp": 40, "roll_kd": 15,
                 },
-                "limits": {"max_fin_deg": 15, "min_airspeed_ms": 15},
+                "limits": {"max_ang_accel_dps2": 6000, "int_limit": 1.0,
+                           "vertical_guard_deg": 84},
             },
             "actuator": {"tau_s": 0.03, "rate_dps": 200, "limit_deg": 15},
         }

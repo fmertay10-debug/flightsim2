@@ -1,5 +1,14 @@
 # Allocation-only control: every control law emits a WrenchCommand
 
+> **Status: COMPLETE (2026-07-19).** All 14 flying configs converted (hand-
+> tuned `allocated_attitude` for the rockets/missiles, Option-B currency
+> conversion for the ScheduledLaw fleet -- see
+> docs/plans/scheduledlaw-conversion-options.md -- and the cascaded
+> `aircraft_allocated` for the trainer and F-16 per
+> docs/plans/aircraft-conversion-options.md). The direct-write PIDs
+> (aircraft_pid / rocket_pid / tvc_pid) and the legacy flat mass schema are
+> deleted; the loader probes allocating laws' effectiveness at load.
+
 ADR-0002 established a *dual contract*: a control law could emit pseudo-controls
 (body moments) for the Allocator, **or** write actuator channels directly, and
 the direct-write laws (the PIDs, `ScheduledLaw`) were to stay legal indefinitely.

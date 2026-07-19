@@ -96,8 +96,12 @@ def build(name, spec):
     # 4. Vehicle: DATCOM table aero + dry mass + solid motor + LQR controller.
     xref = round(float(d["xcg"]) * scale, 4)
     cfg = {
-        "mass_kg": spec["dry"],
-        "inertia": {"ixx": spec["ixx"], "iyy": spec["iyy"], "izz": spec["iyy"]},
+        "mass": {
+            "model": "dry_plus_propellant",
+            "dry_mass_kg": spec["dry"],
+            "inertia": {"ixx": spec["ixx"], "iyy": spec["iyy"],
+                        "izz": spec["iyy"]},
+        },
         "components": [
             {
                 "type": "rocket_table_aero",

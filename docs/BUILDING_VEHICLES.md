@@ -53,27 +53,24 @@ impulse-consistent propellant) · `tabulated_thrust` (raw thrust(t) table) ·
 | dry_plus_propellant | `{"model":"dry_plus_propellant","dry_mass_kg":…,"inertia":{…}}` | fixed dry tensor; the motors' remaining propellant is added each step, so mass drops through the burn |
 | tabulated | `{"model":"tabulated","table":"mass_props.csv"}` | mass, Ixx/Iyy/Izz, **xcg** vs time |
 
-(Legacy flat `mass_kg` + `inertia` still works and behaves like
-`dry_plus_propellant`; it is being retired vehicle-by-vehicle — use the
-explicit `mass` block in new configs.)
+(The legacy flat `mass_kg` + `inertia` form is retired — the loader rejects
+it, pointing here; `dry_plus_propellant` is its explicit replacement.)
 
 ### `gnc.control_law` — the control algorithm (registry: `gnc::Factory`)
 | `type` | config | what |
 |---|---|---|
-| `aircraft_pid` | `gains`, `limits` | cascaded fixed-wing PID (direct-write) |
-| `rocket_pid` | `gains`, `limits` | finned-rocket attitude PID (direct-write) |
-| `tvc_pid` | `gains`, `limits` | thrust-vector-control PID (direct-write) |
-| `scheduled` / `lqr` | `schedule: gains.csv` | gain-scheduled state feedback, gains **auto-designed** |
-| `allocated_attitude` | `gains`, `limits` | attitude PID → desired body moments → **Allocator** |
+| `allocated_attitude` | `gains`, `limits` | attitude PID → desired body moments → **Allocator** (rockets/missiles) |
+| `aircraft_allocated` | `gains`, `limits` | fixed-wing cascades (altitude→climb→pitch, heading→bank, speed→throttle) over the same allocated inner loop |
+| `scheduled` / `lqr` | `schedule: gains.csv` | gain-scheduled state feedback, gains **auto-designed**; output converted to a WrenchCommand at the boundary |
 
 The law is chosen independently of the airframe — fly the same vehicle with
-PID or LQR by editing one line.
+hand gains or an LQR schedule by editing one line.
 
-Two output contracts (ADR-0002): the direct-write laws put plant knowledge in
-their gains and write specific channels; `allocated_attitude` emits desired
-body moments (scaled by the live inertia) and the **Allocator** distributes
-them over whatever channels the components declare, weighted by each
-component's queried effectiveness at the current flight condition. That is
+One output contract (ADR-0004; the direct-write PIDs were retired after every
+vehicle converted): a law emits a desired body wrench (WrenchCommand) and the
+**Allocator** distributes it over whatever channels the components declare,
+weighted by each component's queried effectiveness at the current flight
+condition. Throttle passes through as a direct channel write. That is
 what flies a hybrid: `vehicles/hybrid_launcher.json` has a gimbaled motor AND
 fins — the gimbal steers the low-qbar pad phase, the fins take over as speed
 builds, and after burnout the fins track alone, all under one law with no
@@ -90,7 +87,10 @@ and the control law *binds* the channels it writes, once, at load. The loader
 validates the pairing — a control law whose required channel nothing on the
 vehicle declares fails with an error that lists what IS declared. A derivative
 aero model only declares surfaces with nonzero control derivatives, so pairing
-`rocket_pid` with a control-derivative-free TVC airframe is caught too.
+a fin-requiring law with a control-derivative-free TVC airframe is caught too.
+An allocating law is also PROBED at load: every declared Surface channel must
+have an effectiveness column from some component, or the load fails naming the
+channel (no silent open-loop flight).
 
 Two physical routes into the airframe:
 
@@ -131,7 +131,7 @@ No shared struct to edit — channel names are the whole contract. Nothing in
    # add --variable for tabulated mass_props.csv + thrust.csv (CG travel)
    ```
 
-2. **Fly it with the hand-tuned PID** it shipped with:
+2. **Fly it with the hand-tuned allocation law** it shipped with:
 
    ```
    ./build/flightsim scenarios/datcom_rocket_launch.json

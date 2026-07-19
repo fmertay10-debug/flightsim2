@@ -25,7 +25,7 @@ Matrix3x3 inertiaFromJson(const json::Value& in) {
 
 // Returns {massModel, addMotorPropellant}.
 std::pair<std::unique_ptr<MassModel>, bool>
-buildMass(const json::Value& def, const std::string& baseDir, bool hasSolidMotor) {
+buildMass(const json::Value& def, const std::string& baseDir) {
     if (def.has("mass")) {
         const json::Value& m = def.at("mass");
         const std::string model = m.str("model", "constant");
@@ -56,13 +56,15 @@ buildMass(const json::Value& def, const std::string& baseDir, bool hasSolidMotor
         throw std::invalid_argument("vehicle: unknown mass model '" + model + "'");
     }
 
-    // Legacy flat form: dry mass + inertia; a solid motor's propellant is
-    // added on top so existing configs keep their burn-time mass drop.
-    MassState s;
-    s.mass    = def.num("mass_kg");
-    s.inertia = inertiaFromJson(def.at("inertia"));
-    s.xcg     = def.has("xcg_m") ? def.num("xcg_m") : std::nan("");
-    return {std::make_unique<ConstantMassModel>(s), hasSolidMotor};
+    // The legacy flat mass_kg + inertia form was retired after every config
+    // migrated (2026-07-19); its behavior lives on as the explicit
+    // "dry_plus_propellant" model.
+    throw std::invalid_argument(
+        "vehicle: no \"mass\" block. The flat mass_kg + inertia form was "
+        "retired: use {\"mass\": {\"model\": \"constant\" | "
+        "\"dry_plus_propellant\" | \"tabulated\", ...}} -- "
+        "dry_plus_propellant reproduces the old dry-mass + motor-propellant "
+        "behavior (see docs/BUILDING_VEHICLES.md).");
 }
 
 } // namespace
@@ -76,10 +78,8 @@ std::unique_ptr<Vehicle> create(const json::Value& def, const std::string& baseD
     std::vector<std::string> names;
     components.reserve(list.size());
     names.reserve(list.size());
-    bool hasSolidMotor = false;
     for (std::size_t i = 0; i < list.size(); ++i) {
         const std::string type = list[i].str("type");
-        hasSolidMotor = hasSolidMotor || (type == "solid_motor");
         components.push_back(component::Factory::create(list[i], baseDir));
         // Telemetry label = the config type, suffixed when it repeats.
         std::string label = type;
@@ -90,7 +90,7 @@ std::unique_ptr<Vehicle> create(const json::Value& def, const std::string& baseD
         names.push_back(std::move(label));
     }
 
-    auto [mass, addPropellant] = buildMass(def, baseDir, hasSolidMotor);
+    auto [mass, addPropellant] = buildMass(def, baseDir);
     return std::make_unique<Vehicle>(std::move(mass), std::move(components),
                                      addPropellant, std::move(names));
 }
