@@ -1,9 +1,12 @@
 {
-  "mass_kg": 59.5,
-  "inertia": {
-    "ixx": 1.755,
-    "iyy": 479.7,
-    "izz": 479.7
+  "mass": {
+    "model": "dry_plus_propellant",
+    "dry_mass_kg": 59.5,
+    "inertia": {
+      "ixx": 1.755,
+      "iyy": 479.7,
+      "izz": 479.7
+    }
   },
   "components": [
     {
@@ -39,20 +42,21 @@
   ],
   "gnc": {
     "control_law": {
-      "type": "rocket_pid",
+      "type": "allocated_attitude",
       "gains": {
-        "pitch_kp": 0.08,
-        "pitch_ki": 0.02,
-        "pitch_kd": 0.05,
-        "yaw_kp": 0.08,
-        "yaw_ki": 0.02,
-        "yaw_kd": 0.05,
-        "roll_kp": 0.05,
-        "roll_kd": 0.02
+        "pitch_kp": 150,
+        "pitch_kd": 60,
+        "pitch_ki": 30,
+        "yaw_kp": 150,
+        "yaw_kd": 60,
+        "yaw_ki": 30,
+        "roll_kp": 40,
+        "roll_kd": 15
       },
       "limits": {
-        "max_fin_deg": 15,
-        "min_airspeed_ms": 15
+        "max_ang_accel_dps2": 6000,
+        "int_limit": 1.0,
+        "vertical_guard_deg": 84
       }
     },
     "actuator": {
