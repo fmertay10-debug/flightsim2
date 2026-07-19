@@ -1,5 +1,6 @@
 #include "scenario/ScenarioLoader.h"
 
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <map>
@@ -130,6 +131,45 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
                                  "warning: %s: channel '%s' is declared but the "
                                  "controller never writes it\n",
                                  name.c_str(), channels.def(i).name.c_str());
+        }
+
+        // Authority probe: a law that ALLOCATES depends on the components'
+        // controlEffectiveness -- a declared Surface channel with no column
+        // behind it would load fine and then fly open-loop (the allocator's
+        // no-authority guard commands nothing). Probe once at a synthetic
+        // healthy condition and fail LOUDLY at load instead. Gimbal channels
+        // are exempt (authority is legitimately zero until the motor lights);
+        // Throttle is not allocated.
+        if (controller && controller->allocates() && veh) {
+            State probeState;
+            AirData probeAir;
+            probeAir.airspeed = 100.0;
+            probeAir.mach = 0.3;
+            probeAir.qbar = 6000.0;
+            probeAir.velocityBody = Vector3(100.0, 0.0, 0.0);
+            const ComponentContext cctx{ probeState, probeAir, 1000.0, 0.0,
+                                         std::nan("") };
+            ControlEffect fx[ChannelTable::kMaxChannels];
+            int n = 0;
+            for (const auto& c : veh->components())
+                n += c->controlEffectiveness(cctx, fx + n,
+                                             ChannelTable::kMaxChannels - n);
+            std::vector<bool> has(static_cast<std::size_t>(channels.size()), false);
+            for (int k = 0; k < n; ++k) {
+                const ControlEffect& e = fx[k];
+                const bool nonzero =
+                    e.dMoment.x != 0.0 || e.dMoment.y != 0.0 || e.dMoment.z != 0.0 ||
+                    e.dForce.x  != 0.0 || e.dForce.y  != 0.0 || e.dForce.z  != 0.0;
+                if (e.channel.valid() && nonzero) has[e.channel.index] = true;
+            }
+            for (int i = 0; i < channels.size(); ++i)
+                if (channels.def(i).kind == ChannelKind::Surface && !has[i])
+                    throw std::invalid_argument(
+                        "vehicle '" + name + "': control law allocates, but no "
+                        "component reports control effectiveness for surface "
+                        "channel '" + channels.def(i).name + "' -- the aero "
+                        "model must implement controlEffectiveness (see "
+                        "ForceComponent.h) or not declare the channel");
         }
     }
 

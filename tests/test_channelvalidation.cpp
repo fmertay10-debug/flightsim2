@@ -5,6 +5,7 @@
 #include <string>
 
 #include "models/rocket/RocketAero.h"
+#include "component/ComponentFactory.h"
 #include "component/Propulsor.h"
 #include "gnc/control/laws/RocketPidLaw.h"
 #include "gnc/control/laws/TvcPidLaw.h"
@@ -12,6 +13,22 @@
 #include "propulsion/SolidMotor.h"
 #include "scenario/ScenarioLoader.h"
 #include "test_util.h"
+
+// A broken-by-design component: declares an elevator but reports no control
+// effectiveness -- the situation the loader's authority probe must catch when
+// an allocating law is attached (pre-probe, this loaded fine and flew
+// open-loop; the F-16 had exactly this failure mode before its aero model
+// implemented controlEffectiveness).
+struct DeadSurface : ForceComponent {
+    ChannelHandle elevator_;
+    void declareChannels(ChannelTable& t) override {
+        elevator_ = t.add({channels::kElevator, ChannelKind::Surface, -0.4, 0.4});
+    }
+    Wrench computeWrench(const ComponentContext&, const ChannelValues&,
+                         const double*) const override {
+        return {};
+    }
+};
 
 // The channel write/read graph is validated at LOAD: a controller whose
 // required channels no component declares must throw, not fly open-loop.
@@ -100,6 +117,31 @@ int main() {
             }]
         })";
         CHECK(throwsMentioning([&] { scenario::load(path); }, "tvc_pitch"));
+    }
+
+    // --- Authority probe: an allocating law over a surface channel with no
+    //     effectiveness column fails at LOAD, naming the channel ---
+    {
+        component::Factory::registerComponent(
+            "test_dead_surface",
+            [](const json::Value&, const std::string&) {
+                return std::make_unique<DeadSurface>();
+            });
+        const std::string path = "output/_test_dead_surface_scenario.json";
+        std::ofstream(path) << R"({
+            "simulation": {"dt_s": 0.01, "duration_s": 1},
+            "vehicles": [{
+                "name": "dead",
+                "definition": {
+                    "mass_kg": 40, "inertia": {"ixx": 1, "iyy": 60, "izz": 60},
+                    "components": [ {"type": "test_dead_surface"} ],
+                    "gnc": { "control_law": {"type": "allocated_attitude"} }
+                }
+            }]
+        })";
+        CHECK(throwsMentioning([&] { scenario::load(path); },
+                               "control effectiveness"));
+        CHECK(throwsMentioning([&] { scenario::load(path); }, "elevator"));
     }
 
     // --- The old schema is rejected with a pointer to the new one ---

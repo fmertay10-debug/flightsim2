@@ -36,6 +36,8 @@ public:
     // Builder for gnc::Factory (type "allocated_attitude").
     static std::unique_ptr<ControlLaw> fromJson(const json::Value& cfg);
 
+    bool allocates() const override { return true; }
+
     std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
     void bindComponents(
         const std::vector<std::unique_ptr<ForceComponent>>& components) override;

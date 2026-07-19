@@ -53,6 +53,8 @@ public:
                                                 const std::string& baseDir);
 
     // Pitch/yaw fins are essential; roll assist and throttle are optional.
+    bool allocates() const override { return true; }
+
     std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
 
     // Keeps component references to query control effectiveness (the B whose

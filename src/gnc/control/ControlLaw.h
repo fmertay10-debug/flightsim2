@@ -40,6 +40,12 @@ public:
         return level == CommandLevel::Attitude;
     }
 
+    // Whether this law drives channels through the Allocator (i.e. depends on
+    // the components' controlEffectiveness). The loader probes such laws at
+    // load: a declared Surface channel with no effectiveness column anywhere
+    // is a config error that would otherwise fly silently open-loop.
+    virtual bool allocates() const { return false; }
+
     // Resolve the channels this law writes against the vehicle's declared
     // table and keep the handles. Channels the law cannot function without go
     // through table.require() -- it throws with a listing of what IS declared,
