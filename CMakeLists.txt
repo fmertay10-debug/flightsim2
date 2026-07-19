@@ -42,3 +42,17 @@ foreach(test_src ${TEST_SOURCES})
     add_test(NAME ${test_name} COMMAND ${test_name}
              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endforeach()
+
+# Golden regression gate: byte-exact CSV comparison of every golden scenario
+# (tools/check_golden.py). Goldens are toolchain-baselined -- regenerate with
+# --update <names> when a change is intentional.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME golden_gate
+             COMMAND ${Python3_EXECUTABLE} tools/check_golden.py
+                     --flightsim $<TARGET_FILE:flightsim>
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(golden_gate PROPERTIES TIMEOUT 300)
+else()
+    message(WARNING "Python3 not found -- golden_gate test not registered")
+endif()

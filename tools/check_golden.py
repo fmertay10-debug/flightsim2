@@ -12,13 +12,14 @@ Comparison is number-aware on purpose:
   - "nan" equals "nan" (raw text/float equality would get both backwards);
   - non-numeric cells (none today) compare as trimmed text.
 
-Usage:
-  py tools/check_golden.py                     # check every golden scenario
-  py tools/check_golden.py rocket_launch f16_cruise
-  py tools/check_golden.py --atol 1e-9 --rtol 1e-9
-  py tools/check_golden.py --update rocket_launch   # RE-BASELINE named scenarios
-  py tools/check_golden.py --flightsim build/flightsim.exe
+Usage (python3 on Linux, py on Windows):
+  python3 tools/check_golden.py                     # check every golden scenario
+  python3 tools/check_golden.py rocket_launch f16_cruise
+  python3 tools/check_golden.py --atol 1e-9 --rtol 1e-9
+  python3 tools/check_golden.py --update rocket_launch  # RE-BASELINE named scenarios
+  python3 tools/check_golden.py --flightsim build/flightsim
 
+Registered in ctest as `golden_gate`, so `ctest --test-dir build` runs it.
 Exit code is nonzero if any scenario fails (so it can gate CI / a commit hook).
 """
 
@@ -151,13 +152,22 @@ def main():
     ap.add_argument("scenarios", nargs="*", help="scenario names (default: all golden)")
     ap.add_argument("--atol", type=float, default=1e-12, help="absolute tolerance")
     ap.add_argument("--rtol", type=float, default=1e-12, help="relative tolerance")
-    ap.add_argument("--flightsim", default=os.path.join("build", "flightsim.exe"),
-                    help="path to the flightsim executable (default build/flightsim.exe)")
+    ap.add_argument("--flightsim", default=None,
+                    help="path to the flightsim executable "
+                         "(default: build/flightsim[.exe], whichever exists)")
     ap.add_argument("--update", action="store_true",
                     help="RE-BASELINE: overwrite the named goldens with fresh output")
     args = ap.parse_args()
 
     flightsim = args.flightsim
+    if flightsim is None:
+        for candidate in ("flightsim", "flightsim.exe"):
+            path = os.path.join(PROJ, "build", candidate)
+            if os.path.exists(path):
+                flightsim = path
+                break
+        else:
+            flightsim = os.path.join(PROJ, "build", "flightsim")
     if not os.path.isabs(flightsim):
         flightsim = os.path.join(PROJ, flightsim)
     if not os.path.exists(flightsim):

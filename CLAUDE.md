@@ -6,13 +6,19 @@ See README.md for layout, config schemas, and how to add vehicle types.
 ## Build / test / run
 
 ```
-cmake -S . -B build -G "MinGW Makefiles" && cmake --build build -j
+cmake -S . -B build && cmake --build build -j       # Windows: add -G "MinGW Makefiles"
 ctest --test-dir build --output-on-failure          # tests run with repo root as CWD
 ./build/flightsim scenarios/<name>.json
 ```
 
-MinGW builds link `-static` on purpose (mixed libstdc++ DLLs on PATH cause
-0xc0000139 crashes otherwise). Keep it.
+Primary dev machine is Linux (since 2026-07). ctest includes `golden_gate`
+(tools/check_golden.py): byte-exact CSV comparison of all 15 golden scenarios.
+Goldens are baselined on this Linux/GCC toolchain; MinGW builds differ in the
+last printed digit (libm rounding), so re-baseline (`--update <names>`) only
+deliberately, never to paper over a diff you don't understand.
+
+On Windows, MinGW builds link `-static` on purpose (mixed libstdc++ DLLs on
+PATH cause 0xc0000139 crashes otherwise). Keep it.
 
 ## Locked conventions — do not "fix"
 
@@ -168,7 +174,10 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
 - `tools/make_gallery.py`: runs the curated scenarios and writes the
   COMMITTED portfolio gallery `docs/gallery/*.html` + index. Regenerate it
   after any visualizer or vehicle change that alters those flights.
-- Python is invoked as `py` (Windows launcher, 3.13). numpy 2.x is available.
+- Python is `python3` (3.12) on the Linux dev machine (`py` on Windows).
+  numpy and node are NOT currently installed here: check_golden.py needs
+  neither, but the DATCOM/design tools (numpy) and check_viz.mjs (node) do —
+  install before using those.
 
 ## Known behaviors (not bugs)
 
