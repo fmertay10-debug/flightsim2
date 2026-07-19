@@ -1,6 +1,9 @@
 # Converting the ScheduledLaw fleet to allocation (ADR-0004) — options
 
-Status: DECISION PENDING (written 2026-07-19, after vehicles 1–3 converted).
+Status: DECIDED 2026-07-19 — **Option B**, implemented the same day. Outcome
+matched the prediction: lqr rocket apogee/tracking identical, all four
+missiles HIT with byte-same printed miss distances, fin deflections within
+~1e-6 relative (allocation damping) of the direct-write originals.
 
 ## What's at stake
 

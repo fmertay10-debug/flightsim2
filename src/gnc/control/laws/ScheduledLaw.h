@@ -2,6 +2,10 @@
 
 #include <string>
 
+#include <memory>
+#include <vector>
+
+#include "gnc/control/Allocator.h"
 #include "gnc/control/ControlLaw.h"
 #include "gnc/control/Pid.h"
 #include "math/LookupTable1D.h"
@@ -17,6 +21,19 @@
 // Yaw mirrors it on [beta, r, heading error] by axisymmetry; roll is a PD
 // damper holding wings level. Gains interpolate on Mach from the schedule CSV
 //   mach, k_alpha, k_q, k_theta, k_i
+//
+// OUTPUT CONTRACT (ADR-0004, Option B of
+// docs/plans/scheduledlaw-conversion-options.md): the designed per-channel
+// deflections u are converted to a WrenchCommand at the boundary
+// (moment = B*u with B the components' queried effectiveness) and handed to
+// the Allocator, which inverts the product back to ~u when each axis has one
+// effector -- true for every vehicle on this law. The designed gains, roll
+// qbar attenuation, and anti-windup are untouched. When the offline pipeline
+// learns to design in the acceleration domain (Option C), the internals of
+// this law get replaced and the configs stay.
+// NOTE: with REDUNDANT effectors per axis the B*u -> allocate round trip is
+// lossy (min-norm redistributes); pair such airframes with allocated_attitude
+// or wait for Option C.
 class ScheduledLaw : public ControlLaw {
 public:
     struct Config {
@@ -38,6 +55,11 @@ public:
     // Pitch/yaw fins are essential; roll assist and throttle are optional.
     std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
 
+    // Keeps component references to query control effectiveness (the B whose
+    // columns turn the designed deflections into the emitted WrenchCommand).
+    void bindComponents(
+        const std::vector<std::unique_ptr<ForceComponent>>& components) override;
+
     void update(const GncContext& gc, const CommandSet& cmd,
                 ChannelValues& out) override;
 
@@ -46,4 +68,7 @@ private:
     double ziTheta_ = 0.0;   // pitch tracking-error integral
     double ziPsi_   = 0.0;   // yaw tracking-error integral
     ChannelHandle elevator_, aileron_, rudder_, throttle_;
+    ChannelTable table_;                            // declared limits for allocation
+    std::vector<const ForceComponent*> components_; // non-owning (Vehicle outlives law)
+    Allocator allocator_;
 };
