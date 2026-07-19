@@ -1,0 +1,5 @@
+scenario: datcom_rocket_launch
+finished at t = 60.016 s
+
+entity           alive    north[m]    east[m]     alt[m] speed[m/s]
+datcom-rocket    no         1924.3     -124.6       -0.1      144.0

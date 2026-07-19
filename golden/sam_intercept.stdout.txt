@@ -1,0 +1,7 @@
+scenario: sam_intercept
+finished at t = 8.882 s
+intercept: HIT -- closest approach 9.30 m at t = 8.882 s
+
+entity           alive    north[m]    east[m]     alt[m] speed[m/s]
+sam              no         6779.7     1328.9     6003.4     1147.0
+raider           no         6788.4     1328.3     6000.0      250.0

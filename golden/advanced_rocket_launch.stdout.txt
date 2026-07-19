@@ -1,0 +1,5 @@
+scenario: advanced_rocket_launch
+finished at t = 59.302 s
+
+entity           alive    north[m]    east[m]     alt[m] speed[m/s]
+adv-rocket       no         1553.0     -431.7       -0.2      148.3

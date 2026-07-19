@@ -1,0 +1,7 @@
+scenario: intercept
+finished at t = 7.772 s
+intercept: HIT -- closest approach 7.87 m at t = 7.772 s
+
+entity           alive    north[m]    east[m]     alt[m] speed[m/s]
+interceptor      no         3810.0     1168.4     1796.5      568.5
+drone            no         3816.6     1170.9     1800.0      160.0

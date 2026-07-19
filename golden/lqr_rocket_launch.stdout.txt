@@ -1,0 +1,5 @@
+scenario: lqr_rocket_launch
+finished at t = 60.700 s
+
+entity           alive    north[m]    east[m]     alt[m] speed[m/s]
+lqr-rocket       no         3237.4      -52.6       -0.1      141.1

@@ -1,0 +1,8 @@
+scenario: aam_intercept
+finished at t = 6.436 s
+intercept: HIT -- closest approach 7.86 m at t = 6.436 s
+
+entity           alive    north[m]    east[m]     alt[m] speed[m/s]
+shooter          yes        1673.4        0.0     6000.0      260.0
+aam              no         4963.5     1032.8     6247.3      782.8
+bandit           no         4968.3     1027.3     6250.0      240.0
