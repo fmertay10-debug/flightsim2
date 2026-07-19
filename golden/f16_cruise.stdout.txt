@@ -2,4 +2,4 @@ scenario: f16_cruise
 finished at t = 90.002 s
 
 entity           alive    north[m]    east[m]     alt[m] speed[m/s]
-viper            yes       13124.3     1574.0     3500.0      150.0
+viper            yes       13102.5     1569.3     3500.0      150.0

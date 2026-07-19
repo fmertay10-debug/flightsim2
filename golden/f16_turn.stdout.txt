@@ -2,4 +2,4 @@ scenario: f16_turn
 finished at t = 70.000 s
 
 entity           alive    north[m]    east[m]     alt[m] speed[m/s]
-viper            yes        -788.0    -6726.6     3000.0      150.0
+viper            yes        -757.9    -6685.5     3000.0      150.0
