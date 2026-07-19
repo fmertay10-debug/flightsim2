@@ -2,4 +2,4 @@ scenario: aircraft_cruise
 finished at t = 120.005 s
 
 entity           alive    north[m]    east[m]     alt[m] speed[m/s]
-trainer-1        yes        4296.2     3158.9     1000.0       60.0
+trainer-1        yes        4285.5     3167.2     1000.0       60.0

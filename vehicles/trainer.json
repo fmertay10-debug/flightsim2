@@ -1,8 +1,10 @@
 // Single-engine trainer aircraft (Cessna-182 class).
 // Stability derivatives are per radian.
 {
-  "mass_kg": 1200,
-  "inertia": { "ixx": 1285, "iyy": 1825, "izz": 2667 },
+  "mass": {
+    "model": "constant", "mass_kg": 1200,
+    "inertia": { "ixx": 1285, "iyy": 1825, "izz": 2667 }
+  },
 
   "components": [
     {
@@ -20,18 +22,18 @@
 
   "gnc": {
     "control_law": {
-      "type": "aircraft_pid",
+      "type": "aircraft_allocated",
       "gains": {
-        "pitch_kp": 2.0, "pitch_ki": 0.4, "pitch_kd": 0.8,
-        "roll_kp": 2.0,  "roll_kd": 0.5,
+        "pitch_kp": 60, "pitch_kd": 24, "pitch_ki": 12,
+        "roll_kp": 126, "roll_kd": 31,
+        "yaw_damp": 4,
         "heading_kp": 1.5,
         "alt_to_vs": 0.3, "vs_kp": 0.02, "vs_ki": 0.01,
-        "speed_kp": 0.05, "speed_ki": 0.01,
-        "yaw_damper": 0.5
+        "speed_kp": 0.05, "speed_ki": 0.01
       },
       "limits": {
         "max_bank_deg": 30, "max_pitch_deg": 15, "max_climb_rate_ms": 5,
-        "max_elevator_deg": 25, "max_aileron_deg": 20, "max_rudder_deg": 20
+        "max_ang_accel_dps2": 2000, "int_limit": 1.0
       }
     },
     "actuator": { "tau_s": 0.05, "rate_dps": 90, "limit_deg": 25 }

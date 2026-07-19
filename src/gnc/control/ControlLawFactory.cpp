@@ -3,6 +3,7 @@
 #include <map>
 #include <stdexcept>
 
+#include "gnc/control/laws/AircraftAllocatedLaw.h"
 #include "gnc/control/laws/AircraftPidLaw.h"
 #include "gnc/control/laws/AllocatedAttitudeLaw.h"
 #include "gnc/control/laws/RocketPidLaw.h"
@@ -38,6 +39,10 @@ std::map<std::string, Factory::Builder>& registry() {
         { "allocated_attitude",
           [](const json::Value& cfg, const std::string&) {
               return AllocatedAttitudeLaw::fromJson(cfg);
+          } },
+        { "aircraft_allocated",
+          [](const json::Value& cfg, const std::string&) {
+              return AircraftAllocatedLaw::fromJson(cfg);
           } },
     };
     return r;
