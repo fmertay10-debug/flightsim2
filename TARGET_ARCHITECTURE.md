@@ -1,5 +1,12 @@
 # Target Architecture (Reference — do not implement yet)
 
+> **Status (2026-07-19):** aspirational north-star, drafted before the
+> implementation existed; names and details differ from the code. The ADRs in
+> `docs/adr/` + the code are the source of truth. Progress toward this shape:
+> externalized component state / pure f(x,u) is DONE (ADR-0003);
+> allocation-only control is IN PROGRESS, 1 of 6 laws converted (ADR-0004);
+> ControllerSpec / TrimSolver / Linearizer are NOT BUILT yet.
+
 ## Vision
 Generic flight vehicle design & simulation framework. Two top-level domains:
 

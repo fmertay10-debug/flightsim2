@@ -20,11 +20,13 @@ struct GncContext {
 };
 
 // Strategy: control law -- tracks Commands by writing actuator channels.
-// Direct-write laws (the PIDs, the gain schedule) put plant knowledge in
-// their gains and write surface/gimbal channels themselves; allocation-based
-// laws emit desired body moments internally and let an Allocator distribute
-// them over whatever channels the vehicle declares (ADR-0002: both contracts
-// are legal).
+// Two kinds exist today: allocation-based laws emit a WrenchCommand and let
+// the Allocator distribute it over whatever channels the vehicle declares --
+// this is the TARGET contract (ADR-0004, superseding ADR-0002's dual
+// contract); direct-write laws (the PIDs, the gain schedule) put plant
+// knowledge in their gains and write surface/gimbal channels themselves --
+// LEGACY, being retired vehicle-by-vehicle as each is re-tuned and re-proven
+// on the allocation path.
 //
 // Laws are stateful (integrators, filters) -- one instance per entity.
 class ControlLaw {
