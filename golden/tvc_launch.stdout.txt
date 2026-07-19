@@ -2,4 +2,4 @@ scenario: tvc_launch
 finished at t = 60.000 s
 
 entity           alive    north[m]    east[m]     alt[m] speed[m/s]
-tvc-rocket       yes       18712.2     3949.9    27382.4      351.8
+tvc-rocket       yes       18472.8     3870.1    27568.4      350.2

@@ -6,8 +6,9 @@
 // (single-nozzle TVC can't roll).
 //
 // Components: [rocket_aero] stability only, [solid_motor] with a "gimbal"
-// mount (the TVC nozzle -- declares tvc_pitch/tvc_yaw). GNC: the "tvc_pid"
-// control law. TVC authority tracks thrust, so control ends at burnout.
+// mount (the TVC nozzle -- declares tvc_pitch/tvc_yaw). GNC: the allocation
+// law (ADR-0004) -- the gimbal's live effectiveness (arm * thrust) is the
+// only control column, so authority tracks thrust and ends at burnout.
 {
   "mass": {
     "model": "constant", "mass_kg": 520,
@@ -31,12 +32,13 @@
 
   "gnc": {
     "control_law": {
-      "type": "tvc_pid",
+      "type": "allocated_attitude",
       "gains": {
-        "pitch_kp": 4.0, "pitch_ki": 0.6, "pitch_kd": 1.6,
-        "yaw_kp": 4.0,   "yaw_ki": 0.6,   "yaw_kd": 1.6
+        "pitch_kp": 150, "pitch_kd": 60, "pitch_ki": 30,
+        "yaw_kp": 150,   "yaw_kd": 60,   "yaw_ki": 30,
+        "roll_kp": 40,   "roll_kd": 15
       },
-      "limits": { "max_gimbal_deg": 6, "vertical_guard_deg": 84 }
+      "limits": { "max_ang_accel_dps2": 6000, "int_limit": 1.0, "vertical_guard_deg": 84 }
     },
     "actuator": { "tau_s": 0.03, "rate_dps": 120, "limit_deg": 25, "gimbal_limit_deg": 6 }
   }
