@@ -50,10 +50,12 @@ impulse-consistent propellant) · `tabulated_thrust` (raw thrust(t) table) ·
 | option | config | what |
 |---|---|---|
 | constant | `{"model":"constant","mass_kg":…,"inertia":{…}}` | fixed tensor (+ optional `ixz`) |
+| dry_plus_propellant | `{"model":"dry_plus_propellant","dry_mass_kg":…,"inertia":{…}}` | fixed dry tensor; the motors' remaining propellant is added each step, so mass drops through the burn |
 | tabulated | `{"model":"tabulated","table":"mass_props.csv"}` | mass, Ixx/Iyy/Izz, **xcg** vs time |
 
-(Legacy flat `mass_kg` + `inertia` still works and adds a solid motor's
-propellant to the dry mass automatically.)
+(Legacy flat `mass_kg` + `inertia` still works and behaves like
+`dry_plus_propellant`; it is being retired vehicle-by-vehicle — use the
+explicit `mass` block in new configs.)
 
 ### `gnc.control_law` — the control algorithm (registry: `gnc::Factory`)
 | `type` | config | what |

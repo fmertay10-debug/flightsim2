@@ -43,6 +43,16 @@ buildMass(const json::Value& def, const std::string& baseDir, bool hasSolidMotor
             s.xcg     = m.has("xcg_m") ? m.num("xcg_m") : std::nan("");
             return {std::make_unique<ConstantMassModel>(s), false};
         }
+        if (model == "dry_plus_propellant") {
+            // Constant dry mass/inertia; the motors' remaining propellant is
+            // added on top each step, so mass drops through the burn. Explicit
+            // form of what the legacy flat schema did implicitly.
+            MassState s;
+            s.mass    = m.num("dry_mass_kg");
+            s.inertia = inertiaFromJson(m.at("inertia"));
+            s.xcg     = m.has("xcg_m") ? m.num("xcg_m") : std::nan("");
+            return {std::make_unique<ConstantMassModel>(s), true};
+        }
         throw std::invalid_argument("vehicle: unknown mass model '" + model + "'");
     }
 

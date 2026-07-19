@@ -96,7 +96,7 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
   f16_aero / rocket_aero / rocket_table_aero / turbojet / solid_motor /
   tabulated_thrust / f16_engine.
 - New mass model = MassModel subclass + branch in `vehicle::create` (`mass`
-  block: "constant" | "tabulated").
+  block: "constant" | "dry_plus_propellant" | "tabulated").
 - New control law = ControlLaw subclass + `gnc::Factory::registerControlLaw`
   (types: aircraft_pid / rocket_pid / tvc_pid / scheduled / lqr /
   allocated_attitude). Chosen independent of the airframe. Laws take a

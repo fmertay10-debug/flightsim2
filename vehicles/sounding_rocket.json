@@ -2,8 +2,11 @@
 // Missile-convention derivatives per radian; axisymmetric yaw terms default
 // to mirrors of the pitch terms (see RocketAero).
 {
-  "mass_kg": 60,
-  "inertia": { "ixx": 2, "iyy": 320, "izz": 320 },
+  "mass": {
+    "model": "dry_plus_propellant",
+    "dry_mass_kg": 60,
+    "inertia": { "ixx": 2, "iyy": 320, "izz": 320 }
+  },
 
   "components": [
     {
