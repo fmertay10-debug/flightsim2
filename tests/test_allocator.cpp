@@ -43,6 +43,19 @@ int main() {
         CHECK_NEAR(1000.0 * u.get(fin) + 4000.0 * u.get(tvc), 1700.0, 1e-3);
     }
 
+    // --- No authority at ALL (pad step of a pure-TVC vehicle): no throw,
+    //     outputs untouched ---
+    {
+        ChannelTable t;
+        const ChannelHandle g = t.add({"tvc_pitch", ChannelKind::Gimbal, -0.1, 0.1});
+        const ControlEffect fx[] = { { g, Vector3() } };   // thrust lag -> zero column
+        ChannelValues u(t);
+        alloc.allocate({ Vector3(), Vector3(0.0, 5000.0, 0.0) }, fx, 1, t, u);
+        CHECK_NEAR(u.get(g), 0.0, 1e-15);
+        alloc.allocate({ Vector3(), Vector3(0.0, 5000.0, 0.0) }, nullptr, 0, t, u);
+        CHECK_NEAR(u.get(g), 0.0, 1e-15);
+    }
+
     // --- Zero-authority axis: damped inverse gives zeros, never NaN ---
     {
         ChannelTable t;

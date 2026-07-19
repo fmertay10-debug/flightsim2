@@ -64,11 +64,23 @@ void Allocator::allocate(const WrenchCommand& desired,
             G(1, 0) += b.y * b.x; G(1, 1) += b.y * b.y; G(1, 2) += b.y * b.z;
             G(2, 0) += b.z * b.x; G(2, 1) += b.z * b.y; G(2, 2) += b.z * b.z;
         }
-        const double lambda =
-            damping_ * (G(0, 0) + G(1, 1) + G(2, 2)) / 3.0 + 1e-12;
+        // No moment authority anywhere (count == 0 or all-zero columns --
+        // e.g. a pure-TVC vehicle's first pad step, before the gimbal's
+        // one-step thrust lag fills in): leave the outputs untouched, same
+        // contract as the 6x6 path's singular case.
+        const double trace = G(0, 0) + G(1, 1) + G(2, 2);
+        if (trace == 0.0) return;
+
+        const double lambda = damping_ * trace / 3.0 + 1e-12;
         G(0, 0) += lambda;
         G(1, 1) += lambda;
         G(2, 2) += lambda;
+
+        // Mirror Matrix3x3::inverse()'s ABSOLUTE epsilon: with authority this
+        // small (e.g. the last milliseconds of a burnout ramp, LT -> 0) the
+        // damped det underflows 1e-12 and inverse() would throw. Commanding
+        // nothing there is physically right -- the effector is dead anyway.
+        if (std::abs(G.det()) < 1e-12) return;
 
         const Vector3 y = G.inverse() * desired.moment;
         for (int k = 0; k < count; ++k) {
