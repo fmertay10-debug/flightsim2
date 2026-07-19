@@ -26,13 +26,13 @@
 
   "gnc": {
     "control_law": {
-      "type": "rocket_pid",
+      "type": "allocated_attitude",
       "gains": {
-        "pitch_kp": 0.5, "pitch_ki": 0.1, "pitch_kd": 0.3,
-        "yaw_kp": 0.5,   "yaw_ki": 0.1,   "yaw_kd": 0.3,
-        "roll_kp": 0.4,  "roll_kd": 0.15
+        "pitch_kp": 150, "pitch_kd": 60, "pitch_ki": 30,
+        "yaw_kp": 150,   "yaw_kd": 60,   "yaw_ki": 30,
+        "roll_kp": 40,   "roll_kd": 15
       },
-      "limits": { "max_fin_deg": 15, "min_airspeed_ms": 15 }
+      "limits": { "max_ang_accel_dps2": 6000, "int_limit": 1.0, "vertical_guard_deg": 84 }
     },
     "actuator": { "tau_s": 0.03, "rate_dps": 200, "limit_deg": 15 }
   }
