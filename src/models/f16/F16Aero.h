@@ -44,6 +44,15 @@ public:
     // model's xcg = (cg fraction)*cbar.
     double momentReferenceStation() const override { return xcgr_ * ref_.cbar; }
 
+    // Slope cards for allocation, CG-referenced: elevator by central-differencing
+    // the CM table about zero deflection (+ the analytic CZ-per-elevator term
+    // transferred over the xcg-xcgr arm); aileron/rudder from the S&L control-
+    // derivative tables at the current (alpha, beta), de-normalized to per-rad
+    // (their inputs are fractions of the 20/30 deg travels). The F-16's
+    // INVERTED aileron (+da -> LEFT roll) comes out of the dlda data.
+    int controlEffectiveness(const AirData& air, double xcg,
+                             ControlEffect* out, int maxOut) const override;
+
 private:
     F16Tables     t_;
     AeroReference ref_;

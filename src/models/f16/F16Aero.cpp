@@ -75,6 +75,49 @@ AeroForces F16Aero::compute(const State& state, const AirData& air,
     return out;
 }
 
+int F16Aero::controlEffectiveness(const AirData& air, double xcg,
+                                  ControlEffect* out, int maxOut) const {
+    const double V = air.airspeed;
+    if (V < 1e-6 || air.qbar <= 0.0) return 0;
+
+    const double alpha = air.alpha;
+    const double beta  = std::asin(std::clamp(air.velocityBody.y / V, -1.0, 1.0));
+    const double qS    = air.qbar * ref_.sref;
+    constexpr double R2D = 180.0 / 3.14159265358979323846;
+    const double h = 0.0349;   // 2 deg central-difference step (elevator table)
+
+    // CG transfer arm, same convention as the Entity: My -= dx*Fz, Mz += dx*Fy.
+    const double xref = xcgr_ * ref_.cbar;
+    const double dx = std::isfinite(xcg) ? (xcg - xref) : 0.0;
+
+    int n = 0;
+    if (elevator_.valid() && n < maxOut) {
+        const double dcm = (t_.cm.eval(alpha, h) - t_.cm.eval(alpha, -h)) / (2.0 * h);
+        const double dcz = -0.19 * R2D / 25.0;   // analytic CZ-per-rad of elevator
+        out[n++] = { elevator_,
+                     Vector3(0.0, qS * (ref_.cbar * dcm - dx * dcz), 0.0) };
+    }
+    if (aileron_.valid() && n < maxOut) {
+        const double s   = R2D / 20.0;           // dail per rad of aileron channel
+        const double dcl = t_.dlda.eval(alpha, beta) * s;
+        const double dcn = t_.dnda.eval(alpha, beta) * s;
+        const double dcy = 0.021 * s;
+        out[n++] = { aileron_,
+                     Vector3(qS * ref_.bref * dcl, 0.0,
+                             qS * (ref_.bref * dcn + dx * dcy)) };
+    }
+    if (rudder_.valid() && n < maxOut) {
+        const double s   = R2D / 30.0;           // drdr per rad of rudder channel
+        const double dcl = t_.dldr.eval(alpha, beta) * s;
+        const double dcn = t_.dndr.eval(alpha, beta) * s;
+        const double dcy = 0.086 * s;
+        out[n++] = { rudder_,
+                     Vector3(qS * ref_.bref * dcl, 0.0,
+                             qS * (ref_.bref * dcn + dx * dcy)) };
+    }
+    return n;
+}
+
 namespace {
 
 LookupTable1D col1d(const csv::Table& t, const std::string& xcol,

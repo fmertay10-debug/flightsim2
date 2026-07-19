@@ -42,6 +42,12 @@ public:
     AeroForces compute(const State& state, const AirData& air,
                        const ChannelValues& control) const override;
 
+    // Analytic control slope cards for allocation (moments are already about
+    // the CG -- derivative model, no reference transfer). Aileron and rudder
+    // carry their roll/yaw cross terms (cnda, cldr) in the same column.
+    int controlEffectiveness(const AirData& air, double xcg,
+                             ControlEffect* out, int maxOut) const override;
+
 private:
     AeroReference ref_;
     Derivatives   d_;

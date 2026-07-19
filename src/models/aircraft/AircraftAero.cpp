@@ -46,6 +46,20 @@ void AircraftAero::declareChannels(ChannelTable& table) {
         rudder_ = table.add({channels::kRudder, ChannelKind::Surface, -lim, lim});
 }
 
+int AircraftAero::controlEffectiveness(const AirData& air, double /*xcg*/,
+                                       ControlEffect* out, int maxOut) const {
+    const double qSc = air.qbar * ref_.sref * ref_.cbar;
+    const double qSb = air.qbar * ref_.sref * ref_.bref;
+    int n = 0;
+    if (elevator_.valid() && n < maxOut)
+        out[n++] = { elevator_, Vector3(0.0, d_.cmde * qSc, 0.0) };
+    if (aileron_.valid() && n < maxOut)
+        out[n++] = { aileron_, Vector3(d_.clda * qSb, 0.0, d_.cnda * qSb) };
+    if (rudder_.valid() && n < maxOut)
+        out[n++] = { rudder_, Vector3(d_.cldr * qSb, 0.0, d_.cndr * qSb) };
+    return n;
+}
+
 AeroForces AircraftAero::compute(const State& state, const AirData& air,
                                  const ChannelValues& u) const {
     AeroForces out;

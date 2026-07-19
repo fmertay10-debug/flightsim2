@@ -6,8 +6,25 @@
 #include "component/Propulsor.h"
 #include "gnc/control/Allocator.h"
 #include "io/Json.h"
+#include "models/aircraft/AircraftAero.h"
+#include "models/f16/F16Aero.h"
 #include "models/rocket/RocketAero.h"
 #include "test_util.h"
+
+// Central-difference d(moment)/d(channel) of an AeroModel's own compute() --
+// the ground truth every effectiveness column must match.
+static Vector3 fdMomentSlope(const AeroModel& m, const ChannelTable& t,
+                             ChannelHandle ch, const State& s, const AirData& air,
+                             double h = 0.0349) {
+    ChannelValues up(t), dn(t);
+    up.set(ch, h);
+    dn.set(ch, -h);
+    const AeroForces a = m.compute(s, air, up);
+    const AeroForces b = m.compute(s, air, dn);
+    return Vector3((a.moment.x - b.moment.x) / (2.0 * h),
+                   (a.moment.y - b.moment.y) / (2.0 * h),
+                   (a.moment.z - b.moment.z) / (2.0 * h));
+}
 
 struct FixedThrust : PropulsionModel {
     double T = 0.0;
@@ -126,6 +143,63 @@ int main() {
         CHECK_NEAR(fx[0].dMoment.y, -8.0 * qS * 3.0, 1e-6);    // elevator, cmde
         CHECK_NEAR(fx[1].dMoment.z, -8.0 * qS * 3.0, 1e-6);    // rudder, cndr=cmde mirror
         CHECK_NEAR(fx[2].dMoment.x, 3.0 * qS * 0.25, 1e-6);    // aileron, clda
+    }
+
+    // --- AircraftAero effectiveness matches finite differences of compute() ---
+    {
+        const json::Value cfg = json::Value::parse(R"({
+            "sref_m2": 16.2, "cbar_m": 1.5, "bspan_m": 11.0,
+            "cla": 5.0, "cd0": 0.03,
+            "cmde": -1.2, "clde": 0.4, "cma": -0.9,
+            "clda": 0.08, "cnda": 0.01,
+            "cndr": -0.07, "cldr": 0.015, "cydr": 0.1
+        })");
+        auto aero = AircraftAero::fromJson(cfg);
+        ChannelTable t;
+        aero->declareChannels(t);
+        State s;
+        AirData air;
+        air.airspeed = 60.0;
+        air.qbar = 2200.0;
+        air.alpha = 0.05;
+        air.beta = 0.02;
+        ControlEffect fx[8];
+        const int n = aero->controlEffectiveness(air, std::nan(""), fx, 8);
+        CHECK(n == 3);
+        for (int k = 0; k < n; ++k) {
+            const Vector3 fd = fdMomentSlope(*aero, t, fx[k].channel, s, air);
+            CHECK_NEAR(fx[k].dMoment.x, fd.x, 1e-6);
+            CHECK_NEAR(fx[k].dMoment.y, fd.y, 1e-6);
+            CHECK_NEAR(fx[k].dMoment.z, fd.z, 1e-6);
+        }
+    }
+
+    // --- F16Aero effectiveness matches finite differences of the real tables
+    //     (xcg NaN -> columns about the table reference, same as compute) ---
+    {
+        const json::Value cfg = json::Value::parse(R"({"dir": "vehicles/f16"})");
+        auto aero = F16Aero::fromJson(cfg, ".");
+        ChannelTable t;
+        aero->declareChannels(t);
+        State s;
+        AirData air;
+        air.airspeed = 150.0;
+        air.qbar = 0.5 * 1.225 * 150.0 * 150.0;
+        air.alpha = 0.05;
+        air.velocityBody = Vector3(149.6, 3.0, 7.5);   // beta = asin(3/150)
+        ControlEffect fx[8];
+        const int n = aero->controlEffectiveness(air, std::nan(""), fx, 8);
+        CHECK(n == 3);
+        for (int k = 0; k < n; ++k) {
+            const Vector3 fd = fdMomentSlope(*aero, t, fx[k].channel, s, air);
+            CHECK_NEAR(fx[k].dMoment.x, fd.x, 1e-3);
+            CHECK_NEAR(fx[k].dMoment.y, fd.y, 1e-3);
+            CHECK_NEAR(fx[k].dMoment.z, fd.z, 1e-3);
+        }
+        // The F-16's inverted aileron convention must come out of the DATA:
+        // +aileron -> LEFT roll (negative dMx), and +elevator -> nose down.
+        CHECK(fx[1].dMoment.x < 0.0);   // aileron column
+        CHECK(fx[0].dMoment.y < 0.0);   // elevator column
     }
 
     // --- Propulsor gimbal effectiveness: L*T on pitch and yaw ---
