@@ -44,16 +44,6 @@ public:
     // table and keep the returned handles. Called once at load.
     virtual void declareChannels(ChannelTable& table) { (void)table; }
 
-    // Body-frame wrench about momentReferenceStation(). Non-const: stateful
-    // components (engine spool) advance by ctx.dt -- called once per step.
-    //
-    // LEGACY ENTRY POINT (ADR-0003 migration). Self-integrating: a stateful
-    // component mutates its own internals here. Being retired in favor of the
-    // externalized-state contract below (numStates/derivatives/computeWrench).
-    // Still the entry the Entity calls until a component is converted; do not
-    // remove until every stateful component overrides computeWrench().
-    virtual Wrench compute(const ComponentContext& ctx, const ChannelValues& u) = 0;
-
     // --- Externalized component state (ADR-0003) -------------------------
     // A component may carry internal states (engine spool, actuator lag, fuel)
     // that the Entity integrates alongside the vehicle's 6-DOF state in one
@@ -71,24 +61,19 @@ public:
     // d/dt of this component's own state at (state, air, inputs). PURE: must
     // read x (length numStates()) and write xdot (same length) and touch no
     // member. dt in ctx is NOT used here -- the integrator applies it. Default
-    // no-op (stateless, or not yet converted). This is the f(x,u) seam.
+    // no-op (stateless). This is the f(x,u) seam.
     virtual void derivatives(const ComponentContext& ctx, const ChannelValues& u,
                              const double* x, double* xdot) const {
         (void)ctx; (void)u; (void)x; (void)xdot;
     }
 
     // Body-frame wrench about momentReferenceStation(), given the component's
-    // externalized state x (length numStates(); nullptr when stateless). PURE.
-    // Default BRIDGE: forward to the legacy compute() so unconverted components
-    // work unchanged during the ADR-0003 migration. The const_cast is the
-    // deliberate, temporary cost of that bridge -- a converted component
-    // overrides this with a genuinely pure implementation that reads x, and the
-    // bridge (and compute()) go away once all stateful components are converted.
+    // externalized state x (length numStates(); nullptr when stateless). PURE:
+    // must not mutate the component -- the Entity owns and integrates all
+    // state, so the whole vehicle dynamics stays a linearizable f(x,u).
+    // Called once per step.
     virtual Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,
-                                 const double* x) const {
-        (void)x;
-        return const_cast<ForceComponent*>(this)->compute(ctx, u);
-    }
+                                 const double* x) const = 0;
     // --------------------------------------------------------------------
 
     // Station (meters, increasing aft, same datum as MassState::xcg) the
@@ -96,8 +81,8 @@ public:
     // CG. NaN (default) = already about the CG, no transfer.
     virtual double momentReferenceStation() const { return std::nan(""); }
 
-    // Telemetry: propulsive thrust magnitude produced by the last compute()
-    // [N]; 0 for non-propulsive components.
+    // Telemetry: propulsive thrust magnitude produced by the last
+    // computeWrench() [N]; 0 for non-propulsive components.
     virtual double thrustNewtons() const { return 0.0; }
 
     // Onboard propellant remaining at sim time [kg]. Only used by the legacy

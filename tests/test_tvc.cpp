@@ -11,7 +11,7 @@
 // Fixed-thrust stub so the mount math can be tested at chosen thrust levels.
 struct FixedThrust : PropulsionModel {
     double T = 0.0;
-    double thrust(const PropulsionContext&) override { return T; }
+    double thrustFromState(const PropulsionContext&, const double*) const override { return T; }
 };
 
 int main() {
@@ -44,7 +44,7 @@ int main() {
         Propulsor axial(std::move(axModel), std::nullopt);
         ChannelTable t2;
         axial.declareChannels(t2);
-        const Wrench w = axial.compute(ctxAt(3.5), ChannelValues(t2));
+        const Wrench w = axial.computeWrench(ctxAt(3.5), ChannelValues(t2), nullptr);
         CHECK_NEAR(w.force.x, T, 1e-9);
         CHECK_NEAR(w.moment.x, 0.0, 1e-12);
         CHECK_NEAR(w.moment.y, 0.0, 1e-12);
@@ -57,7 +57,7 @@ int main() {
         tvcThrust->T = T;
         ChannelValues u(table);
         u.set(pitch, units::deg2rad(4.0));
-        const Wrench w = tvc.compute(ctxAt(3.5), u);
+        const Wrench w = tvc.computeWrench(ctxAt(3.5), u, nullptr);
         CHECK(w.moment.y > 0.0);
         CHECK(w.force.z > 0.0);
         CHECK_NEAR(w.moment.y, arm * T * std::sin(units::deg2rad(4.0)), 1e-6);
@@ -68,7 +68,7 @@ int main() {
     {
         ChannelValues u(table);
         u.set(yaw, units::deg2rad(4.0));
-        const Wrench w = tvc.compute(ctxAt(3.5), u);
+        const Wrench w = tvc.computeWrench(ctxAt(3.5), u, nullptr);
         CHECK(w.moment.z > 0.0);
         CHECK(w.force.y < 0.0);
     }
@@ -77,7 +77,7 @@ int main() {
     {
         ChannelValues u(table);
         u.set(pitch, units::deg2rad(30.0));   // beyond 8 deg
-        const Wrench w = tvc.compute(ctxAt(3.5), u);
+        const Wrench w = tvc.computeWrench(ctxAt(3.5), u, nullptr);
         CHECK_NEAR(w.moment.y, arm * T * std::sin(units::deg2rad(8.0)), 1e-6);
     }
 
@@ -86,12 +86,12 @@ int main() {
         ChannelValues u(table);
         u.set(pitch, units::deg2rad(4.0));
         tvcThrust->T = 20000.0;
-        const Wrench big = tvc.compute(ctxAt(3.5), u);
+        const Wrench big = tvc.computeWrench(ctxAt(3.5), u, nullptr);
         tvcThrust->T = 10000.0;
-        const Wrench sml = tvc.compute(ctxAt(3.5), u);
+        const Wrench sml = tvc.computeWrench(ctxAt(3.5), u, nullptr);
         CHECK_NEAR(big.moment.y, 2.0 * sml.moment.y, 1e-6);
         tvcThrust->T = 0.0;
-        const Wrench none = tvc.compute(ctxAt(3.5), u);
+        const Wrench none = tvc.computeWrench(ctxAt(3.5), u, nullptr);
         CHECK_NEAR(none.moment.y, 0.0, 1e-12);
         CHECK_NEAR(none.force.x, 0.0, 1e-12);
     }
@@ -101,8 +101,8 @@ int main() {
         tvcThrust->T = T;
         ChannelValues u(table);
         u.set(pitch, units::deg2rad(4.0));
-        const Wrench aft = tvc.compute(ctxAt(4.0), u);   // arm 2.0
-        const Wrench fwd = tvc.compute(ctxAt(3.0), u);   // arm 3.0
+        const Wrench aft = tvc.computeWrench(ctxAt(4.0), u, nullptr);   // arm 2.0
+        const Wrench fwd = tvc.computeWrench(ctxAt(3.0), u, nullptr);   // arm 3.0
         CHECK(fwd.moment.y > aft.moment.y);   // longer arm -> more moment
     }
 

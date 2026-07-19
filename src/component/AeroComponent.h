@@ -18,7 +18,8 @@ public:
         model_->declareChannels(table);
     }
 
-    Wrench compute(const ComponentContext& ctx, const ChannelValues& u) override {
+    Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                         const double* /*x: stateless*/) const override {
         const AeroForces f = model_->compute(ctx.state, ctx.air, u);
         return { f.force, f.moment };
     }

@@ -15,7 +15,7 @@ public:
                double propellantMass,
                double ignitionTime = 0.0);
 
-    double thrust(const PropulsionContext& ctx) override;
+    double thrustFromState(const PropulsionContext& ctx, const double* x) const override;
     double propellantMass(double time) const override;
 
     double burnTime() const { return burnTime_; }

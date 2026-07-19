@@ -19,16 +19,13 @@
 //
 // The spool P is ONE externalized state (ADR-0003): the Entity integrates it,
 // derivatives() gives Pdot, and thrustFromState() reports thrust from the
-// current P as a PURE function. The legacy self-integrating thrust() remains
-// only for the bridge; it is no longer on the sim's hot path.
+// current P as a PURE function.
 class F16Engine : public PropulsionModel {
 public:
     F16Engine(LookupTable2D idle, LookupTable2D mil, LookupTable2D mx,
               double power0 = 0.0);
 
     static F16Engine fromCsv(const std::string& dir);   // reads f16/thrust.csv
-
-    double thrust(const PropulsionContext& ctx) override;   // legacy, advances P
 
     // Externalized spool state P in [0,100] % (ADR-0003).
     int    numStates() const override { return 1; }
@@ -37,7 +34,6 @@ public:
                        const double* x, double* xdot) const override;
     double thrustFromState(const PropulsionContext& ctx, const double* x) const override;
 
-    double power() const { return power_; }
     // Steady-state thrust at a held throttle/condition (P -> tgear), no state.
     double steadyThrust(double throttle, double altitude, double mach) const;
     static double commandedPower(double throttle);          // tgear [%]
@@ -48,6 +44,5 @@ private:
     double blend(double p, double alt, double mach) const;
 
     LookupTable2D idle_, mil_, max_;
-    double        power_;    // legacy self-integrating spool (bridge only)
     double        power0_;   // initial spool for the externalized state
 };

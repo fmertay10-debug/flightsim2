@@ -11,7 +11,7 @@
 
 struct FixedThrust : PropulsionModel {
     double T = 0.0;
-    double thrust(const PropulsionContext&) override { return T; }
+    double thrustFromState(const PropulsionContext&, const double*) const override { return T; }
 };
 
 int main() {
@@ -128,7 +128,7 @@ int main() {
         ControlEffect fx[8];
         CHECK(prop.controlEffectiveness(ctx, fx, 8) == 0);   // no thrust yet
         thrust->T = 10000.0;
-        prop.compute(ctx, ChannelValues(t));                 // sets lastThrust_
+        prop.computeWrench(ctx, ChannelValues(t), nullptr);                 // sets lastThrust_
         const int n = prop.controlEffectiveness(ctx, fx, 8);
         CHECK(n == 2);
         CHECK_NEAR(fx[0].dMoment.y, 2.5 * 10000.0, 1e-6);

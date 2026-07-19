@@ -31,7 +31,8 @@ SolidMotor::SolidMotor(std::vector<std::pair<double, double>> curve,
     impulseFraction_ = LookupTable1D(t, impulse);
 }
 
-double SolidMotor::thrust(const PropulsionContext& ctx) {
+double SolidMotor::thrustFromState(const PropulsionContext& ctx,
+                                   const double* /*x: stateless*/) const {
     const double tb = ctx.time - ignitionTime_;
     if (tb < 0.0 || tb > burnTime_) return 0.0;
     return thrustCurve_.eval(tb);

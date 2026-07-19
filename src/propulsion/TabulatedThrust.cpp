@@ -33,7 +33,8 @@ TabulatedThrust TabulatedThrust::fromCsv(const std::string& path,
     return TabulatedThrust(std::move(curve), throttleGated);
 }
 
-double TabulatedThrust::thrust(const PropulsionContext& ctx) {
+double TabulatedThrust::thrustFromState(const PropulsionContext& ctx,
+                                        const double* /*x: stateless*/) const {
     if (ctx.time > endTime_) return 0.0;              // burnout
     const double raw = curve_.eval(ctx.time);
     return gated_ ? raw * std::clamp(ctx.throttle, 0.0, 1.0) : raw;

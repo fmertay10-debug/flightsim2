@@ -22,7 +22,7 @@ public:
                                    const std::string& thrustCol = "thrust_n",
                                    bool throttleGated = false);
 
-    double thrust(const PropulsionContext& ctx) override;
+    double thrustFromState(const PropulsionContext& ctx, const double* x) const override;
 
 private:
     LookupTable1D curve_;

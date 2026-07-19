@@ -3,9 +3,9 @@
 // Everything a propulsion model may need at one step, assembled by the Entity
 // and passed in whole. Each concrete model reads only what it uses: a solid
 // motor reads `time` (it burns its curve regardless of command); a
-// throttleable engine reads `throttle` + flight condition and advances its
-// own spool state by `dt` (stateful, like the actuator -- engine dynamics
-// stay INSIDE the model, no extra entry in State).
+// throttleable engine reads `throttle` + flight condition. A stateful
+// engine's spool state lives in the Entity's augmented vector (ADR-0003),
+// not inside the model.
 struct PropulsionContext {
     double time     = 0.0;   // burn clock = state time [s]
     double throttle = 0.0;   // commanded, normalized [0..1]
@@ -16,20 +16,16 @@ struct PropulsionContext {
 };
 
 // Strategy: engine/motor model. Thrust acts along body +x through the CG
-// (force only, no thrust moment). thrust() is the LEGACY, self-integrating
-// entry (a throttleable engine advances its own spool by ctx.dt here); it is
-// being retired in favor of the externalized-state trio below (ADR-0003).
+// (force only, no thrust moment).
 class PropulsionModel {
 public:
     virtual ~PropulsionModel() = default;
 
-    virtual double thrust(const PropulsionContext& ctx) = 0;      // [N], legacy
-
     // --- Externalized spool/internal state (ADR-0003) --------------------
-    // A stateful engine (F-16 spool) exposes its state so the Entity integrates
-    // it in the augmented vector and thrustFromState() is a PURE function of
-    // it. Stateless motors (solid, tabulated, turbojet) keep the defaults, and
-    // the bridge below makes thrustFromState() identical to thrust() for them.
+    // A stateful engine (F-16 spool) exposes its state so the Entity
+    // integrates it in the augmented vector and thrustFromState() is a PURE
+    // function of it. Stateless motors (solid, tabulated, turbojet) keep the
+    // state defaults and ignore x.
 
     virtual int  numStates() const { return 0; }
     virtual void initializeState(double* x) const { (void)x; }
@@ -41,12 +37,8 @@ public:
     }
 
     // Thrust [N] from the externalized state x (length numStates(); nullptr if
-    // stateless). PURE. Default BRIDGE: forward to legacy thrust() -- exact for
-    // stateless models (no state to advance); a stateful model overrides this.
-    virtual double thrustFromState(const PropulsionContext& ctx, const double* x) const {
-        (void)x;
-        return const_cast<PropulsionModel*>(this)->thrust(ctx);
-    }
+    // stateless). PURE: must not mutate the model.
+    virtual double thrustFromState(const PropulsionContext& ctx, const double* x) const = 0;
     // --------------------------------------------------------------------
 
     // Onboard propellant remaining at sim time [kg]. Only used by the legacy

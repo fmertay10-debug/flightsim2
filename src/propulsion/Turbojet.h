@@ -9,7 +9,7 @@ public:
     Turbojet(double maxThrust, double densityLapseExponent = 0.7)
         : maxThrust_(maxThrust), lapse_(densityLapseExponent) {}
 
-    double thrust(const PropulsionContext& ctx) override;
+    double thrustFromState(const PropulsionContext& ctx, const double* x) const override;
 
 private:
     double maxThrust_;   // sea-level static thrust [N]

@@ -58,11 +58,6 @@ Wrench Propulsor::wrenchFromThrust(double thrust, const ComponentContext& ctx,
     return w;
 }
 
-Wrench Propulsor::compute(const ComponentContext& ctx, const ChannelValues& u) {
-    // Legacy path: model self-integrates its spool inside thrust().
-    return wrenchFromThrust(model_->thrust(makeContext(ctx, u)), ctx, u);
-}
-
 Wrench Propulsor::computeWrench(const ComponentContext& ctx, const ChannelValues& u,
                                const double* x) const {
     // Pure path: thrust from the externalized state; the Entity integrates it.

@@ -31,8 +31,6 @@ public:
 
     void declareChannels(ChannelTable& table) override;
 
-    Wrench compute(const ComponentContext& ctx, const ChannelValues& u) override;
-
     // Externalized state (ADR-0003): forward to the wrapped model, which owns
     // any spool/internal state. computeWrench() is the pure hot-path entry.
     int    numStates() const override { return model_->numStates(); }
@@ -58,7 +56,7 @@ private:
     PropulsionContext makeContext(const ComponentContext& ctx,
                                   const ChannelValues& u) const;
     // Turn a thrust magnitude into the body wrench (axial or gimbaled) and
-    // cache it for telemetry/effectiveness. Shared by compute()/computeWrench().
+    // cache it for telemetry/effectiveness.
     Wrench wrenchFromThrust(double thrust, const ComponentContext& ctx,
                             const ChannelValues& u) const;
 
