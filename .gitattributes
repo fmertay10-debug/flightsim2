@@ -1,0 +1,9 @@
+# Normalize all text files to LF in the repository; checkout as-is on
+# Linux/macOS and per core.autocrlf on Windows. Added after the repo moved
+# between Windows and Linux left CRLF churn across the whole tree.
+* text=auto
+
+# Binary assets -- exempt from EOL handling entirely.
+*.npz -text
+*.exe -text
+*.pyc -text
