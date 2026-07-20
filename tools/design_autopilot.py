@@ -146,10 +146,66 @@ def design_gains(A, B, method, Q, R, wn, zeta):
     return np.asarray(K).flatten()
 
 
+def write_and_report(schedule, out, method, source):
+    with open(out, "w") as f:
+        f.write("mach,k_alpha_acc,k_q_acc,k_theta_acc,k_i_acc\n")
+        for m, K, _, _ in schedule:
+            f.write(f"{m:.3f},{K[0]:.6f},{K[1]:.6f},{K[2]:.6f},{K[3]:.6f}\n")
+    print(f"designed {method.upper()} pitch autopilot from {source}")
+    print(f"  {len(schedule)} Mach points -> {out}")
+    print(f"  {'mach':>5} {'kA_acc':>9} {'kQ_acc':>8} {'kT_acc':>9} {'kI_acc':>8}  "
+          f"{'open-loop':>12} {'closed-loop wn,zeta':>20}")
+    for m, K, cl, A in schedule:
+        ol = np.linalg.eigvals(A[:2, :2])
+        stab = "stable" if np.all(np.real(ol) < 0) else "UNSTABLE"
+        cpx = [pz for pz in cl if abs(pz.imag) > 1e-6]
+        if cpx:
+            pz = max(cpx, key=lambda z: z.real)
+            wn = abs(pz); zeta = -pz.real / wn if wn > 0 else 0.0
+            clstr = f"wn={wn:4.1f} z={zeta:4.2f}"
+        else:
+            clstr = "real poles"
+        print(f"  {m:5.2f} {K[0]:9.3f} {K[1]:8.3f} {K[2]:9.3f} {K[3]:8.3f}  "
+              f"{stab:>12} {clstr:>20}")
+
+
+def design_from_plant(args):
+    """Design from a sim-linearized plant.csv (flightsim --linearize)."""
+    rows, cols = read_csv(args.plant)
+    Q = np.diag([1.0, 1.0, args.q_theta, args.q_int])
+    R = np.array([[args.r]])
+    schedule = []
+    for r in rows:
+        m = r[cols["mach"]]
+        Za, Zde = r[cols["Za"]], r[cols["Zde"]]
+        Ma, Mq, Mde = r[cols["Ma"]], r[cols["Mq"]], r[cols["Mde"]]
+        if abs(Mde) < 1e-9:
+            continue
+        A = np.array([[Za, 1.0, 0.0, 0.0],
+                      [Ma, Mq,  0.0, 0.0],
+                      [0.0, 1.0, 0.0, 0.0],
+                      [0.0, 0.0, 1.0, 0.0]])
+        B = np.array([[Zde / Mde], [1.0], [0.0], [0.0]])
+        K = design_gains(A, B, args.method, Q, R / (Mde * Mde), args.wn, args.zeta)
+        cl = np.linalg.eigvals(A - B @ K.reshape(1, -1))
+        schedule.append((m, K, cl, A))
+    out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.plant)),
+                                   "gain_schedule.csv")
+    write_and_report(schedule, out, args.method, os.path.basename(args.plant))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("vehicle", help="path to the vehicle.json (DATCOM table rocket)")
+    ap.add_argument("vehicle", nargs="?",
+                    help="path to the vehicle.json (DATCOM table rocket); "
+                         "not needed with --plant")
+    ap.add_argument("--plant",
+                    help="plant.csv from `flightsim --linearize` (the sim's "
+                         "own f(x,u), ADR-0004 C2). Replaces the DATCOM-table "
+                         "plant -- works for ANY vehicle with an elevator. "
+                         "--altitude/--mass/--iyy/--xcg are ignored (already "
+                         "baked into the plant).")
     ap.add_argument("--altitude", type=float, default=5000.0, help="design altitude [m]")
     ap.add_argument("--mass", type=float, help="design mass [kg] (else from json)")
     ap.add_argument("--iyy", type=float, help="design pitch inertia [kg m^2]")
@@ -165,6 +221,10 @@ def main():
     ap.add_argument("--out", help="output gain_schedule.csv (default: next to vehicle)")
     args = ap.parse_args()
 
+    if args.plant:
+        return design_from_plant(args)
+    if args.vehicle is None:
+        sys.exit("design_autopilot: pass a vehicle.json or --plant plant.csv")
     vpath = os.path.abspath(args.vehicle)
     vdir = os.path.dirname(vpath)
     cfg = load_jsonc(vpath)
@@ -241,30 +301,9 @@ def main():
         schedule.append((m, K, cl, A))
 
     out = args.out or os.path.join(vdir, "gain_schedule.csv")
-    with open(out, "w") as f:
-        f.write("mach,k_alpha_acc,k_q_acc,k_theta_acc,k_i_acc\n")
-        for m, K, _, _ in schedule:
-            f.write(f"{m:.3f},{K[0]:.6f},{K[1]:.6f},{K[2]:.6f},{K[3]:.6f}\n")
-
-    print(f"designed {args.method.upper()} pitch autopilot for {os.path.basename(vpath)}")
     print(f"  altitude {args.altitude:.0f} m, mass {mass:.1f} kg, Iyy {Iyy:.0f}, "
           f"xcg-xref {xcg - xref:+.3f} m")
-    print(f"  {len(schedule)} Mach points -> {out}")
-    print(f"  {'mach':>5} {'kA_acc':>9} {'kQ_acc':>8} {'kT_acc':>9} {'kI_acc':>8}  "
-          f"{'open-loop':>12} {'closed-loop wn,zeta':>20}")
-    for m, K, cl, A in schedule:
-        ol = np.linalg.eigvals(A[:2, :2])
-        stab = "stable" if np.all(np.real(ol) < 0) else "UNSTABLE"
-        # dominant closed-loop complex pair
-        cpx = [p for p in cl if abs(p.imag) > 1e-6]
-        if cpx:
-            p = max(cpx, key=lambda z: z.real)
-            wn = abs(p); zeta = -p.real / wn if wn > 0 else 0.0
-            clstr = f"wn={wn:4.1f} z={zeta:4.2f}"
-        else:
-            clstr = "real poles"
-        print(f"  {m:5.2f} {K[0]:9.3f} {K[1]:8.3f} {K[2]:9.3f} {K[3]:8.3f}  "
-              f"{stab:>12} {clstr:>20}")
+    write_and_report(schedule, out, args.method, os.path.basename(vpath))
 
 
 if __name__ == "__main__":
