@@ -11,8 +11,12 @@ Outcomes: aam 7.52 m (was 7.86), sam 8.06 (9.30, after stiffening its design
 weights qt=80/qi=8/r=40 — the accel domain holds DESIGNED bandwidth instead of
 inheriting the fin-domain law's implicit qbar growth, so its beyond-envelope
 Mach 4.4 endgame needed a stiffer design), agm 9.71 (9.97), ssm 11.36 (11.79),
-lqr rocket apogee 3396.6 vs 3395.8. C2 (trim/linearize from the pure f(x,u)
-replacing the DATCOM-derivative plant) is the next increment.
+lqr rocket apogee 3396.6 vs 3395.8. **C2 implemented the same day**: flightsim --linearize
+(src/design/Linearizer) trims + linearizes the real component stack;
+design_autopilot --plant consumes it. Validated: 1e-8 vs analytic derivatives
+(test_linearizer), 0.019% worst gain delta vs the DATCOM-derivative plant on
+datcom_rocket, all four missiles HIT within 1 cm of the C1 misses. The fleet
+and make_missiles now design from the sim's own dynamics.
 
 ## What's at stake
 

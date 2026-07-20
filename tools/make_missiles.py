@@ -139,13 +139,40 @@ def build(name, spec):
     print(f"  aero {na}x{nm}, sref {cfg['components'][0]['sref_m2']} m^2, "
           f"length {cfg['geometry']['length_m']} m, xref {xref} m")
 
-    # 5. Design the LQR gain schedule from THIS vehicle's aero + mass.
+    # 5. Design the LQR gain schedule from THIS vehicle's OWN dynamics
+    # (ADR-0004 C2): linearize the real f(x,u) with flightsim --linearize,
+    # then run the LQR on that plant. Design mach grid = the vehicle's table
+    # machs with the historic filter (skip near-zero + the transonic hole).
     dz = spec["design"]
+    flightsim = next((p for p in
+                      (os.path.join(PROJ, "build", "flightsim"),
+                       os.path.join(PROJ, "build", "flightsim.exe"))
+                      if os.path.exists(p)), None)
+    if flightsim is None:
+        print("  design SKIPPED: build/flightsim not found (cmake --build "
+              "build first), gain_schedule.csv NOT regenerated")
+        return
+    import csv as _csv
+    with open(os.path.join(outdir, "aero_tables.csv")) as f:
+        rows = list(_csv.reader(f))
+    mi = rows[0].index("mach")
+    machs = sorted(set(float(r[mi]) for r in rows[1:]))
+    machs = [m for m in machs if 0.15 <= m <= 3.0 and not (0.9 < m < 1.5)]
+    r = subprocess.run(
+        [flightsim, "--linearize", os.path.join(outdir, "vehicle.json"),
+         "--altitude", str(dz["alt"]), "--mass", str(dz["mass"]),
+         "--iyy", str(dz["iyy"]),
+         "--machs", ",".join(f"{m:g}" for m in machs),
+         "--out", os.path.join(outdir, "plant.csv")],
+        capture_output=True, text=True)
+    if r.returncode != 0:
+        print("  linearize FAILED:\n  " + r.stderr.strip().replace("\n", "\n  "))
+        return
     r = subprocess.run(
         [sys.executable, os.path.join(HERE, "design_autopilot.py"),
-         os.path.join(outdir, "vehicle.json"),
-         "--mass", str(dz["mass"]), "--iyy", str(dz["iyy"]),
-         "--altitude", str(dz["alt"]), "--method", "lqr"]
+         "--plant", os.path.join(outdir, "plant.csv"),
+         "--out", os.path.join(outdir, "gain_schedule.csv"),
+         "--method", "lqr"]
         + (["--q-theta", str(dz["qt"])] if "qt" in dz else [])
         + (["--q-int", str(dz["qi"])] if "qi" in dz else [])
         + (["--r", str(dz["r"])] if "r" in dz else []),

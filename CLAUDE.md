@@ -121,18 +121,23 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
 
 ## Control design (Python)
 
-- `tools/design_autopilot.py` builds the augmented short-period plant
-  [alpha, q, e, integral(e)] from the DATCOM derivatives (finite-differenced) +
-  mass/CG at a Mach sweep, runs LQR (`control` pkg, in the repo-local
-  .venv-tools venv) or pole placement, and writes `gain_schedule.csv` in the
-  ACCELERATION domain (ADR-0004 C1: columns k_*_acc, rad/s^2 per unit; B and R
+- The design pipeline is TWO steps since ADR-0004 C2: `flightsim --linearize
+  <vehicle.json>` trims (optional --trim) and linearizes the REAL component
+  stack -- the pure f(x,u) -- into plant.csv (works for ANY airframe with an
+  elevator; validated to 0.02% against the DATCOM-derivative plant and to
+  1e-8 against analytic derivatives in test_linearizer); then
+  `tools/design_autopilot.py --plant plant.csv` runs LQR (`control` pkg, in
+  the repo-local .venv-tools venv) or pole placement and writes
+  `gain_schedule.csv` in the ACCELERATION domain (ADR-0004 C1: columns k_*_acc, rad/s^2 per unit; B and R
   rescaled by the control power Mde -- exactly the input-scaled historic
   design). ScheduledLaw applies `a = -(kA_acc*alpha + kQ_acc*q + kT_acc*e +
   kI_acc*z)`, emits moment = I*a, and the Allocator divides by live
   effectiveness, so the loop self-adjusts with qbar (the old roll qbarRef
   attenuation is gone -- allocation attenuates by construction). A vehicle
   whose flight envelope leaves the design envelope may need stiffer weights
-  (SAM: qt=80/qi=8/r=40, encoded in make_missiles.py).
+  (SAM: qt=80/qi=8/r=40, encoded in make_missiles.py). The legacy
+  vehicle-json/DATCOM-table path in design_autopilot remains for reference
+  but the fleet and make_missiles use --plant.
 - Design signs are baked into K via the plant's B, so the controller applies
   `-(K.x)` with NO extra sign flip; since ADR-0004 the resulting deflection is
   converted to a WrenchCommand at the law's boundary and allocated back.

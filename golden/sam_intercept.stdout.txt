@@ -1,6 +1,6 @@
 scenario: sam_intercept
 finished at t = 8.866 s
-intercept: HIT -- closest approach 8.06 m at t = 8.866 s
+intercept: HIT -- closest approach 8.05 m at t = 8.866 s
 
 entity           alive    north[m]    east[m]     alt[m] speed[m/s]
 sam              no         6784.5     1327.5     6001.4     1151.4
