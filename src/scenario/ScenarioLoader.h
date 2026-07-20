@@ -31,14 +31,14 @@
 //   ]
 // }
 //
-// Vehicle definition schema (vehicles/*.json):
+// Vehicle definition schema (vehicles/*.json, see docs/BUILDING_VEHICLES.md):
 // {
-//   "type": "aircraft" | "rocket" | <registered custom type>,
-//   "mass_kg": ..., "inertia": {"ixx": ..., "iyy": ..., "izz": ...},
-//   "aero":       { type-specific coefficient block  -> aero::Factory },
-//   "controller": { type-specific gains/limits block -> gnc::Factory },
-//   "propulsion": { "type": "none" | "turbojet" | "solid_motor", ... },
-//   "actuator":   { "tau_s": ..., "rate_dps": ..., "limit_deg": ... }   // optional
+//   "mass":       {"model": "constant" | "dry_plus_propellant" | "tabulated", ...},
+//   "components": [ {"type": <component::Factory name>, ...}, ... ],
+//   "gnc": {
+//     "control_law": {"type": <gnc::Factory name>, ...},
+//     "actuator":    {"tau_s": ..., "rate_dps": ..., "limit_deg": ...}  // optional
+//   }
 // }
 namespace scenario {
 
@@ -47,6 +47,9 @@ struct LoadResult {
     std::unique_ptr<Simulation> simulation;
 };
 
-LoadResult load(const std::string& scenarioPath);
+// verbose = narrate the build to stdout as it happens (the `flightsim
+// --describe` dry run): definition sources, components, declared channels,
+// law binding, validation results, guidance wiring.
+LoadResult load(const std::string& scenarioPath, bool verbose = false);
 
 } // namespace scenario

@@ -19,6 +19,18 @@ namespace scenario {
 
 namespace {
 
+// --describe narration (set once by load(); loading is single-threaded).
+bool gVerbose = false;
+
+const char* kindName(ChannelKind k) {
+    switch (k) {
+        case ChannelKind::Surface:  return "surface";
+        case ChannelKind::Gimbal:   return "gimbal";
+        case ChannelKind::Throttle: return "throttle";
+    }
+    return "?";
+}
+
 std::unique_ptr<Environment> buildEnvironment(const json::Value& root) {
     std::unique_ptr<GravityModel> gravity = std::make_unique<FlatEarthGravity>();
     std::unique_ptr<WindModel>    wind    = std::make_unique<NoWind>();
@@ -67,6 +79,8 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
                                     const std::filesystem::path& scenarioDir) {
     const std::string name = entry.str("name");
     const std::string dynamics = entry.str("dynamics", "six_dof");
+    if (gVerbose)
+        std::printf("entity '%s'  (dynamics: %s)\n", name.c_str(), dynamics.c_str());
 
     // Kinematic movers need no vehicle definition at all.
     std::unique_ptr<Vehicle>      veh;
@@ -88,7 +102,13 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
                 ref.is_absolute() ? ref : scenarioDir / ref;
             definition = json::Value::parseFile(path.string());
             baseDir = path.parent_path();
+            if (gVerbose)
+                std::printf("  definition: %s\n  (relative data paths resolve in %s)\n",
+                            path.string().c_str(), baseDir.string().c_str());
         }
+        if (gVerbose && entry.has("definition"))
+            std::printf("  definition: inline (relative data paths resolve in %s)\n",
+                        baseDir.string().c_str());
 
         // Clean break: the pre-components schema is not supported.
         if (!definition.has("components"))
@@ -105,6 +125,22 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
         // Channel phase A: force components DECLARE the channels they consume...
         veh->declareChannels(channels);
 
+        if (gVerbose) {
+            if (definition.has("mass"))
+                std::printf("  mass model: %s\n",
+                            definition.at("mass").str("model", "constant").c_str());
+            std::printf("  components:");
+            for (const std::string& n : veh->componentNames())
+                std::printf(" %s", n.c_str());
+            std::printf("\n  channels declared:");
+            for (int i = 0; i < channels.size(); ++i) {
+                const ChannelDef& d = channels.def(i);
+                std::printf(" %s(%s %.3g..%.3g)", d.name.c_str(),
+                            kindName(d.kind), d.minValue, d.maxValue);
+            }
+            std::printf("\n");
+        }
+
         if (definition.has("gnc")) {
             const json::Value& gnc = definition.at("gnc");
             if (gnc.has("control_law")) {
@@ -112,9 +148,20 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
                                                   baseDir.string());
                 // Allocation-based laws query the components' effectiveness.
                 controller->bindComponents(veh->components());
+                if (gVerbose)
+                    std::printf("  control law: %s%s\n",
+                                gnc.at("control_law").str("type").c_str(),
+                                controller->allocates()
+                                    ? " (emits WrenchCommand via the Allocator)"
+                                    : "");
             }
-            if (gnc.has("actuator"))
+            if (gnc.has("actuator")) {
                 actuators = ActuatorBank::fromJson(gnc.at("actuator"), channels);
+                if (gVerbose)
+                    std::printf("  actuators: per-channel servo dynamics attached\n");
+            } else if (gVerbose && controller) {
+                std::printf("  actuators: none (ideal: actual == commanded)\n");
+            }
         }
 
         // ...phase B: the controller BINDS the channels it writes. A required
@@ -125,6 +172,13 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
             std::vector<bool> driven(static_cast<std::size_t>(channels.size()), false);
             for (const ChannelHandle h : controller->bindChannels(channels))
                 if (h.valid()) driven[h.index] = true;
+            if (gVerbose) {
+                std::printf("  controller drives:");
+                for (int i = 0; i < channels.size(); ++i)
+                    if (driven[i])
+                        std::printf(" %s", channels.def(i).name.c_str());
+                std::printf("\n");
+            }
             for (int i = 0; i < channels.size(); ++i)
                 if (!driven[i])
                     std::fprintf(stderr,
@@ -170,6 +224,9 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
                         "channel '" + channels.def(i).name + "' -- the aero "
                         "model must implement controlEffectiveness (see "
                         "ForceComponent.h) or not declare the channel");
+            if (gVerbose)
+                std::printf("  authority probe: OK (every surface channel has "
+                            "an effectiveness column)\n");
         }
     }
 
@@ -192,7 +249,8 @@ std::unique_ptr<Entity> buildEntity(const json::Value& entry,
 
 } // namespace
 
-LoadResult load(const std::string& scenarioPath) {
+LoadResult load(const std::string& scenarioPath, bool verbose) {
+    gVerbose = verbose;
     const json::Value root = json::Value::parseFile(scenarioPath);
     const std::filesystem::path scenarioDir =
         std::filesystem::path(scenarioPath).parent_path();
@@ -207,6 +265,9 @@ LoadResult load(const std::string& scenarioPath) {
 
     LoadResult result;
     result.name = root.str("name", std::filesystem::path(scenarioPath).stem().string());
+    if (gVerbose)
+        std::printf("scenario '%s'  (dt %g s, duration %g s)\n",
+                    result.name.c_str(), config.dt, config.duration);
     result.simulation = std::make_unique<Simulation>(config, buildEnvironment(root));
 
     const json::Value& vehicles = root.at("vehicles");
@@ -224,6 +285,9 @@ LoadResult load(const std::string& scenarioPath) {
             const int decimation = static_cast<int>(entry.num("log_decimation", 1));
             result.simulation->addObserver(std::make_unique<CsvLogger>(
                 id, entry.str("log"), decimation));
+            if (gVerbose)
+                std::printf("  log: %s (every %d steps)\n",
+                            entry.str("log").c_str(), decimation);
         }
     }
 
@@ -242,6 +306,9 @@ LoadResult load(const std::string& scenarioPath) {
         const int selfId   = resolveName(entry.str("name"));
         const int targetId = resolveName(g.str("target"));
         result.simulation->entity(selfId).setGuidance(guidance::create(g, targetId));
+        if (gVerbose)
+            std::printf("guidance: '%s' %s -> '%s'\n", entry.str("name").c_str(),
+                        g.str("type", "?").c_str(), g.str("target").c_str());
     }
 
     // End conditions: intercept watch.
@@ -252,6 +319,10 @@ LoadResult load(const std::string& scenarioPath) {
             result.simulation->watchIntercept(resolveName(ic.str("pursuer")),
                                               resolveName(ic.str("target")),
                                               ic.num("hit_radius_m", 5.0));
+            if (gVerbose)
+                std::printf("intercept watch: '%s' vs '%s', hit radius %g m\n",
+                            ic.str("pursuer").c_str(), ic.str("target").c_str(),
+                            ic.num("hit_radius_m", 5.0));
         }
     }
     return result;

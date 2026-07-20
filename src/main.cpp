@@ -91,6 +91,7 @@ int main(int argc, char** argv) {
     if (argc < 2) {
         std::fprintf(stderr,
                      "usage: flightsim <scenario.json> [--json]\n"
+                     "       flightsim --describe <scenario.json>   (build + validate, don't fly)\n"
                      "       flightsim --linearize <vehicle.json> [...]\n"
                      "example scenarios live in scenarios/\n");
         return 2;
@@ -100,6 +101,25 @@ int main(int argc, char** argv) {
             return runLinearize(argc, argv);
         } catch (const std::exception& ex) {
             std::fprintf(stderr, "error: %s\n", ex.what());
+            return 1;
+        }
+    }
+    // Dry run: build the whole scenario, narrating every stage (definition
+    // sources, components, channels, law binding, validation, guidance
+    // wiring), then exit WITHOUT flying. The loader's validation still runs,
+    // so this is also "check my config" without a 60 s simulation.
+    if (std::string(argv[1]) == "--describe") {
+        if (argc < 3) {
+            std::fprintf(stderr, "usage: flightsim --describe <scenario.json>\n");
+            return 2;
+        }
+        try {
+            scenario::load(argv[2], /*verbose=*/true);
+            std::printf("\nload OK -- everything built and validated "
+                        "(run without --describe to fly)\n");
+            return 0;
+        } catch (const std::exception& ex) {
+            std::fprintf(stderr, "\nload FAILED: %s\n", ex.what());
             return 1;
         }
     }
