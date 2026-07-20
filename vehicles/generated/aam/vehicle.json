@@ -46,12 +46,12 @@
       "type": "lqr",
       "schedule": "gain_schedule.csv",
       "limits": {
-        "max_fin_deg": 28,
+        "max_ang_accel_dps2": 40000,
         "min_airspeed_ms": 40
       },
       "roll": {
-        "kp": 0.08,
-        "kd": 0.1
+        "kp": 40,
+        "kd": 15
       }
     },
     "actuator": {

@@ -17,31 +17,27 @@
 // Mach. The control block reads the gains the aero/mass blocks produced.
 //
 // Pitch law (state feedback on [alpha, q, e, integral(e)], e = theta-theta_cmd):
-//   elevator = -(k_alpha*alpha + k_q*q + k_theta*e + k_i*z)
+//   a_pitch = -(k_alpha_acc*alpha + k_q_acc*q + k_theta_acc*e + k_i_acc*z)
 // Yaw mirrors it on [beta, r, heading error] by axisymmetry; roll is a PD
 // damper holding wings level. Gains interpolate on Mach from the schedule CSV
-//   mach, k_alpha, k_q, k_theta, k_i
+//   mach, k_alpha_acc, k_q_acc, k_theta_acc, k_i_acc
 //
-// OUTPUT CONTRACT (ADR-0004, Option B of
-// docs/plans/scheduledlaw-conversion-options.md): the designed per-channel
-// deflections u are converted to a WrenchCommand at the boundary
-// (moment = B*u with B the components' queried effectiveness) and handed to
-// the Allocator, which inverts the product back to ~u when each axis has one
-// effector -- true for every vehicle on this law. The designed gains, roll
-// qbar attenuation, and anti-windup are untouched. When the offline pipeline
-// learns to design in the acceleration domain (Option C), the internals of
-// this law get replaced and the configs stay.
-// NOTE: with REDUNDANT effectors per axis the B*u -> allocate round trip is
-// lossy (min-norm redistributes); pair such airframes with allocated_attitude
-// or wait for Option C.
+// OUTPUT CONTRACT (ADR-0004 Option C1, superseding the Option-B fin-angle
+// bridge -- see docs/plans/scheduledlaw-conversion-options.md): the scheduled
+// gains are in the ANGULAR-ACCELERATION domain (rad/s^2 per unit of state);
+// the law emits WrenchCommand.moment = I * a_des and the Allocator divides by
+// the components' LIVE effectiveness. Consequences: the loop self-adjusts as
+// qbar leaves the design condition, redundant effectors share properly, and
+// the old roll qbarRef attenuation is unnecessary (a fixed accel demand over
+// qbar-growing effectiveness attenuates the deflection by construction).
+// Anti-windup: the integrators freeze while the accel demand is clamped.
 class ScheduledLaw : public ControlLaw {
 public:
     struct Config {
-        LookupTable1D kAlpha, kQ, kTheta, kI;   // vs Mach
-        double maxFin = 0.2618;                 // 15 deg
+        LookupTable1D kAlpha, kQ, kTheta, kI;   // accel-domain gains vs Mach
+        double maxAngAccel = 698.13;            // accel-demand clamp [rad/s^2] (40000 dps^2)
         double minAirspeed = 20.0;
-        double rollKp = 0.4, rollKd = 0.15;     // roll-hold PD (at/below qbarRef)
-        double qbarRef = 8000.0;                // attenuate roll gains above this qbar
+        double rollKp = 40.0, rollKd = 15.0;    // roll-hold PD [rad/s^2 per rad, per rad/s]
         double verticalGuard = 1.2217;          // 70 deg: rate-damp near vertical
     };
 

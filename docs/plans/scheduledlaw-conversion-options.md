@@ -1,9 +1,18 @@
 # Converting the ScheduledLaw fleet to allocation (ADR-0004) — options
 
-Status: DECIDED 2026-07-19 — **Option B**, implemented the same day. Outcome
-matched the prediction: lqr rocket apogee/tracking identical, all four
-missiles HIT with byte-same printed miss distances, fin deflections within
-~1e-6 relative (allocation damping) of the direct-write originals.
+Status: Option B implemented 2026-07-19 (outcome as predicted: near-identical
+flights). **Option C1 implemented the same day, superseding B's bridge**:
+design_autopilot.py designs in the acceleration domain (B and R rescaled by
+the control power Mde — the input-scaled equivalent of the historic LQR), the
+schedule stores k_*_acc columns, and ScheduledLaw emits moment = I*a_des
+directly; the fin-angle bridge and the roll qbarRef attenuation are gone
+(allocation attenuates by construction — verified: all missiles < 7 dps roll).
+Outcomes: aam 7.52 m (was 7.86), sam 8.06 (9.30, after stiffening its design
+weights qt=80/qi=8/r=40 — the accel domain holds DESIGNED bandwidth instead of
+inheriting the fin-domain law's implicit qbar growth, so its beyond-envelope
+Mach 4.4 endgame needed a stiffer design), agm 9.71 (9.97), ssm 11.36 (11.79),
+lqr rocket apogee 3396.6 vs 3395.8. C2 (trim/linearize from the pure f(x,u)
+replacing the DATCOM-derivative plant) is the next increment.
 
 ## What's at stake
 

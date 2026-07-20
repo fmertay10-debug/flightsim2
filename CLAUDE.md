@@ -123,10 +123,16 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
 
 - `tools/design_autopilot.py` builds the augmented short-period plant
   [alpha, q, e, integral(e)] from the DATCOM derivatives (finite-differenced) +
-  mass/CG at a Mach sweep, runs LQR (`control` pkg) or pole placement, and writes
-  `gain_schedule.csv`. `ScheduledController` applies `de = -(k_alpha*alpha +
-  k_q*q + k_theta*e + k_i*z)`, gains interpolated on Mach, yaw mirrored, roll PD.
-  Default LQR weights (r=80, q_theta=20, q_int=2) keep fin commands within ~15 deg.
+  mass/CG at a Mach sweep, runs LQR (`control` pkg, in the repo-local
+  .venv-tools venv) or pole placement, and writes `gain_schedule.csv` in the
+  ACCELERATION domain (ADR-0004 C1: columns k_*_acc, rad/s^2 per unit; B and R
+  rescaled by the control power Mde -- exactly the input-scaled historic
+  design). ScheduledLaw applies `a = -(kA_acc*alpha + kQ_acc*q + kT_acc*e +
+  kI_acc*z)`, emits moment = I*a, and the Allocator divides by live
+  effectiveness, so the loop self-adjusts with qbar (the old roll qbarRef
+  attenuation is gone -- allocation attenuates by construction). A vehicle
+  whose flight envelope leaves the design envelope may need stiffer weights
+  (SAM: qt=80/qi=8/r=40, encoded in make_missiles.py).
 - Design signs are baked into K via the plant's B, so the controller applies
   `-(K.x)` with NO extra sign flip; since ADR-0004 the resulting deflection is
   converted to a WrenchCommand at the law's boundary and allocated back.

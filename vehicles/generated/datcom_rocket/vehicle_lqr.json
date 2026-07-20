@@ -27,8 +27,8 @@
     "control_law": {
       "type": "lqr",
       "schedule": "gain_schedule.csv",
-      "limits": { "max_fin_deg": 15, "min_airspeed_ms": 20 },
-      "roll": { "kp": 0.4, "kd": 0.15 }
+      "limits": { "max_ang_accel_dps2": 6000, "min_airspeed_ms": 20 },
+      "roll": { "kp": 40, "kd": 15 }
     },
     "actuator": { "tau_s": 0.03, "rate_dps": 200, "limit_deg": 15 }
   }

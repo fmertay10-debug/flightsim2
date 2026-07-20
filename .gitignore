@@ -8,3 +8,6 @@ output/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Python venv for the design tools (numpy/control); local only
+.venv-tools/

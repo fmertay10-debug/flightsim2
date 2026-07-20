@@ -1,8 +1,8 @@
 scenario: agm_strike
-finished at t = 11.256 s
-intercept: HIT -- closest approach 9.97 m at t = 11.256 s
+finished at t = 11.236 s
+intercept: HIT -- closest approach 9.71 m at t = 11.236 s
 
 entity           alive    north[m]    east[m]     alt[m] speed[m/s]
-strike-jet       yes        3488.4       80.0     4500.0      150.0
-agm              no         3790.1      249.8       10.8      336.9
+strike-jet       yes        3485.4       80.0     4500.0      150.0
+agm              no         3794.2      249.6       19.8      337.3
 convoy           no         3800.0      250.0       12.0        0.0

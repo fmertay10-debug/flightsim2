@@ -54,7 +54,7 @@ MISSILES = {
                     fin_height=0.26, fin_num=4),
         dry=100, prop=55, ixx=6.0, iyy=150,
         thrust=[[0.0, 52000], [0.3, 58000], [4.5, 48000], [5.0, 0]],
-        design=dict(mass=128, iyy=150, alt=4000), max_fin=24, min_v=30),
+        design=dict(mass=128, iyy=150, alt=4000, qt=80, qi=8, r=40), max_fin=24, min_v=30),
     "agm": dict(
         veh=Vehicle(unit="M", L=3.2, D=0.30, L_nc=0.70, L_af=2.50, nc="ogive",
                     xcg=1.60, fin_root=0.42, fin_tip=0.18, fin_sweep=30.0,
@@ -121,8 +121,9 @@ def build(name, spec):
             "control_law": {
                 "type": "lqr",
                 "schedule": "gain_schedule.csv",
-                "limits": {"max_fin_deg": spec["max_fin"], "min_airspeed_ms": spec["min_v"]},
-                "roll": {"kp": 0.08, "kd": 0.10},
+                "limits": {"max_ang_accel_dps2": 40000,
+                           "min_airspeed_ms": spec["min_v"]},
+                "roll": {"kp": 40, "kd": 15},
             },
             "actuator": {"tau_s": 0.02, "rate_dps": 450, "limit_deg": spec["max_fin"]},
         },
@@ -144,7 +145,10 @@ def build(name, spec):
         [sys.executable, os.path.join(HERE, "design_autopilot.py"),
          os.path.join(outdir, "vehicle.json"),
          "--mass", str(dz["mass"]), "--iyy", str(dz["iyy"]),
-         "--altitude", str(dz["alt"]), "--method", "lqr"],
+         "--altitude", str(dz["alt"]), "--method", "lqr"]
+        + (["--q-theta", str(dz["qt"])] if "qt" in dz else [])
+        + (["--q-int", str(dz["qi"])] if "qi" in dz else [])
+        + (["--r", str(dz["r"])] if "r" in dz else []),
         capture_output=True, text=True)
     print("  " + r.stdout.strip().replace("\n", "\n  "))
     if r.returncode != 0:

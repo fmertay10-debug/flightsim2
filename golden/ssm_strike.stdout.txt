@@ -1,7 +1,7 @@
 scenario: ssm_strike
-finished at t = 14.690 s
-intercept: HIT -- closest approach 11.79 m at t = 14.690 s
+finished at t = 14.722 s
+intercept: HIT -- closest approach 11.36 m at t = 14.722 s
 
 entity           alive    north[m]    east[m]     alt[m] speed[m/s]
-ssm              no        13989.1      899.1       14.5      722.1
+ssm              no        13989.4      899.2       14.1      720.1
 target           no        14000.0      900.0       10.0        0.0

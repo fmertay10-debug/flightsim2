@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <stdexcept>
 #include <vector>
 
 #include "io/CsvReader.h"
@@ -14,6 +15,16 @@ std::unique_ptr<ControlLaw> ScheduledLaw::fromJson(const json::Value& cfg,
         ? sp.string() : (std::filesystem::path(baseDir) / sp).string();
 
     const csv::Table t = csv::read(path);
+    // Accel-domain schedule (ADR-0004 C1). An old fin-domain file (k_alpha,
+    // k_q, ...) must be regenerated, not misread as accelerations.
+    bool hasAcc = false;
+    for (const std::string& name : t.columns)
+        if (name == "k_alpha_acc") hasAcc = true;
+    if (!hasAcc)
+        throw std::invalid_argument(
+            "scheduled law: '" + path + "' is a retired fin-domain schedule "
+            "(k_alpha,...). Regenerate the acceleration-domain schedule "
+            "(k_alpha_acc,...) with tools/design_autopilot.py.");
     const std::size_t mi = t.col("mach");
     const auto col = [&](const std::string& name) {
         const std::size_t ci = t.col(name);
@@ -25,14 +36,15 @@ std::unique_ptr<ControlLaw> ScheduledLaw::fromJson(const json::Value& cfg,
     };
 
     Config c;
-    c.kAlpha = col("k_alpha");
-    c.kQ     = col("k_q");
-    c.kTheta = col("k_theta");
-    c.kI     = col("k_i");
+    c.kAlpha = col("k_alpha_acc");
+    c.kQ     = col("k_q_acc");
+    c.kTheta = col("k_theta_acc");
+    c.kI     = col("k_i_acc");
 
     if (cfg.has("limits")) {
         const json::Value& j = cfg.at("limits");
-        c.maxFin        = units::deg2rad(j.num("max_fin_deg", units::rad2deg(c.maxFin)));
+        c.maxAngAccel   = units::deg2rad(
+            j.num("max_ang_accel_dps2", units::rad2deg(c.maxAngAccel)));
         c.minAirspeed   = j.num("min_airspeed_ms", c.minAirspeed);
         c.verticalGuard = units::deg2rad(j.num("vertical_guard_deg",
                                                units::rad2deg(c.verticalGuard)));
@@ -79,70 +91,54 @@ void ScheduledLaw::update(const GncContext& gc, const CommandSet& cmd,
     const double phi = euler.x, theta = euler.y, psi = euler.z;
     const double p = state.angularRate.x, q = state.angularRate.y, r = state.angularRate.z;
 
-    // The roll axis has tiny inertia and huge fin authority, so its control
-    // power scales with dynamic pressure. Attenuate the roll command above a
-    // reference qbar (never amplify below it) to keep the roll-loop bandwidth
-    // bounded -- otherwise a fixed-gain roll loop limit-cycles at the high qbar
-    // of a diving missile and diverges.
-    const double rollScale = std::min(1.0, c_.qbarRef / std::max(air.qbar, 1.0));
+    const auto clampA = [&](double a) {
+        return std::clamp(a, -c_.maxAngAccel, c_.maxAngAccel);
+    };
 
-    // ---- Pitch: state feedback with integral tracking ----
+    // ---- Pitch: state feedback with integral tracking [rad/s^2] ----
     const double thetaCmd = cmd.pitch ? *cmd.pitch : theta;
     const double eTheta = theta - thetaCmd;
-    const double uElevRaw = -(kA * air.alpha + kQ * q + kT * eTheta + kI * ziTheta_);
-    const double uElev = std::clamp(uElevRaw, -c_.maxFin, c_.maxFin);
-    // Conditional integration: freeze when saturated (anti-windup).
-    if (std::abs(uElevRaw) < c_.maxFin) ziTheta_ += eTheta * dt;
+    const double aPitchRaw = -(kA * air.alpha + kQ * q + kT * eTheta + kI * ziTheta_);
+    const double aPitch = clampA(aPitchRaw);
+    // Conditional integration: freeze while the demand is clamped (anti-windup).
+    if (std::abs(aPitchRaw) < c_.maxAngAccel) ziTheta_ += eTheta * dt;
 
-    double uRud, uAil;
+    double aYaw, aRoll;
     if (std::abs(theta) > c_.verticalGuard) {
         // Near vertical, heading/roll Euler angles are ill-conditioned:
         // rate-damp. (-kQ is the positive damping magnitude: the pitch law
         // damps q via -(kQ*q).)
-        uRud = std::clamp(-kQ * r, -c_.maxFin, c_.maxFin);
-        uAil = std::clamp(rollScale * (-c_.rollKd * p), -c_.maxFin, c_.maxFin);
+        aYaw  = clampA(-kQ * r);
+        aRoll = clampA(-c_.rollKd * p);
     } else {
         // ---- Yaw: mirror the pitch feedback by axisymmetry ----
-        // Sideslip beta plays alpha's role; heading error plays theta's. Both
-        // +rudder->nose-LEFT and +elevator->nose-DOWN drive their attitude the
-        // same way, so the yaw law has the SAME form as pitch (no extra
-        // negation) -- matches the sign structure of the validated PID law.
+        // Sideslip beta plays alpha's role; heading error plays theta's; the
+        // demanded accelerations carry no channel signs (the Allocator gets
+        // those from the effectiveness columns).
         const double psiCmd = cmd.heading ? *cmd.heading : psi;
         const double ePsi = units::wrapAngle(psi - psiCmd);
-        const double uRudRaw = -(kA * air.beta + kQ * r + kT * ePsi + kI * ziPsi_);
-        uRud = std::clamp(uRudRaw, -c_.maxFin, c_.maxFin);
-        if (std::abs(uRudRaw) < c_.maxFin) ziPsi_ += ePsi * dt;
+        const double aYawRaw = -(kA * air.beta + kQ * r + kT * ePsi + kI * ziPsi_);
+        aYaw = clampA(aYawRaw);
+        if (std::abs(aYawRaw) < c_.maxAngAccel) ziPsi_ += ePsi * dt;
 
-        // ---- Roll: PD hold wings level (qbar-normalized, see above) ----
+        // ---- Roll: PD hold wings level. No qbar attenuation needed: the
+        // allocator divides the fixed accel demand by the qbar-growing roll
+        // effectiveness, so the deflection shrinks by construction (the old
+        // fin-domain law needed an explicit qbarRef hack here). ----
         const double phiCmd = cmd.roll ? *cmd.roll : 0.0;
-        const double raw = c_.rollKp * units::wrapAngle(phiCmd - phi) - c_.rollKd * p;
-        uAil = std::clamp(rollScale * raw, -c_.maxFin, c_.maxFin);
+        aRoll = clampA(c_.rollKp * units::wrapAngle(phiCmd - phi) - c_.rollKd * p);
     }
 
-    // ---- Currency conversion (ADR-0004 Option B): the designed deflections
-    // become a WrenchCommand through the components' effectiveness columns,
-    // and the Allocator maps it back onto the channels. One effector per axis
-    // makes the round trip ~exact (see the class comment).
+    // ---- WrenchCommand (moment = I * a_des) -> Allocator ----
+    const Matrix3x3& I = gc.mass.inertia;
+    const WrenchCommand nu{ Vector3(),
+                            Vector3(I(0, 0) * aRoll, I(1, 1) * aPitch, I(2, 2) * aYaw) };
+
     ControlEffect fx[ChannelTable::kMaxChannels];
     int n = 0;
     const ComponentContext cctx{ gc.state, air, gc.state.altitude(), dt, gc.mass.xcg };
     for (const ForceComponent* comp : components_)
         n += comp->controlEffectiveness(cctx, fx + n,
                                         ChannelTable::kMaxChannels - n);
-
-    WrenchCommand nu;
-    for (int k = 0; k < n; ++k) {
-        const int idx = fx[k].channel.index;
-        double u = 0.0;
-        if      (idx == elevator_.index) u = uElev;
-        else if (idx == rudder_.index)   u = uRud;
-        else if (idx == aileron_.index)  u = uAil;
-        nu.force.x  += fx[k].dForce.x  * u;
-        nu.force.y  += fx[k].dForce.y  * u;
-        nu.force.z  += fx[k].dForce.z  * u;
-        nu.moment.x += fx[k].dMoment.x * u;
-        nu.moment.y += fx[k].dMoment.y * u;
-        nu.moment.z += fx[k].dMoment.z * u;
-    }
     allocator_.allocate(nu, fx, n, table_, out);
 }

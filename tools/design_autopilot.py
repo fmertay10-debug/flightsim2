@@ -2,19 +2,28 @@
 mass data and synthesize a gain-scheduled pitch autopilot by LQR (or pole
 placement). This is the "control block gets its parameters from the aero/mass
 blocks" step -- you pick the method and weights, the tool reads the vehicle's
-tables and writes the gains the C++ ScheduledController consumes.
+tables and writes the gains the C++ ScheduledLaw consumes.
+
+ACCELERATION DOMAIN (ADR-0004 Option C1): the design input is the demanded
+pitch angular acceleration a_cmd, not a fin angle -- at runtime the law emits
+WrenchCommand.moment = Iyy*a_cmd and the Allocator divides by the LIVE control
+effectiveness, so the loop bandwidth self-adjusts as qbar leaves the design
+condition (the old fin-domain schedule could not). Equivalent to the fin-domain
+LQR by exact input scaling (B and R rescale by the control power Mde), so at
+the design condition the closed loop is IDENTICAL to the historic design.
 
 Pipeline:
   vehicle.json (aero tables + refs + mass) --> short-period plant at each Mach
-  --> LQR / pole placement --> gain_schedule.csv (mach, k_alpha, k_q, k_theta, k_i)
+  --> LQR / pole placement --> gain_schedule.csv
+      (mach, k_alpha_acc, k_q_acc, k_theta_acc, k_i_acc)   [rad/s^2 per unit]
 
 Plant (augmented short period, per Mach), state x = [alpha, q, e, z]:
   e = theta - theta_cmd,  z = integral(e)
-  alpha_dot = Za*alpha + q + Zde*de
-  q_dot     = Ma*alpha + Mq*q + Mde*de
+  alpha_dot = Za*alpha + q + (Zde/Mde)*a
+  q_dot     = Ma*alpha + Mq*q + a
   e_dot     = q
   z_dot     = e
-Control law applied in the sim:  de = -(k_alpha*alpha + k_q*q + k_theta*e + k_i*z)
+Law applied in the sim:  a = -(kA_acc*alpha + kQ_acc*q + kT_acc*e + kI_acc*z)
 
 Usage:
   py tools/design_autopilot.py vehicles/generated/datcom_rocket/vehicle.json \
@@ -113,14 +122,16 @@ def plant(mach, V, qbar, S, cbar, Iyy, mass, dxc,
     Zde = -qbar * S / (mass * V) * CNde
     Ma = qbar * S * cbar / Iyy * CMa            # pitch stiffness (<0 stable)
     Mq = qbar * S * cbar / Iyy * CMq * cbar / (2.0 * V)
-    Mde = qbar * S * cbar / Iyy * CMde_cg
+    Mde = qbar * S * cbar / Iyy * CMde_cg       # control power [1/s^2 per rad fin]
 
+    # Acceleration-domain input: a = Mde*de, so the accel column is [Zde/Mde, 1]
+    # -- the fin-lift coupling per unit accel plus the accel itself.
     A = np.array([[Za, 1.0, 0.0, 0.0],
                   [Ma, Mq,  0.0, 0.0],
                   [0.0, 1.0, 0.0, 0.0],
                   [0.0, 0.0, 1.0, 0.0]])
-    B = np.array([[Zde], [Mde], [0.0], [0.0]])
-    return A, B
+    B = np.array([[Zde / Mde], [1.0], [0.0], [0.0]])
+    return A, B, Mde
 
 
 def design_gains(A, B, method, Q, R, wn, zeta):
@@ -171,9 +182,15 @@ def main():
     mass = args.mass
     Iyy = args.iyy
     if mass is None or Iyy is None:
-        if "inertia" in cfg and "mass_kg" in cfg:
-            mass = mass or cfg["mass_kg"]
-            Iyy = Iyy or cfg["inertia"]["iyy"]
+        mblock = cfg.get("mass", {})
+        model = mblock.get("model")
+        if model == "constant":
+            mass = mass or mblock["mass_kg"]
+            Iyy = Iyy or mblock["inertia"]["iyy"]
+        elif model == "dry_plus_propellant":
+            # Design at dry mass by default; pass --mass for a mid-burn point.
+            mass = mass or mblock["dry_mass_kg"]
+            Iyy = Iyy or mblock["inertia"]["iyy"]
         else:
             sys.exit("design_autopilot: pass --mass and --iyy (tabulated mass "
                      "vehicle has no scalar mass in the json)")
@@ -211,8 +228,13 @@ def main():
         CNde = (dCL(dd, m) - dCL(-dd, m)) / (2 * dd)
         CMde = (dCM(dd, m) - dCM(-dd, m)) / (2 * dd)
 
-        A, B = plant(m, V, qbar, S, cbar, Iyy, mass, dxc, CNa, CMa, CMq, CNde, CMde)
-        K = design_gains(A, B, args.method, Q, R, args.wn, args.zeta)
+        A, B, Mde = plant(m, V, qbar, S, cbar, Iyy, mass, dxc, CNa, CMa, CMq, CNde, CMde)
+        if abs(Mde) < 1e-9:
+            continue   # no control power here (degenerate data): skip the point
+        # --r keeps its historic fin-effort meaning: R_acc = R_fin / Mde^2 makes
+        # the accel-domain LQR EXACTLY the input-scaled fin-domain design.
+        R_acc = R / (Mde * Mde)
+        K = design_gains(A, B, args.method, Q, R_acc, args.wn, args.zeta)
 
         # Closed-loop poles for reporting.
         cl = np.linalg.eigvals(A - B @ K.reshape(1, -1))
@@ -220,7 +242,7 @@ def main():
 
     out = args.out or os.path.join(vdir, "gain_schedule.csv")
     with open(out, "w") as f:
-        f.write("mach,k_alpha,k_q,k_theta,k_i\n")
+        f.write("mach,k_alpha_acc,k_q_acc,k_theta_acc,k_i_acc\n")
         for m, K, _, _ in schedule:
             f.write(f"{m:.3f},{K[0]:.6f},{K[1]:.6f},{K[2]:.6f},{K[3]:.6f}\n")
 
@@ -228,7 +250,7 @@ def main():
     print(f"  altitude {args.altitude:.0f} m, mass {mass:.1f} kg, Iyy {Iyy:.0f}, "
           f"xcg-xref {xcg - xref:+.3f} m")
     print(f"  {len(schedule)} Mach points -> {out}")
-    print(f"  {'mach':>5} {'k_alpha':>9} {'k_q':>8} {'k_theta':>9} {'k_i':>8}  "
+    print(f"  {'mach':>5} {'kA_acc':>9} {'kQ_acc':>8} {'kT_acc':>9} {'kI_acc':>8}  "
           f"{'open-loop':>12} {'closed-loop wn,zeta':>20}")
     for m, K, cl, A in schedule:
         ol = np.linalg.eigvals(A[:2, :2])
