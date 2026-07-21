@@ -1,0 +1,97 @@
+{
+  "name": "fleet_falx_intercept",
+  "simulation": {
+    "dt_s": 0.002,
+    "duration_s": 25,
+    "ground_level_m": 0
+  },
+  "environment": {
+    "gravity": "flat",
+    "wind": {
+      "type": "none"
+    }
+  },
+  "vehicles": [
+    {
+      "name": "carrier",
+      "dynamics": "kinematic",
+      "initial": {
+        "position_ned_m": [
+          0,
+          0,
+          -5000
+        ],
+        "velocity_ned_ms": [
+          240,
+          0,
+          0
+        ]
+      },
+      "log": "data/output/fleet_falx_intercept/carrier.csv",
+      "log_decimation": 10
+    },
+    {
+      "name": "falx",
+      "dynamics": "six_dof",
+      "vehicle": "../vehicles/fleet/falx_canard/vehicle.json",
+      "initial": {
+        "position_ned_m": [
+          30,
+          0,
+          -5000
+        ],
+        "velocity_ned_ms": [
+          240,
+          0,
+          0
+        ],
+        "euler_deg": [
+          0,
+          0,
+          0
+        ]
+      },
+      "guidance": {
+        "type": "pro_nav",
+        "target": "crosser",
+        "nav_gain": 4.5,
+        "max_pitch_deg": 55,
+        "max_yaw_deg": 85,
+        "blind_range_m": 12
+      },
+      "log": "data/output/fleet_falx_intercept/falx.csv",
+      "log_decimation": 5
+    },
+    {
+      "name": "crosser",
+      "dynamics": "kinematic",
+      "turn_rate_dps": 2,
+      "initial": {
+        "position_ned_m": [
+          7000,
+          -1500,
+          -5300
+        ],
+        "velocity_ned_ms": [
+          -230,
+          40,
+          0
+        ],
+        "euler_deg": [
+          0,
+          0,
+          170
+        ]
+      },
+      "log": "data/output/fleet_falx_intercept/crosser.csv",
+      "log_decimation": 10
+    }
+  ],
+  "end_conditions": {
+    "intercept": {
+      "pursuer": "falx",
+      "target": "crosser",
+      "hit_radius_m": 9
+    }
+  }
+}

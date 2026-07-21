@@ -1,0 +1,65 @@
+{
+  "name": "fleet_atlas_launch",
+  "simulation": {
+    "dt_s": 0.002,
+    "duration_s": 55,
+    "ground_level_m": 0
+  },
+  "environment": {
+    "gravity": "spherical",
+    "wind": {
+      "type": "constant",
+      "ned_ms": [
+        6,
+        3,
+        0
+      ]
+    }
+  },
+  "vehicles": [
+    {
+      "name": "atlas",
+      "vehicle": "../vehicles/fleet/atlas_tvc/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [
+          0,
+          0,
+          -5
+        ],
+        "velocity_ned_ms": [
+          1.5,
+          0,
+          -18
+        ],
+        "euler_deg": [
+          0,
+          85,
+          0
+        ]
+      },
+      "flight_plan": [
+        {
+          "time_s": 0,
+          "pitch_deg": 85,
+          "heading_deg": 0,
+          "roll_deg": 0
+        },
+        {
+          "time_s": 4,
+          "pitch_deg": 80
+        },
+        {
+          "time_s": 8,
+          "pitch_deg": 74
+        },
+        {
+          "time_s": 13,
+          "pitch_deg": 68
+        }
+      ],
+      "log": "data/output/fleet_atlas_launch/atlas.csv",
+      "log_decimation": 15
+    }
+  ]
+}

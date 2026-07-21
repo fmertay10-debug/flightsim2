@@ -111,11 +111,11 @@ FLEET = {
         max_fin=24, min_v=30, guidance="pro_nav"),
 
     "dart_pd": dict(
-        base="sam", scale=0.62, blurb="point-defense sprint interceptor",
-        dry=26, prop=14, ixx=0.5, iyy=11,
-        thrust=[[0.0, 38000], [0.15, 42000], [1.1, 36000], [1.3, 0]],
-        gnc="lqr", design=dict(alt=800, mass=33, iyy=11, qt=60, qi=6, r=30),
-        max_fin=30, min_v=50, guidance="pure_pursuit"),
+        base="sam", scale=0.62, blurb="point-defense interceptor",
+        dry=34, prop=16, ixx=0.8, iyy=16,
+        thrust=[[0.0, 14000], [0.2, 15000], [2.2, 12000], [2.6, 0]],
+        gnc="lqr", design=dict(alt=1500, mass=42, iyy=16, r=120),
+        max_fin=26, min_v=40, guidance="pure_pursuit"),
 
     "hammer_agm": dict(
         base="agm", scale=1.0, blurb="air-to-ground missile, top-attack dive",
@@ -146,12 +146,12 @@ FLEET = {
         dry=38, prop=14, ixx=0.9, iyy=22,
         thrust=[[0.0, 9000], [0.2, 10000], [2.5, 8500], [3.0, 0]],
         gnc="alloc",
-        gains=dict(pitch_kp=12000, pitch_kd=500, pitch_ki=1500,
-                   yaw_kp=12000, yaw_kd=500, yaw_ki=1500,
-                   roll_kp=60, roll_kd=20),
-        limits=dict(max_ang_accel_dps2=40000, int_limit=1.5,
-                    vertical_guard_deg=80),
-        actuator=dict(tau_s=0.02, rate_dps=400, limit_deg=25),
+        gains=dict(pitch_kp=2200, pitch_kd=320, pitch_ki=180,
+                   yaw_kp=2200, yaw_kd=320, yaw_ki=180,
+                   roll_kp=40, roll_kd=18),
+        limits=dict(max_ang_accel_dps2=12000, int_limit=1.0,
+                    vertical_guard_deg=86),
+        actuator=dict(tau_s=0.02, rate_dps=350, limit_deg=22),
         guidance="pure_pursuit"),
 
     "sentinel_sr": dict(
@@ -160,11 +160,11 @@ FLEET = {
         dry=130, prop=90, ixx=4.0, iyy=260,
         thrust=[[0.0, 34000], [0.3, 37000], [6.5, 30000], [7.0, 0]],
         gnc="alloc",
-        gains=dict(pitch_kp=8000, pitch_kd=400, pitch_ki=1000,
-                   yaw_kp=8000, yaw_kd=400, yaw_ki=1000,
-                   roll_kp=50, roll_kd=20),
-        limits=dict(max_ang_accel_dps2=20000, int_limit=1.5,
-                    vertical_guard_deg=84),
+        gains=dict(pitch_kp=1200, pitch_kd=250, pitch_ki=120,
+                   yaw_kp=1200, yaw_kd=250, yaw_ki=120,
+                   roll_kp=40, roll_kd=18),
+        limits=dict(max_ang_accel_dps2=8000, int_limit=1.0,
+                    vertical_guard_deg=86),
         actuator=dict(tau_s=0.02, rate_dps=300, limit_deg=20),
         guidance=None),
 

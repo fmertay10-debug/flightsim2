@@ -1,0 +1,74 @@
+{
+  "name": "fleet_corvus_pursuit",
+  "simulation": {
+    "dt_s": 0.002,
+    "duration_s": 30,
+    "ground_level_m": 0
+  },
+  "environment": {
+    "gravity": "flat",
+    "wind": {
+      "type": "none"
+    }
+  },
+  "vehicles": [
+    {
+      "name": "corvus",
+      "vehicle": "../vehicles/fleet/corvus_trainer/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [
+          0,
+          0,
+          -2000
+        ],
+        "velocity_ned_ms": [
+          200,
+          0,
+          0
+        ],
+        "euler_deg": [
+          0,
+          0,
+          0
+        ]
+      },
+      "guidance": {
+        "type": "pure_pursuit",
+        "target": "drone"
+      },
+      "log": "data/output/fleet_corvus_pursuit/corvus.csv",
+      "log_decimation": 5
+    },
+    {
+      "name": "drone",
+      "dynamics": "kinematic",
+      "initial": {
+        "position_ned_m": [
+          1100,
+          25,
+          -2010
+        ],
+        "velocity_ned_ms": [
+          120,
+          4,
+          0
+        ],
+        "euler_deg": [
+          0,
+          0,
+          2
+        ]
+      },
+      "log": "data/output/fleet_corvus_pursuit/drone.csv",
+      "log_decimation": 10
+    }
+  ],
+  "end_conditions": {
+    "intercept": {
+      "pursuer": "corvus",
+      "target": "drone",
+      "hit_radius_m": 8
+    }
+  }
+}

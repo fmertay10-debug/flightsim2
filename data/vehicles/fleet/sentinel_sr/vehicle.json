@@ -52,19 +52,19 @@
     "control_law": {
       "type": "allocated_attitude",
       "gains": {
-        "pitch_kp": 8000,
-        "pitch_kd": 400,
-        "pitch_ki": 1000,
-        "yaw_kp": 8000,
-        "yaw_kd": 400,
-        "yaw_ki": 1000,
-        "roll_kp": 50,
-        "roll_kd": 20
+        "pitch_kp": 1200,
+        "pitch_kd": 250,
+        "pitch_ki": 120,
+        "yaw_kp": 1200,
+        "yaw_kd": 250,
+        "yaw_ki": 120,
+        "roll_kp": 40,
+        "roll_kd": 18
       },
       "limits": {
-        "max_ang_accel_dps2": 20000,
-        "int_limit": 1.5,
-        "vertical_guard_deg": 84
+        "max_ang_accel_dps2": 8000,
+        "int_limit": 1.0,
+        "vertical_guard_deg": 86
       }
     },
     "actuator": {

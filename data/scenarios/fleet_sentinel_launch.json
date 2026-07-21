@@ -1,0 +1,65 @@
+{
+  "name": "fleet_sentinel_launch",
+  "simulation": {
+    "dt_s": 0.002,
+    "duration_s": 60,
+    "ground_level_m": 0
+  },
+  "environment": {
+    "gravity": "spherical",
+    "wind": {
+      "type": "constant",
+      "ned_ms": [
+        6,
+        3,
+        0
+      ]
+    }
+  },
+  "vehicles": [
+    {
+      "name": "sentinel",
+      "vehicle": "../vehicles/fleet/sentinel_sr/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [
+          0,
+          0,
+          -3
+        ],
+        "velocity_ned_ms": [
+          4,
+          0,
+          -23
+        ],
+        "euler_deg": [
+          0,
+          80,
+          0
+        ]
+      },
+      "flight_plan": [
+        {
+          "time_s": 0,
+          "pitch_deg": 80,
+          "heading_deg": 0,
+          "roll_deg": 0
+        },
+        {
+          "time_s": 5,
+          "pitch_deg": 74
+        },
+        {
+          "time_s": 10,
+          "pitch_deg": 66
+        },
+        {
+          "time_s": 15,
+          "pitch_deg": 60
+        }
+      ],
+      "log": "data/output/fleet_sentinel_launch/sentinel.csv",
+      "log_decimation": 15
+    }
+  ]
+}

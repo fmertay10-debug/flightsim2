@@ -1,0 +1,45 @@
+{
+  "name": "fleet_javelin_range",
+  "simulation": {
+    "dt_s": 0.001,
+    "duration_s": 18,
+    "ground_level_m": 0
+  },
+  "environment": {
+    "gravity": "spherical",
+    "wind": {
+      "type": "constant",
+      "ned_ms": [
+        3,
+        1,
+        0
+      ]
+    }
+  },
+  "vehicles": [
+    {
+      "name": "javelin",
+      "vehicle": "../vehicles/fleet/javelin_ballistic/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [
+          0,
+          0,
+          -4
+        ],
+        "velocity_ned_ms": [
+          30,
+          0,
+          -24
+        ],
+        "euler_deg": [
+          0,
+          38,
+          0
+        ]
+      },
+      "log": "data/output/fleet_javelin_range/javelin.csv",
+      "log_decimation": 15
+    }
+  ]
+}

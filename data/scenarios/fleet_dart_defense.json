@@ -1,0 +1,74 @@
+{
+  "name": "fleet_dart_defense",
+  "simulation": {
+    "dt_s": 0.001,
+    "duration_s": 18,
+    "ground_level_m": 0
+  },
+  "environment": {
+    "gravity": "flat",
+    "wind": {
+      "type": "none"
+    }
+  },
+  "vehicles": [
+    {
+      "name": "dart",
+      "vehicle": "../vehicles/fleet/dart_pd/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": {
+        "position_ned_m": [
+          0,
+          0,
+          -5
+        ],
+        "velocity_ned_ms": [
+          65,
+          0,
+          -48
+        ],
+        "euler_deg": [
+          0,
+          36,
+          0
+        ]
+      },
+      "guidance": {
+        "type": "pure_pursuit",
+        "target": "incoming"
+      },
+      "log": "data/output/fleet_dart_defense/dart.csv",
+      "log_decimation": 5
+    },
+    {
+      "name": "incoming",
+      "dynamics": "kinematic",
+      "initial": {
+        "position_ned_m": [
+          4200,
+          0,
+          -2300
+        ],
+        "velocity_ned_ms": [
+          -262,
+          0,
+          150
+        ],
+        "euler_deg": [
+          0,
+          -30,
+          180
+        ]
+      },
+      "log": "data/output/fleet_dart_defense/incoming.csv",
+      "log_decimation": 10
+    }
+  ],
+  "end_conditions": {
+    "intercept": {
+      "pursuer": "dart",
+      "target": "incoming",
+      "hit_radius_m": 9
+    }
+  }
+}

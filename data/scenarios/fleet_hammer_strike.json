@@ -1,0 +1,96 @@
+{
+  "name": "fleet_hammer_strike",
+  "simulation": {
+    "dt_s": 0.001,
+    "duration_s": 30,
+    "ground_level_m": 0
+  },
+  "environment": {
+    "gravity": "flat",
+    "wind": {
+      "type": "none"
+    }
+  },
+  "vehicles": [
+    {
+      "name": "strike-jet",
+      "dynamics": "kinematic",
+      "initial": {
+        "position_ned_m": [
+          1800,
+          80,
+          -4500
+        ],
+        "velocity_ned_ms": [
+          150,
+          0,
+          0
+        ]
+      },
+      "log": "data/output/fleet_hammer_strike/strike-jet.csv",
+      "log_decimation": 10
+    },
+    {
+      "name": "hammer",
+      "dynamics": "six_dof",
+      "vehicle": "../vehicles/fleet/hammer_agm/vehicle.json",
+      "initial": {
+        "position_ned_m": [
+          1820,
+          80,
+          -4500
+        ],
+        "velocity_ned_ms": [
+          95,
+          12,
+          190
+        ],
+        "euler_deg": [
+          0,
+          -63,
+          6
+        ]
+      },
+      "guidance": {
+        "type": "pro_nav",
+        "target": "depot",
+        "nav_gain": 4.0,
+        "max_pitch_deg": 88,
+        "max_yaw_deg": 60,
+        "blind_range_m": 18
+      },
+      "log": "data/output/fleet_hammer_strike/hammer.csv",
+      "log_decimation": 5
+    },
+    {
+      "name": "depot",
+      "dynamics": "kinematic",
+      "initial": {
+        "position_ned_m": [
+          3800,
+          250,
+          -12
+        ],
+        "velocity_ned_ms": [
+          0,
+          0,
+          0
+        ],
+        "euler_deg": [
+          0,
+          0,
+          0
+        ]
+      },
+      "log": "data/output/fleet_hammer_strike/depot.csv",
+      "log_decimation": 5
+    }
+  ],
+  "end_conditions": {
+    "intercept": {
+      "pursuer": "hammer",
+      "target": "depot",
+      "hit_radius_m": 10
+    }
+  }
+}
