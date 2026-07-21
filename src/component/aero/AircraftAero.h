@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "component/AeroReference.h"
+#include "component/aero/AeroReference.h"
 #include "component/ForceComponent.h"
 #include "io/Json.h"
 

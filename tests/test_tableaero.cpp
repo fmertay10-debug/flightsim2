@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "models/rocket/RocketTableAero.h"
+#include "component/aero/RocketTableAero.h"
 #include "io/CsvReader.h"
 #include "io/Json.h"
 

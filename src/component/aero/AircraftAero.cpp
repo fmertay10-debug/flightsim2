@@ -1,4 +1,4 @@
-#include "models/aircraft/AircraftAero.h"
+#include "component/aero/AircraftAero.h"
 
 #include <cmath>
 

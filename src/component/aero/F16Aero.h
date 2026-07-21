@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "component/AeroReference.h"
+#include "component/aero/AeroReference.h"
 #include "component/ForceComponent.h"
 #include "io/Json.h"
 #include "math/LookupTable1D.h"

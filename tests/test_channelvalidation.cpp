@@ -4,13 +4,13 @@
 #include <stdexcept>
 #include <string>
 
-#include "models/aircraft/AircraftAero.h"
+#include "component/aero/AircraftAero.h"
 #include "component/ComponentFactory.h"
-#include "component/Propulsor.h"
+#include "component/propulsion/Propulsor.h"
 #include "gnc/control/laws/AllocatedAttitudeLaw.h"
 #include "gnc/control/laws/ScheduledLaw.h"
 #include "io/Json.h"
-#include "propulsion/SolidMotor.h"
+#include "component/propulsion/SolidMotor.h"
 #include "scenario/ScenarioLoader.h"
 #include "test_util.h"
 

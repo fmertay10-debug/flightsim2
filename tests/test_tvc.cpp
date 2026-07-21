@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "component/Propulsor.h"
+#include "component/propulsion/Propulsor.h"
 #include "core/AirData.h"
 #include "core/Channel.h"
 #include "core/State.h"

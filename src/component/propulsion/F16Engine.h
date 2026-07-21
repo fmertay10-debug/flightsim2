@@ -3,7 +3,7 @@
 #include <string>
 
 #include "math/LookupTable2D.h"
-#include "propulsion/PropulsionModel.h"
+#include "component/propulsion/PropulsionModel.h"
 
 // Stevens & Lewis F-16 turbofan (Appendix A): thrust from three (altitude,
 // Mach) tables -- idle / military / max -- blended by an internal power state

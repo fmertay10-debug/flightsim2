@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "math/LookupTable1D.h"
-#include "propulsion/PropulsionModel.h"
+#include "component/propulsion/PropulsionModel.h"
 
 // Solid rocket motor: tabulated thrust-time curve, ignores throttle.
 // Propellant depletes in proportion to delivered impulse, so mass tracks

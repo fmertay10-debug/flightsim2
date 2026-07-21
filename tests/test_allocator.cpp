@@ -3,11 +3,11 @@
 #include "core/AirData.h"
 #include "core/Channel.h"
 #include "core/State.h"
-#include "component/Propulsor.h"
+#include "component/propulsion/Propulsor.h"
 #include "gnc/control/Allocator.h"
 #include "io/Json.h"
-#include "models/aircraft/AircraftAero.h"
-#include "models/f16/F16Aero.h"
+#include "component/aero/AircraftAero.h"
+#include "component/aero/F16Aero.h"
 #include "test_util.h"
 
 // Central-difference d(moment)/d(channel) of a component's own computeWrench()

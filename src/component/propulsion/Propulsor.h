@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "component/ForceComponent.h"
-#include "propulsion/PropulsionModel.h"
+#include "component/propulsion/PropulsionModel.h"
 
 // A motor and its nozzle as ONE force component: the PropulsionModel supplies
 // the thrust magnitude, the mount turns it into a wrench. Axial mount (the

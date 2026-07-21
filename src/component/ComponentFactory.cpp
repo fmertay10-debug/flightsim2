@@ -7,15 +7,15 @@
 #include <utility>
 #include <vector>
 
-#include "models/aircraft/AircraftAero.h"
-#include "models/f16/F16Aero.h"
-#include "models/rocket/RocketTableAero.h"
-#include "component/Propulsor.h"
+#include "component/aero/AircraftAero.h"
+#include "component/aero/F16Aero.h"
+#include "component/aero/RocketTableAero.h"
+#include "component/propulsion/Propulsor.h"
 #include "math/Units.h"
-#include "models/f16/F16Engine.h"
-#include "propulsion/SolidMotor.h"
-#include "propulsion/TabulatedThrust.h"
-#include "propulsion/Turbojet.h"
+#include "component/propulsion/F16Engine.h"
+#include "component/propulsion/SolidMotor.h"
+#include "component/propulsion/TabulatedThrust.h"
+#include "component/propulsion/Turbojet.h"
 
 namespace component {
 

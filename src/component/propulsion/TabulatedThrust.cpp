@@ -1,4 +1,4 @@
-#include "propulsion/TabulatedThrust.h"
+#include "component/propulsion/TabulatedThrust.h"
 
 #include <algorithm>
 #include <stdexcept>

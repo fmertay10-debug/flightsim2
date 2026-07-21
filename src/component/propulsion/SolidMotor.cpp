@@ -1,4 +1,4 @@
-#include "propulsion/SolidMotor.h"
+#include "component/propulsion/SolidMotor.h"
 
 #include <stdexcept>
 

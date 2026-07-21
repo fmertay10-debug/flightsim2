@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "math/LookupTable1D.h"
-#include "propulsion/PropulsionModel.h"
+#include "component/propulsion/PropulsionModel.h"
 
 // Variable thrust as a raw thrust-vs-time lookup table, independent of the
 // mass model (mass/inertia/CG are supplied separately, e.g. TabulatedMassModel).
