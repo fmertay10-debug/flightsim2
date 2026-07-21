@@ -10,7 +10,7 @@
 #include "math/LookupTable2D.h"
 
 // Stevens & Lewis F-16 low-fidelity aerodynamics (NASA TP-1538), ported to
-// SI/radian CSVs in vehicles/f16/ (see its README for lineage). Static tables
+// SI/radian CSVs in data/vehicles/f16/ (see its README for lineage). Static tables
 // are functions of (alpha, elevator) or (alpha, beta); damping derivatives are
 // 1-D in alpha. No Mach dependence -- credible subsonic only (~M 0.6).
 //

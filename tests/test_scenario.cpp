@@ -8,7 +8,7 @@
 // as working directory (set by CMake).
 
 static void testAircraftCruise() {
-    scenario::LoadResult loaded = scenario::load("scenarios/aircraft_cruise.json");
+    scenario::LoadResult loaded = scenario::load("data/scenarios/aircraft_cruise.json");
     CHECK(loaded.name == "aircraft_cruise");
     Simulation& sim = *loaded.simulation;
     CHECK(sim.entities().size() == 1);
@@ -26,7 +26,7 @@ static void testAircraftCruise() {
 static void testF16Stable() {
     // Real tabular F-16 (statically unstable): the SAS-style autopilot must
     // hold the commanded climb to 3500 m and 150 m/s without departing.
-    scenario::LoadResult loaded = scenario::load("scenarios/f16_cruise.json");
+    scenario::LoadResult loaded = scenario::load("data/scenarios/f16_cruise.json");
     Simulation& sim = *loaded.simulation;
     sim.run();
     const State& s = sim.entities()[0]->state();
@@ -38,7 +38,7 @@ static void testF16Stable() {
 
 static void testDatcomRocket() {
     // Table-aero rocket must reach a sensible apogee and come back intact.
-    scenario::LoadResult loaded = scenario::load("scenarios/datcom_rocket_launch.json");
+    scenario::LoadResult loaded = scenario::load("data/scenarios/datcom_rocket_launch.json");
     Simulation& sim = *loaded.simulation;
     double apogee = 0.0;
     while (sim.step())
@@ -50,7 +50,7 @@ static void testDatcomRocket() {
 static void testVariableRocket() {
     // Variable thrust + mass + inertia + CG rocket: mass must drop through the
     // burn (tabulated mass model + tabulated thrust) and it must reach apogee.
-    scenario::LoadResult loaded = scenario::load("scenarios/advanced_rocket_launch.json");
+    scenario::LoadResult loaded = scenario::load("data/scenarios/advanced_rocket_launch.json");
     Simulation& sim = *loaded.simulation;
     double apogee = 0.0, massStart = 0.0, massEnd = 0.0;
     bool first = true;
@@ -69,7 +69,7 @@ static void testVariableRocket() {
 static void testLqrRocket() {
     // The LQR gain-scheduled autopilot (auto-designed gains) must fly the same
     // airframe and pitch program as the PID version to a comparable apogee.
-    scenario::LoadResult loaded = scenario::load("scenarios/lqr_rocket_launch.json");
+    scenario::LoadResult loaded = scenario::load("data/scenarios/lqr_rocket_launch.json");
     Simulation& sim = *loaded.simulation;
     double apogee = 0.0;
     while (sim.step())
@@ -81,7 +81,7 @@ static void testLqrRocket() {
 static void testMissileIntercept() {
     // Full pipeline vehicle: DATCOM aero + auto-designed LQR autopilot + ProNav.
     // The AAM must intercept its maneuvering target.
-    scenario::LoadResult loaded = scenario::load("scenarios/aam_intercept.json");
+    scenario::LoadResult loaded = scenario::load("data/scenarios/aam_intercept.json");
     Simulation& sim = *loaded.simulation;
     sim.run();
     const InterceptResult& ic = sim.interceptResult();

@@ -9,7 +9,7 @@
 #include "core/Channel.h"
 #include "mass/MassModel.h"
 
-// The complete physical craft (what a vehicles/*.json defines): mass
+// The complete physical craft (what a data/vehicles/*.json defines): mass
 // properties + a flat list of ForceComponents (aero, motors, ...) + the
 // channels those components declare. Control/guidance are NOT part of the
 // Vehicle -- the GNC stack attaches to the Entity.

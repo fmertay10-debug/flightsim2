@@ -11,8 +11,8 @@ no sim rebuild is needed. The guided vehicle (the one with a "guidance" block)
 and the intercept target are found automatically.
 
 Usage:
-    py tools/monte_carlo.py scenarios/sam_intercept.json --runs 200
-    py tools/monte_carlo.py scenarios/aam_intercept.json --runs 300 \
+    py tools/monte_carlo.py data/scenarios/sam_intercept.json --runs 200
+    py tools/monte_carlo.py data/scenarios/aam_intercept.json --runs 300 \
         --sigma-aim-deg 1.5 --sigma-target-m 40 --sigma-thrust 0.04
 """
 import argparse

@@ -11,7 +11,7 @@
 // output (CXT..CNT) at sample flight conditions. Runs with the repo root as
 // CWD. Recovers coefficients from the returned dimensional loads.
 int main() {
-    const json::Value cfg = json::Value::parse(R"({"dir": "vehicles/f16"})");
+    const json::Value cfg = json::Value::parse(R"({"dir": "data/vehicles/f16"})");
     const auto aero = F16Aero::fromJson(cfg, ".");
 
     ChannelTable table;
@@ -23,7 +23,7 @@ int main() {
     CHECK(aileron.valid());
     CHECK(rudder.valid());
 
-    const auto ref = csv::readKeyValue("vehicles/f16/reference.csv");
+    const auto ref = csv::readKeyValue("data/vehicles/f16/reference.csv");
     const double S = ref.at("sref_m2"), b = ref.at("bref_m"), c = ref.at("cbar_m");
 
     const csv::Table fx = csv::read("tests/fixtures/f16_coeff_checks.csv");

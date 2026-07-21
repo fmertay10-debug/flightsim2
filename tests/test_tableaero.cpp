@@ -10,7 +10,7 @@
 // produced by tools/datcom_export.py) and checks the physical sign
 // conventions of the assembled body-frame loads.
 int main() {
-    const std::string dir = "vehicles/generated/datcom_rocket";
+    const std::string dir = "data/vehicles/generated/datcom_rocket";
     const json::Value cfg = json::Value::parse(R"({
         "sref_m2": 0.129693, "cbar_m": 8.2296, "bref_m": 0.5182,
         "tables_csv": "aero_tables.csv", "control_csv": "control_tables.csv"

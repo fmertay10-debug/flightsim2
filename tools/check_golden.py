@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Golden regression gate for flightsim2.
 
-Runs each scenario that has a committed baseline under golden/ and compares the
+Runs each scenario that has a committed baseline under tests/golden/ and compares the
 freshly written output/ CSVs (and the console summary) against it, cell by cell,
 with a number-aware tolerance. This is the safety net for refactors: a flipped
 sign, a reordered force sum, or a changed integration step moves a number and
@@ -33,7 +33,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
-GOLDEN = os.path.join(PROJ, "golden")
+GOLDEN = os.path.join(PROJ, "tests", "golden")
 OUTPUT = os.path.join(PROJ, "output")
 
 
@@ -122,11 +122,11 @@ def golden_scenarios():
 
 
 def run_scenario(name, flightsim):
-    scenario = os.path.join(PROJ, "scenarios", f"{name}.json")
+    scenario = os.path.join(PROJ, "data", "scenarios", f"{name}.json")
     if not os.path.exists(scenario):
-        return None, f"scenario file missing: scenarios/{name}.json"
+        return None, f"scenario file missing: data/scenarios/{name}.json"
     # Run from the repo root: log paths and vehicle paths are relative to it.
-    proc = subprocess.run([flightsim, os.path.join("scenarios", f"{name}.json")],
+    proc = subprocess.run([flightsim, os.path.join("data", "scenarios", f"{name}.json")],
                           cwd=PROJ, capture_output=True, text=True)
     if proc.returncode != 0:
         return None, f"flightsim exited {proc.returncode}\n{proc.stderr.strip()}"

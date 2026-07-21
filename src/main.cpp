@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
                      "usage: flightsim <scenario.json> [--json]\n"
                      "       flightsim --describe <scenario.json>   (build + validate, don't fly)\n"
                      "       flightsim --linearize <vehicle.json> [...]\n"
-                     "example scenarios live in scenarios/\n");
+                     "example scenarios live in data/scenarios/\n");
         return 2;
     }
     if (std::string(argv[1]) == "--linearize") {

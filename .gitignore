@@ -1,9 +1,9 @@
 build/
 output/
 *.csv
-!vehicles/**/*.csv
+!data/vehicles/**/*.csv
 !tests/fixtures/*.csv
-!golden/**/*.csv
+!tests/golden/**/*.csv
 
 # Python bytecode
 __pycache__/

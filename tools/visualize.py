@@ -8,7 +8,7 @@ with playback controls, focus-vehicle cameras, toggleable overlays, and
 preset plots of every logged/derived quantity.
 
 Usage:
-    py tools/visualize.py scenarios/intercept.json
+    py tools/visualize.py data/scenarios/aam_intercept.json
     py tools/visualize.py scenarios/f16_turn.json --out output/f16.html
 """
 import argparse

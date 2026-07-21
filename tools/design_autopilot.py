@@ -26,7 +26,7 @@ Plant (augmented short period, per Mach), state x = [alpha, q, e, z]:
 Law applied in the sim:  a = -(kA_acc*alpha + kQ_acc*q + kT_acc*e + kI_acc*z)
 
 Usage:
-  py tools/design_autopilot.py vehicles/generated/datcom_rocket/vehicle.json \
+  py tools/design_autopilot.py data/vehicles/generated/datcom_rocket/vehicle.json \
       --mass 72 --iyy 380 --altitude 5000 --method lqr
   py tools/design_autopilot.py <vehicle.json> --method place --wn 12 --zeta 0.7
 """

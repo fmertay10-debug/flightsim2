@@ -78,7 +78,7 @@ def main():
     for stem, title, desc in CURATED:
         if stem not in picks:
             continue
-        scenario = os.path.join(PROJ, "scenarios", stem + ".json")
+        scenario = os.path.join(PROJ, "data", "scenarios", stem + ".json")
         print(f"== {stem}")
         r = subprocess.run([SIM, scenario], capture_output=True, text=True)
         if r.returncode != 0:

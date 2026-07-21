@@ -22,13 +22,13 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.abspath(os.path.join(HERE, ".."))
-sys.path.insert(0, os.path.join(PROJ, "datcom"))
+sys.path.insert(0, os.path.join(HERE, "datcom"))
 sys.path.insert(0, HERE)
 
 from pydatcom import Vehicle, run_pipeline           # noqa: E402
 import datcom_export as dx                            # noqa: E402
 
-OUT = os.path.join(PROJ, "vehicles", "generated")
+OUT = os.path.join(PROJ, "data", "vehicles", "generated")
 
 # Mach sweep + symmetric fin-deflection schedule (deg) for the control tables.
 MACH = [0.3, 0.5, 0.7, 0.9, 1.1, 1.3, 1.6, 2.0, 2.5, 3.0]

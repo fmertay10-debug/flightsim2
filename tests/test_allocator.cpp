@@ -156,7 +156,7 @@ int main() {
     // --- F16Aero effectiveness matches finite differences of the real tables
     //     (xcg NaN -> columns about the table reference, same as compute) ---
     {
-        const json::Value cfg = json::Value::parse(R"({"dir": "vehicles/f16"})");
+        const json::Value cfg = json::Value::parse(R"({"dir": "data/vehicles/f16"})");
         auto aero = F16Aero::fromJson(cfg, ".");
         ChannelTable t;
         aero->declareChannels(t);

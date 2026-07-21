@@ -3,7 +3,7 @@
 Reads a pydatcom aero .npz (or a shipped example by name), converts to SI /
 per-radian, and writes a ready-to-fly vehicle folder:
 
-    vehicles/generated/<name>/
+    data/vehicles/generated/<name>/
         aero_tables.csv     alpha_rad, mach, CN, CA, CM, CMQ, CNR, CLP, CNB, CYB
         control_tables.csv  delta_rad, mach, dCM_sym, dCL_sym, Cl_roll
         vehicle.json        full flightsim2 vehicle definition (type "rocket")
@@ -27,7 +27,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.abspath(os.path.join(HERE, ".."))
-sys.path.insert(0, os.path.join(PROJ, "datcom"))
+sys.path.insert(0, os.path.join(HERE, "datcom"))
 
 from pydatcom import Vehicle, define_example_rocket, define_example_canard_missile  # noqa: E402
 from pydatcom.geometry import vehicle_mesh  # noqa: E402
@@ -273,7 +273,7 @@ def main():
                     help="total liftoff mass (default: volume-scaled estimate)")
     ap.add_argument("--diameter-ft", type=float, default=16 / 12,
                     help="body diameter for non-example npz sources [ft]")
-    ap.add_argument("--out", default=os.path.join(PROJ, "vehicles", "generated"),
+    ap.add_argument("--out", default=os.path.join(PROJ, "data", "vehicles", "generated"),
                     help="output root directory")
     ap.add_argument("--variable", action="store_true",
                     help="emit variable mass/inertia/CG (mass_props.csv) and "
@@ -291,7 +291,7 @@ def main():
     if args.source in EXAMPLES:
         factory, _ = EXAMPLES[args.source]
         veh = factory()
-        npz = os.path.join(PROJ, "datcom", "examples", args.source, "aero.npz")
+        npz = os.path.join(HERE, "datcom", "examples", args.source, "aero.npz")
         name = args.name or args.source
     else:
         npz = args.source

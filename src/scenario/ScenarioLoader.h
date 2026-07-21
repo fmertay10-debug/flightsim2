@@ -18,7 +18,7 @@
 //   "vehicles": [
 //     {
 //       "name": "chase-1",
-//       "vehicle": "vehicles/trainer.json",     // path relative to the scenario file
+//       "vehicle": "../vehicles/trainer.json",  // path relative to the scenario file
 //       // ... or "definition": { inline vehicle definition }
 //       "dynamics": "six_dof" | "kinematic",
 //       "turn_rate_dps": 0,                     // kinematic only
