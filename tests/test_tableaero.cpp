@@ -1,5 +1,7 @@
 #include "test_util.h"
 
+#include <cmath>
+
 #include "models/rocket/RocketTableAero.h"
 #include "io/CsvReader.h"
 #include "io/Json.h"
@@ -25,6 +27,7 @@ int main() {
 
     State s;
     AirData air;
+    const ComponentContext ctx{ s, air, 0.0, 0.0, std::nan("") };
     air.atmosphere.density = 1.225;
     air.atmosphere.soundSpeed = 340.0;
     air.airspeed = 272.0;                  // Mach 0.8
@@ -35,7 +38,7 @@ int main() {
     air.alpha = 0.05;
     air.beta = 0.0;
     ChannelValues u(table);
-    AeroForces f = aero->compute(s, air, u);
+    Wrench f = aero->computeWrench(ctx, u, nullptr);
     const double qS = air.qbar * 0.129693;
     CHECK(f.force.z < 0.0);                // lift opposes alpha
     CHECK(f.force.x < 0.0);                // drag opposes motion
@@ -48,7 +51,7 @@ int main() {
     // --- Positive beta mirrors: side force LEFT, weathercock yaw RIGHT ---
     air.alpha = 0.0;
     air.beta = 0.05;
-    f = aero->compute(s, air, u);
+    f = aero->computeWrench(ctx, u, nullptr);
     CHECK(f.force.y < 0.0);                // crossflow pushes -y
     CHECK(f.moment.z > 0.0);               // restoring: nose toward velocity
 
@@ -56,15 +59,15 @@ int main() {
     air.beta = 0.0;
     ChannelValues uDown = u;
     uDown.set(elevator, 0.15);
-    const AeroForces f0 = aero->compute(s, air, u);
-    const AeroForces fE = aero->compute(s, air, uDown);
+    const Wrench f0 = aero->computeWrench(ctx, u, nullptr);
+    const Wrench fE = aero->computeWrench(ctx, uDown, nullptr);
     CHECK(fE.moment.y < f0.moment.y);      // dCM < 0 for +deflection
     CHECK(fE.force.z < f0.force.z);        // fin lift adds upward force
 
     // --- Rudder mirrors elevator through the cbar/bref conversion ---
     ChannelValues uR = u;
     uR.set(rudder, 0.15);
-    const AeroForces fR = aero->compute(s, air, uR);
+    const Wrench fR = aero->computeWrench(ctx, uR, nullptr);
     CHECK(fR.moment.z < f0.moment.z);      // +rudder -> nose-left moment
     const double c2b = 8.2296 / 0.5182;
     CHECK_NEAR(fR.moment.z * 8.2296,       // same physical moment as pitch:
@@ -74,7 +77,8 @@ int main() {
     // --- Pitch damping: positive q resists (more negative My) ---
     State sq = s;
     sq.angularRate.y = 0.5;
-    const AeroForces fQ = aero->compute(sq, air, u);
+    const ComponentContext ctxq{ sq, air, 0.0, 0.0, std::nan("") };
+    const Wrench fQ = aero->computeWrench(ctxq, u, nullptr);
     CHECK(fQ.moment.y < f0.moment.y);
 
     std::printf("test_tableaero: all checks passed\n");

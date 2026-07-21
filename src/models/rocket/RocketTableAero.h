@@ -1,8 +1,10 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
-#include "component/AeroModel.h"
+#include "component/AeroReference.h"
+#include "component/ForceComponent.h"
 #include "io/Json.h"
 #include "math/LookupTable2D.h"
 
@@ -21,7 +23,7 @@
 //   - cbar = BODY LENGTH (pitch/yaw reference), bref = span; cnb and the
 //     reused pitch control table are per-cbar, so the yaw channel applies a
 //     cbar/bref conversion. cnr is natively per-bref: NOT scaled. Do not "fix".
-class RocketTableAero : public AeroModel {
+class RocketTableAero : public ForceComponent {
 public:
     struct Tables {
         // Static + damping vs (alpha [rad], Mach).
@@ -39,22 +41,22 @@ public:
     RocketTableAero(const AeroReference& ref, Tables tables, double xrefStation)
         : ref_(ref), t_(std::move(tables)), xref_(xrefStation) {}
 
-    // Builder for aero::Factory. Reads sref_m2/cbar_m/bref_m, the
+    // Builder for component::Factory. Reads sref_m2/cbar_m/bref_m, the
     // tables_csv/control_csv paths (relative to baseDir), and optional xref_m.
-    static std::unique_ptr<AeroModel> fromJson(const json::Value& cfg,
-                                               const std::string& baseDir);
+    static std::unique_ptr<RocketTableAero> fromJson(const json::Value& cfg,
+                                                     const std::string& baseDir);
 
     // DATCOM control tables always carry all three fin channels.
     void declareChannels(ChannelTable& table) override;
 
-    AeroForces compute(const State& state, const AirData& air,
-                       const ChannelValues& control) const override;
+    Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                         const double* /*x: stateless*/) const override;
 
     double momentReferenceStation() const override { return xref_; }
 
     // Fin sensitivities by central-differencing the control tables about zero
     // deflection at the current Mach, transferred from xref to the CG.
-    int controlEffectiveness(const AirData& air, double xcg,
+    int controlEffectiveness(const ComponentContext& ctx,
                              ControlEffect* out, int maxOut) const override;
 
 private:

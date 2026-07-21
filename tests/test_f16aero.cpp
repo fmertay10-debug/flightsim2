@@ -61,7 +61,8 @@ int main() {
         ctl.set(aileron,  row[li]);
         ctl.set(rudder,   row[ri]);
 
-        const AeroForces f = aero->compute(s, air, ctl);
+        const ComponentContext ctx{ s, air, 0.0, 0.0, std::nan("") };
+        const Wrench f = aero->computeWrench(ctx, ctl, nullptr);
         const double qS = air.qbar * S;
 
         // Recover coefficients and compare to the fixture.

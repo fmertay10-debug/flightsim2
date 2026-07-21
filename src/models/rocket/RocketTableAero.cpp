@@ -5,8 +5,8 @@
 
 #include "io/CsvReader.h"
 
-std::unique_ptr<AeroModel> RocketTableAero::fromJson(const json::Value& cfg,
-                                                     const std::string& baseDir) {
+std::unique_ptr<RocketTableAero> RocketTableAero::fromJson(const json::Value& cfg,
+                                                           const std::string& baseDir) {
     AeroReference ref;
     ref.sref = cfg.num("sref_m2");
     ref.cbar = cfg.num("cbar_m");    // body length (DATCOM CBARR)
@@ -46,9 +46,11 @@ void RocketTableAero::declareChannels(ChannelTable& table) {
     rudder_   = table.add({channels::kRudder,   ChannelKind::Surface, -lim, lim});
 }
 
-AeroForces RocketTableAero::compute(const State& state, const AirData& air,
-                                    const ChannelValues& u) const {
-    AeroForces out;
+Wrench RocketTableAero::computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                                      const double* /*x: stateless*/) const {
+    const State&   state = ctx.state;
+    const AirData& air   = ctx.air;
+    Wrench out;
     const double V = air.airspeed;
     if (V < 1e-6 || air.qbar <= 0.0) return out;
 
@@ -101,8 +103,10 @@ AeroForces RocketTableAero::compute(const State& state, const AirData& air,
     return out;
 }
 
-int RocketTableAero::controlEffectiveness(const AirData& air, double xcg,
+int RocketTableAero::controlEffectiveness(const ComponentContext& ctx,
                                           ControlEffect* out, int maxOut) const {
+    const AirData& air = ctx.air;
+    const double   xcg = ctx.xcg;
     const double qS = air.qbar * ref_.sref;
     const double mach = air.mach;
     const double h = 0.0349;   // 2 deg central-difference step

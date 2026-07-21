@@ -10,7 +10,6 @@
 #include "models/aircraft/AircraftAero.h"
 #include "models/f16/F16Aero.h"
 #include "models/rocket/RocketTableAero.h"
-#include "component/AeroComponent.h"
 #include "component/Propulsor.h"
 #include "math/Units.h"
 #include "models/f16/F16Engine.h"
@@ -42,19 +41,18 @@ std::unique_ptr<ForceComponent> propulsor(std::unique_ptr<PropulsionModel> model
 
 std::map<std::string, Factory::Builder>& registry() {
     static std::map<std::string, Factory::Builder> r = {
-        // --- Aerodynamics ---
+        // --- Aerodynamics (plain ForceComponents; no wrapper) ---
         { "aircraft_aero",
           [](const json::Value& cfg, const std::string&) {
-              return std::make_unique<AeroComponent>(AircraftAero::fromJson(cfg));
+              return AircraftAero::fromJson(cfg);
           } },
         { "f16_aero",
           [](const json::Value& cfg, const std::string& baseDir) {
-              return std::make_unique<AeroComponent>(F16Aero::fromJson(cfg, baseDir));
+              return F16Aero::fromJson(cfg, baseDir);
           } },
         { "rocket_table_aero",
           [](const json::Value& cfg, const std::string& baseDir) {
-              return std::make_unique<AeroComponent>(
-                  RocketTableAero::fromJson(cfg, baseDir));
+              return RocketTableAero::fromJson(cfg, baseDir);
           } },
         // --- Motors (optional "gimbal" block = thrust-vectoring mount) ---
         { "turbojet",

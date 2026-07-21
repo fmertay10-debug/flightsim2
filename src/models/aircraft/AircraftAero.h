@@ -1,6 +1,9 @@
 #pragma once
 
-#include "component/AeroModel.h"
+#include <memory>
+
+#include "component/AeroReference.h"
+#include "component/ForceComponent.h"
 #include "io/Json.h"
 
 // Fixed-wing aircraft aero: classic linear stability-derivative model.
@@ -14,7 +17,7 @@
 //   Cn = cnb*beta + cnp*phat + cnr*rhat + cnda*da + cndr*dr
 //
 // Lift/drag act in stability axes and are rotated to the body frame by alpha.
-class AircraftAero : public AeroModel {
+class AircraftAero : public ForceComponent {
 public:
     struct Derivatives {
         // Lift & drag
@@ -33,19 +36,19 @@ public:
     AircraftAero(const AeroReference& ref, const Derivatives& d)
         : ref_(ref), d_(d) {}
 
-    // Builder for aero::Factory: reads the "aero" config block of a vehicle file.
-    static std::unique_ptr<AeroModel> fromJson(const json::Value& cfg);
+    // Builder for component::Factory: reads a "components" entry of a vehicle file.
+    static std::unique_ptr<AircraftAero> fromJson(const json::Value& cfg);
 
     // Declares only the surfaces with authority (nonzero control derivatives).
     void declareChannels(ChannelTable& table) override;
 
-    AeroForces compute(const State& state, const AirData& air,
-                       const ChannelValues& control) const override;
+    Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                         const double* /*x: stateless*/) const override;
 
     // Analytic control slope cards for allocation (moments are already about
     // the CG -- derivative model, no reference transfer). Aileron and rudder
     // carry their roll/yaw cross terms (cnda, cldr) in the same column.
-    int controlEffectiveness(const AirData& air, double xcg,
+    int controlEffectiveness(const ComponentContext& ctx,
                              ControlEffect* out, int maxOut) const override;
 
 private:

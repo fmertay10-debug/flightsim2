@@ -1,8 +1,10 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
-#include "component/AeroModel.h"
+#include "component/AeroReference.h"
+#include "component/ForceComponent.h"
 #include "io/Json.h"
 #include "math/LookupTable1D.h"
 #include "math/LookupTable2D.h"
@@ -26,18 +28,18 @@ struct F16Tables {
                   clr, clp, cmq, cnr, cnp;      // per radian
 };
 
-class F16Aero : public AeroModel {
+class F16Aero : public ForceComponent {
 public:
     F16Aero(F16Tables tables, AeroReference ref, double xcgrCbar);
 
-    static std::unique_ptr<AeroModel> fromJson(const json::Value& cfg,
-                                               const std::string& baseDir);
+    static std::unique_ptr<F16Aero> fromJson(const json::Value& cfg,
+                                             const std::string& baseDir);
 
     // The S&L tables always carry elevator/aileron/rudder authority.
     void declareChannels(ChannelTable& table) override;
 
-    AeroForces compute(const State& state, const AirData& air,
-                       const ChannelValues& control) const override;
+    Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                         const double* /*x: stateless*/) const override;
 
     // Tables are referenced to xcgr (fraction of cbar). As a station in meters
     // (increasing aft, MAC-LE datum) that is xcgr*cbar -- matching the mass
@@ -50,7 +52,7 @@ public:
     // derivative tables at the current (alpha, beta), de-normalized to per-rad
     // (their inputs are fractions of the 20/30 deg travels). The F-16's
     // INVERTED aileron (+da -> LEFT roll) comes out of the dlda data.
-    int controlEffectiveness(const AirData& air, double xcg,
+    int controlEffectiveness(const ComponentContext& ctx,
                              ControlEffect* out, int maxOut) const override;
 
 private:

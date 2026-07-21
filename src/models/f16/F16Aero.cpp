@@ -18,9 +18,11 @@ void F16Aero::declareChannels(ChannelTable& table) {
     rudder_   = table.add({channels::kRudder,   ChannelKind::Surface, -0.5236, 0.5236});
 }
 
-AeroForces F16Aero::compute(const State& state, const AirData& air,
-                            const ChannelValues& u) const {
-    AeroForces out;
+Wrench F16Aero::computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                              const double* /*x: stateless*/) const {
+    const State&   state = ctx.state;
+    const AirData& air   = ctx.air;
+    Wrench out;
     const double V = air.airspeed;
     if (V < 1e-6 || air.qbar <= 0.0) return out;
 
@@ -75,8 +77,10 @@ AeroForces F16Aero::compute(const State& state, const AirData& air,
     return out;
 }
 
-int F16Aero::controlEffectiveness(const AirData& air, double xcg,
+int F16Aero::controlEffectiveness(const ComponentContext& ctx,
                                   ControlEffect* out, int maxOut) const {
+    const AirData& air = ctx.air;
+    const double   xcg = ctx.xcg;
     const double V = air.airspeed;
     if (V < 1e-6 || air.qbar <= 0.0) return 0;
 
@@ -132,7 +136,7 @@ LookupTable1D col1d(const csv::Table& t, const std::string& xcol,
 
 } // namespace
 
-std::unique_ptr<AeroModel> F16Aero::fromJson(const json::Value& cfg,
+std::unique_ptr<F16Aero> F16Aero::fromJson(const json::Value& cfg,
                                              const std::string& baseDir) {
     const std::filesystem::path dir =
         std::filesystem::path(cfg.str("dir")).is_absolute()

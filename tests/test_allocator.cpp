@@ -8,19 +8,18 @@
 #include "io/Json.h"
 #include "models/aircraft/AircraftAero.h"
 #include "models/f16/F16Aero.h"
-#include "models/rocket/RocketAero.h"
 #include "test_util.h"
 
-// Central-difference d(moment)/d(channel) of an AeroModel's own compute() --
-// the ground truth every effectiveness column must match.
-static Vector3 fdMomentSlope(const AeroModel& m, const ChannelTable& t,
-                             ChannelHandle ch, const State& s, const AirData& air,
+// Central-difference d(moment)/d(channel) of a component's own computeWrench()
+// -- the ground truth every effectiveness column must match.
+static Vector3 fdMomentSlope(const ForceComponent& m, const ChannelTable& t,
+                             ChannelHandle ch, const ComponentContext& ctx,
                              double h = 0.0349) {
     ChannelValues up(t), dn(t);
     up.set(ch, h);
     dn.set(ch, -h);
-    const AeroForces a = m.compute(s, air, up);
-    const AeroForces b = m.compute(s, air, dn);
+    const Wrench a = m.computeWrench(ctx, up, nullptr);
+    const Wrench b = m.computeWrench(ctx, dn, nullptr);
     return Vector3((a.moment.x - b.moment.x) / (2.0 * h),
                    (a.moment.y - b.moment.y) / (2.0 * h),
                    (a.moment.z - b.moment.z) / (2.0 * h));
@@ -124,28 +123,7 @@ int main() {
         CHECK_NEAR(My, 100.0, 1e-1);
     }
 
-    // --- RocketAero effectiveness matches its derivatives ---
-    {
-        const json::Value cfg = json::Value::parse(R"({
-            "sref_m2": 0.05, "lref_m": 3.0, "dref_m": 0.25,
-            "ca0": 0.3, "cna": 10.0, "cma": -12.0, "cmq": -120.0,
-            "clp": -6.0, "cnde": 1.5, "cmde": -8.0, "clda": 3.0
-        })");
-        auto aero = RocketAero::fromJson(cfg);
-        ChannelTable t;
-        aero->declareChannels(t);
-        AirData air;
-        air.qbar = 10000.0;
-        ControlEffect fx[8];
-        const int n = aero->controlEffectiveness(air, std::nan(""), fx, 8);
-        CHECK(n == 3);
-        const double qS = 10000.0 * 0.05;
-        CHECK_NEAR(fx[0].dMoment.y, -8.0 * qS * 3.0, 1e-6);    // elevator, cmde
-        CHECK_NEAR(fx[1].dMoment.z, -8.0 * qS * 3.0, 1e-6);    // rudder, cndr=cmde mirror
-        CHECK_NEAR(fx[2].dMoment.x, 3.0 * qS * 0.25, 1e-6);    // aileron, clda
-    }
-
-    // --- AircraftAero effectiveness matches finite differences of compute() ---
+    // --- AircraftAero effectiveness matches finite differences of computeWrench() ---
     {
         const json::Value cfg = json::Value::parse(R"({
             "sref_m2": 16.2, "cbar_m": 1.5, "bspan_m": 11.0,
@@ -163,11 +141,12 @@ int main() {
         air.qbar = 2200.0;
         air.alpha = 0.05;
         air.beta = 0.02;
+        const ComponentContext ctx{ s, air, 0.0, 0.0, std::nan("") };
         ControlEffect fx[8];
-        const int n = aero->controlEffectiveness(air, std::nan(""), fx, 8);
+        const int n = aero->controlEffectiveness(ctx, fx, 8);
         CHECK(n == 3);
         for (int k = 0; k < n; ++k) {
-            const Vector3 fd = fdMomentSlope(*aero, t, fx[k].channel, s, air);
+            const Vector3 fd = fdMomentSlope(*aero, t, fx[k].channel, ctx);
             CHECK_NEAR(fx[k].dMoment.x, fd.x, 1e-6);
             CHECK_NEAR(fx[k].dMoment.y, fd.y, 1e-6);
             CHECK_NEAR(fx[k].dMoment.z, fd.z, 1e-6);
@@ -187,11 +166,12 @@ int main() {
         air.qbar = 0.5 * 1.225 * 150.0 * 150.0;
         air.alpha = 0.05;
         air.velocityBody = Vector3(149.6, 3.0, 7.5);   // beta = asin(3/150)
+        const ComponentContext ctx{ s, air, 0.0, 0.0, std::nan("") };
         ControlEffect fx[8];
-        const int n = aero->controlEffectiveness(air, std::nan(""), fx, 8);
+        const int n = aero->controlEffectiveness(ctx, fx, 8);
         CHECK(n == 3);
         for (int k = 0; k < n; ++k) {
-            const Vector3 fd = fdMomentSlope(*aero, t, fx[k].channel, s, air);
+            const Vector3 fd = fdMomentSlope(*aero, t, fx[k].channel, ctx);
             CHECK_NEAR(fx[k].dMoment.x, fd.x, 1e-3);
             CHECK_NEAR(fx[k].dMoment.y, fd.y, 1e-3);
             CHECK_NEAR(fx[k].dMoment.z, fd.z, 1e-3);

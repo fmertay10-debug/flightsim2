@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-std::unique_ptr<AeroModel> AircraftAero::fromJson(const json::Value& cfg) {
+std::unique_ptr<AircraftAero> AircraftAero::fromJson(const json::Value& cfg) {
     AeroReference ref;
     ref.sref = cfg.num("sref_m2");
     ref.cbar = cfg.num("cbar_m");
@@ -46,8 +46,9 @@ void AircraftAero::declareChannels(ChannelTable& table) {
         rudder_ = table.add({channels::kRudder, ChannelKind::Surface, -lim, lim});
 }
 
-int AircraftAero::controlEffectiveness(const AirData& air, double /*xcg*/,
+int AircraftAero::controlEffectiveness(const ComponentContext& ctx,
                                        ControlEffect* out, int maxOut) const {
+    const AirData& air = ctx.air;
     const double qSc = air.qbar * ref_.sref * ref_.cbar;
     const double qSb = air.qbar * ref_.sref * ref_.bref;
     int n = 0;
@@ -60,9 +61,11 @@ int AircraftAero::controlEffectiveness(const AirData& air, double /*xcg*/,
     return n;
 }
 
-AeroForces AircraftAero::compute(const State& state, const AirData& air,
-                                 const ChannelValues& u) const {
-    AeroForces out;
+Wrench AircraftAero::computeWrench(const ComponentContext& ctx, const ChannelValues& u,
+                                   const double* /*x: stateless*/) const {
+    const State&   state = ctx.state;
+    const AirData& air   = ctx.air;
+    Wrench out;
     const double V = air.airspeed;
     if (V < 1e-6 || air.qbar <= 0.0) return out;
 
