@@ -11,3 +11,6 @@ __pycache__/
 
 # Python venv for the design tools (numpy/control); local only
 .venv-tools/
+
+# clangd compilation-database symlink (points into build/)
+compile_commands.json
