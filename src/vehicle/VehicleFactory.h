@@ -10,12 +10,11 @@
 // the "mass" block plus the "components" array (each entry built by
 // component::Factory, dispatched on its explicit "type").
 //
-// Mass block (Lego): either an explicit "mass" object
-//   "mass": {"model": "constant", "mass_kg": 9300,
-//            "inertia": {"ixx":.., "iyy":.., "izz":.., "ixz":..}, "xcg_m": 1.2}
-//   "mass": {"model": "tabulated", "table": "mass_props.csv", "xcg_m": 0}
-// or the legacy flat form ("mass_kg" + "inertia") -- in which case a solid
-// motor's propellant is added to the (dry) mass automatically.
+// Mass block:
+//   "mass": {"model": "tabulated", "table": "mass_props.csv"}
+// The CSV covers every case: constant mass is a two-row table, a burning
+// rocket adds mass/inertia/xcg_m rows over the burn. Columns: time_s,
+// mass_kg, ixx, iyy, izz [, ixy, ixz, iyz, xcg_m].
 //
 // baseDir resolves relative data paths (mass table, engine dir).
 namespace vehicle {

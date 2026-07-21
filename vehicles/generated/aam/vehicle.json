@@ -1,13 +1,5 @@
 {
-  "mass": {
-    "model": "dry_plus_propellant",
-    "dry_mass_kg": 58,
-    "inertia": {
-      "ixx": 2.5,
-      "iyy": 42,
-      "izz": 42
-    }
-  },
+  "mass": { "model": "tabulated", "table": "mass_props.csv" },
   "components": [
     {
       "type": "rocket_table_aero",

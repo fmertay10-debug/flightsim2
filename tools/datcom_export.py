@@ -126,6 +126,23 @@ def thrust_curve_points(mass_kg, burn=5.5):
     return [(0.0, t0), (0.2, 1.15 * t0), (5.0, 1.05 * t0), (burn, 0.0)]
 
 
+def write_simple_mass_props(path, thrust_curve, propellant, dry, ixx, iyy, izz):
+    """Tabulated mass CSV without CG travel: impulse-proportional drain
+    sampled at the thrust-curve breakpoints (exact -- the drain is piecewise
+    linear between them), inertia held at the dry values."""
+    t = [p[0] for p in thrust_curve]
+    f = [p[1] for p in thrust_curve]
+    imp = [0.0]
+    for i in range(1, len(t)):
+        imp.append(imp[-1] + 0.5 * (f[i] + f[i - 1]) * (t[i] - t[i - 1]))
+    total = imp[-1]
+    with open(path, "w") as out:
+        out.write("time_s,mass_kg,ixx,iyy,izz\n")
+        for i in range(len(t)):
+            mass = dry + propellant * (1.0 - imp[i] / total)
+            out.write(f"{t[i]:.10g},{mass:.10g},{ixx:.10g},{iyy:.10g},{izz:.10g}\n")
+
+
 def write_variable_tables(outdir, mass_kg, length_m, diameter_m, xref_m, burn=5.5):
     """Emit thrust.csv (thrust vs time) and mass_props.csv (mass, inertia, CG
     vs time) as lookup tables -- the 'variable everything' rocket. Profiles are
@@ -200,19 +217,19 @@ def build_vehicle_json(d, veh, scale, mass_kg, controlled, outdir, variable=Fals
         cfg["mass"] = {"model": "tabulated", "table": "mass_props.csv"}
         motor = {"type": "tabulated_thrust", "table": "thrust.csv"}
     else:
-        # Constant dry mass + the motor's remaining propellant on top; no CG
-        # travel (explicit form of the retired legacy flat schema).
-        cfg["mass"] = {
-            "model": "dry_plus_propellant",
-            "dry_mass_kg": round(dry, 2),
-            "inertia": {"ixx": round(ixx, 3), "iyy": round(iyy, 1),
-                        "izz": round(iyy, 1)},
-        }
+        # Tabulated mass without CG travel: rows at the thrust-curve
+        # breakpoints, impulse-proportional propellant drain on top of the
+        # dry mass, inertia held at the dry values.
+        curve = [[0.0, thrust], [0.2, thrust * 1.15],
+                 [5.0, thrust * 1.05], [5.5, 0.0]]
+        write_simple_mass_props(os.path.join(outdir, "mass_props.csv"),
+                                curve, round(prop, 2), round(dry, 2),
+                                round(ixx, 3), round(iyy, 1), round(iyy, 1))
+        cfg["mass"] = {"model": "tabulated", "table": "mass_props.csv"}
         motor = {
             "type": "solid_motor",
-            "propellant_kg": round(prop, 2),
-            "thrust_curve": [[0.0, thrust], [0.2, thrust * 1.15],
-                             [5.0, thrust * 1.05], [5.5, 0.0]],
+            "propellant_kg": round(prop, 2),   # generator metadata (sizes the drain)
+            "thrust_curve": curve,
         }
     cfg["components"] = [aero, motor]
 

@@ -85,10 +85,6 @@ public:
     // computeWrench() [N]; 0 for non-propulsive components.
     virtual double thrustNewtons() const { return 0.0; }
 
-    // Onboard propellant remaining at sim time [kg]. Only used by the legacy
-    // "dry mass + motor propellant" mass path; 0 for everything else.
-    virtual double propellantMass(double time) const { (void)time; return 0.0; }
-
     // Control effectiveness at the current condition, for allocation-based
     // control laws: append one ControlEffect per control channel this
     // component consumes (linearized about zero deflection, CG-referenced).

@@ -3,7 +3,7 @@
 #include "component/propulsion/PropulsionModel.h"
 
 // Throttleable air-breathing engine: thrust = maxThrust * throttle * (rho/rho0)^lapse.
-// Fuel mass is not modeled (short-duration sims); extend propellantMass() if needed.
+// Fuel mass is not modeled (short-duration sims); model it in the mass CSV if needed.
 class Turbojet : public PropulsionModel {
 public:
     Turbojet(double maxThrust, double densityLapseExponent = 0.7)

@@ -1,10 +1,7 @@
 // Single-engine trainer aircraft (Cessna-182 class).
 // Stability derivatives are per radian.
 {
-  "mass": {
-    "model": "constant", "mass_kg": 1200,
-    "inertia": { "ixx": 1285, "iyy": 1825, "izz": 2667 }
-  },
+  "mass": { "model": "tabulated", "table": "trainer_mass.csv" },
 
   "components": [
     {

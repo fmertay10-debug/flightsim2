@@ -18,7 +18,7 @@ struct MassState {
 };
 
 // Strategy: mass properties as a function of time. The Lego "mass block" --
-// swap ConstantMassModel for TabulatedMassModel to get burn-time variation of
+// a two-row TabulatedMassModel is a constant vehicle; more rows give burn-time variation of
 // mass, inertia, and CG travel without touching aero or control.
 class MassModel {
 public:

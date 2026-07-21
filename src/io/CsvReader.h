@@ -15,6 +15,9 @@ struct Table {
 
     // Column index by header name; throws std::runtime_error if absent.
     std::size_t col(const std::string& name) const;
+
+    // Whether a column exists (for optional columns).
+    bool hasCol(const std::string& name) const;
 };
 
 Table read(const std::string& path);

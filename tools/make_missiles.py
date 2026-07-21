@@ -72,6 +72,23 @@ MISSILES = {
 }
 
 
+def write_mass_props(path, thrust_curve, propellant, dry, ixx, iyy, izz):
+    """Tabulated mass CSV: impulse-proportional propellant drain sampled at
+    the thrust-curve breakpoints (exact -- the drain is piecewise linear
+    between them), inertia held at the dry values."""
+    t = [p[0] for p in thrust_curve]
+    f = [p[1] for p in thrust_curve]
+    imp = [0.0]
+    for i in range(1, len(t)):
+        imp.append(imp[-1] + 0.5 * (f[i] + f[i - 1]) * (t[i] - t[i - 1]))
+    total = imp[-1]
+    with open(path, "w") as out:
+        out.write("time_s,mass_kg,ixx,iyy,izz\n")
+        for i in range(len(t)):
+            mass = dry + propellant * (1.0 - imp[i] / total)
+            out.write(f"{t[i]:.10g},{mass:.10g},{ixx:.10g},{iyy:.10g},{izz:.10g}\n")
+
+
 def build(name, spec):
     outdir = os.path.join(OUT, name)
     os.makedirs(outdir, exist_ok=True)
@@ -93,15 +110,17 @@ def build(name, spec):
     if not controlled:
         print("  WARNING: no control tables from DATCOM (uncontrolled airframe)")
 
-    # 4. Vehicle: DATCOM table aero + dry mass + solid motor + LQR controller.
+    # 4. Vehicle: DATCOM table aero + tabulated mass + solid motor + LQR
+    # controller. The mass CSV carries the burn: rows at the thrust-curve
+    # breakpoints, mass = dry + propellant * (1 - impulse fraction) -- the
+    # exact piecewise-linear drain the sim's old dry_plus_propellant path
+    # produced. Inertia stays at the dry values (as before).
+    write_mass_props(os.path.join(outdir, "mass_props.csv"),
+                     spec["thrust"], spec["prop"], spec["dry"],
+                     spec["ixx"], spec["iyy"], spec["iyy"])
     xref = round(float(d["xcg"]) * scale, 4)
     cfg = {
-        "mass": {
-            "model": "dry_plus_propellant",
-            "dry_mass_kg": spec["dry"],
-            "inertia": {"ixx": spec["ixx"], "iyy": spec["iyy"],
-                        "izz": spec["iyy"]},
-        },
+        "mass": {"model": "tabulated", "table": "mass_props.csv"},
         "components": [
             {
                 "type": "rocket_table_aero",

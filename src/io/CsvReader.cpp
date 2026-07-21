@@ -14,6 +14,10 @@ std::size_t Table::col(const std::string& name) const {
     throw std::runtime_error("csv: no column '" + name + "'");
 }
 
+bool Table::hasCol(const std::string& name) const {
+    return std::find(columns.begin(), columns.end(), name) != columns.end();
+}
+
 Table read(const std::string& path) {
     std::ifstream in(path);
     if (!in) throw std::runtime_error("csv: cannot open '" + path + "'");

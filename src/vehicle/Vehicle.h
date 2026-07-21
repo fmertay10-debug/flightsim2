@@ -19,21 +19,13 @@ public:
     // the factory) -- used for telemetry column names; may be empty.
     Vehicle(std::unique_ptr<MassModel> mass,
             std::vector<std::unique_ptr<ForceComponent>> components,
-            bool addMotorPropellant = false,
             std::vector<std::string> componentNames = {})
         : mass_(std::move(mass)),
           components_(std::move(components)),
-          componentNames_(std::move(componentNames)),
-          addMotorPropellant_(addMotorPropellant) {}
+          componentNames_(std::move(componentNames)) {}
 
-    // Mass, inertia, CG at sim time. The legacy path (scalar dry mass + solid
-    // motor) adds the motors' remaining propellant to the constant dry mass.
-    MassState massState(double time) const {
-        MassState s = mass_->at(time);
-        if (addMotorPropellant_)
-            for (const auto& c : components_) s.mass += c->propellantMass(time);
-        return s;
-    }
+    // Mass, inertia, CG at sim time.
+    MassState massState(double time) const { return mass_->at(time); }
 
     std::vector<std::unique_ptr<ForceComponent>>& components() { return components_; }
     const std::vector<std::string>& componentNames() const { return componentNames_; }
@@ -54,5 +46,4 @@ private:
     std::unique_ptr<MassModel> mass_;
     std::vector<std::unique_ptr<ForceComponent>> components_;
     std::vector<std::string> componentNames_;
-    bool addMotorPropellant_;
 };

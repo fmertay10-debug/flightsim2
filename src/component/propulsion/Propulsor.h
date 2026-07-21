@@ -41,9 +41,6 @@ public:
                          const double* x) const override;
 
     double thrustNewtons() const override { return lastThrust_; }
-    double propellantMass(double time) const override {
-        return model_->propellantMass(time);
-    }
 
     // Gimbal moment sensitivities: dMy/d(tvc_pitch) = dMz/d(tvc_yaw) = L*T,
     // using the LAST computed thrust (one-step lag; deterministic, and the

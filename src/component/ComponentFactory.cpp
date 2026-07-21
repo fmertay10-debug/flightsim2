@@ -69,9 +69,10 @@ std::map<std::string, Factory::Builder>& registry() {
               curve.reserve(pts.size());
               for (std::size_t i = 0; i < pts.size(); ++i)
                   curve.emplace_back(pts[i][0].asNumber(), pts[i][1].asNumber());
+              // "propellant_kg" in the config is generator metadata (it sizes
+              // the mass CSV's drain); the sim reads only the thrust curve.
               return propulsor(std::make_unique<SolidMotor>(
                                    std::move(curve),
-                                   cfg.num("propellant_kg"),
                                    cfg.num("ignition_time_s", 0.0)),
                                cfg);
           } },

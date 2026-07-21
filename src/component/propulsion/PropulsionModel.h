@@ -41,10 +41,6 @@ public:
     virtual double thrustFromState(const PropulsionContext& ctx, const double* x) const = 0;
     // --------------------------------------------------------------------
 
-    // Onboard propellant remaining at sim time [kg]. Only used by the legacy
-    // "dry mass + motor propellant" path; tabulated mass models ignore it.
-    virtual double propellantMass(double time) const { (void)time; return 0.0; }
-
     // Whether the owning Propulsor declares a "throttle" channel for this
     // model. The channel is the propulsion DEMAND: motors that burn a fixed
     // curve (solid) still own it -- the pass-through command stays visible in

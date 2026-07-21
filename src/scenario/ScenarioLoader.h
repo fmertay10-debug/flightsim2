@@ -33,7 +33,7 @@
 //
 // Vehicle definition schema (vehicles/*.json, see docs/BUILDING_VEHICLES.md):
 // {
-//   "mass":       {"model": "constant" | "dry_plus_propellant" | "tabulated", ...},
+//   "mass":       {"model": "tabulated", "table": "mass_props.csv"},
 //   "components": [ {"type": <component::Factory name>, ...}, ... ],
 //   "gnc": {
 //     "control_law": {"type": <gnc::Factory name>, ...},

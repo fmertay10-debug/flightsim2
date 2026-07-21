@@ -22,8 +22,8 @@
 
 int main() {
     const json::Value def = json::Value::parse(R"({
-        "mass": { "model": "constant", "mass_kg": 85,
-                  "inertia": { "ixx": 2, "iyy": 320, "izz": 320 } },
+        "mass": { "model": "tabulated",
+                  "table": "tests/fixtures/linearizer_mass.csv" },
         "components": [
             { "type": "aircraft_aero",
               "sref_m2": 0.049, "cbar_m": 3.0, "bspan_m": 0.25,

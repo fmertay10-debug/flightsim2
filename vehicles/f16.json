@@ -14,11 +14,7 @@
 // Components: [f16_aero] table set, [f16_engine] turbofan. Mass: constant
 // tensor with Ixz. GNC: cascaded allocation law + fast servo.
 {
-  "mass": {
-    "model": "constant",
-    "mass_kg": 9295.48,
-    "inertia": { "ixx": 12874.85, "iyy": 75673.62, "izz": 85552.11, "ixz": 1331.41 }
-  },
+  "mass": { "model": "tabulated", "table": "f16/mass_props.csv" },
 
   "components": [
     { "type": "f16_aero", "dir": "f16" },

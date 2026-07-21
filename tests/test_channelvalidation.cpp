@@ -31,7 +31,7 @@ static std::unique_ptr<Propulsor> motor(std::optional<Propulsor::Gimbal> gimbal)
     return std::make_unique<Propulsor>(
         std::make_unique<SolidMotor>(
             std::vector<std::pair<double, double>>{{0.0, 5000.0}, {5.0, 0.0}},
-            20.0, 0.0),
+            0.0),
         gimbal);
 }
 
@@ -52,6 +52,11 @@ struct DeadSurface : ForceComponent {
 };
 
 int main() {
+    // Shared constant-mass table for the inline scenario definitions below
+    // (their relative data paths resolve in output/, where they are written).
+    std::ofstream("output/_test_mass.csv")
+        << "time_s,mass_kg,ixx,iyy,izz\n0,40,1,60,60\n1,40,1,60,60\n";
+
     // A surface-less airframe: stability derivatives only, no control authority.
     const json::Value bareAero = json::Value::parse(R"({
         "sref_m2": 0.2, "cbar_m": 8.0, "bspan_m": 0.5,
@@ -109,8 +114,7 @@ int main() {
             "vehicles": [{
                 "name": "bad",
                 "definition": {
-                    "mass": {"model": "constant", "mass_kg": 40,
-                             "inertia": {"ixx": 1, "iyy": 60, "izz": 60}},
+                    "mass": {"model": "tabulated", "table": "_test_mass.csv"},
                     "components": [
                         {"type": "aircraft_aero",
                          "sref_m2": 0.2, "cbar_m": 8.0, "bspan_m": 0.5,
@@ -138,8 +142,7 @@ int main() {
             "vehicles": [{
                 "name": "dead",
                 "definition": {
-                    "mass": {"model": "constant", "mass_kg": 40,
-                             "inertia": {"ixx": 1, "iyy": 60, "izz": 60}},
+                    "mass": {"model": "tabulated", "table": "_test_mass.csv"},
                     "components": [ {"type": "test_dead_surface"} ],
                     "gnc": { "control_law": {"type": "allocated_attitude"} }
                 }
@@ -169,8 +172,7 @@ int main() {
             }]
         })";
         CHECK(throwsMentioning([&] { scenario::load(path); }, "mass"));
-        CHECK(throwsMentioning([&] { scenario::load(path); },
-                               "dry_plus_propellant"));
+        CHECK(throwsMentioning([&] { scenario::load(path); }, "tabulated"));
     }
 
     // --- The old schema is rejected with a pointer to the new one ---
