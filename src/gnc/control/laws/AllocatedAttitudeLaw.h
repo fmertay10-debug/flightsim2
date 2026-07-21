@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gnc/control/Integrator.h"
 #include "gnc/control/laws/AllocatingLaw.h"
 #include "io/Json.h"
 
@@ -41,5 +42,5 @@ public:
 private:
     Gains g_;
     ChannelHandle throttle_;
-    double ziPitch_ = 0.0, ziYaw_ = 0.0;   // tracking-error integrals
+    Integrator ziPitch_, ziYaw_;   // tracking-error integrals (clamped to intLimit)
 };

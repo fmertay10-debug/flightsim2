@@ -109,9 +109,9 @@ void AircraftAllocatedLaw::update(const GncContext& gc, const CommandSet& cmd,
         return std::clamp(a, -g_.maxAngAccel, g_.maxAngAccel);
     };
     const double ePitch = thetaCmd - theta;
-    ziPitch_ = std::clamp(ziPitch_ + ePitch * dt, -g_.intLimit, g_.intLimit);
+    const double zPitch = ziPitch_.accumulate(ePitch, dt, false, g_.intLimit);
     const double aPitch =
-        clampA(g_.pitchKp * ePitch - g_.pitchKd * q + g_.pitchKi * ziPitch_);
+        clampA(g_.pitchKp * ePitch - g_.pitchKd * q + g_.pitchKi * zPitch);
     const double aRoll = clampA(g_.rollKp * (phiCmd - phi) - g_.rollKd * p);
     const double aYaw  = clampA(-g_.yawDamp * r);   // damper only, no channel signs
 

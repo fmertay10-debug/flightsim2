@@ -70,9 +70,9 @@ void AllocatedAttitudeLaw::update(const GncContext& gc, const CommandSet& cmd,
     // ---- Attitude errors -> desired angular accelerations [rad/s^2] ----
     const double thetaCmd = cmd.pitch ? *cmd.pitch : theta;
     const double ePitch = thetaCmd - theta;
-    ziPitch_ = std::clamp(ziPitch_ + ePitch * gc.dt, -g_.intLimit, g_.intLimit);
+    const double zPitch = ziPitch_.accumulate(ePitch, gc.dt, false, g_.intLimit);
     const double aPitch =
-        clampA(g_.pitchKp * ePitch - g_.pitchKd * q + g_.pitchKi * ziPitch_);
+        clampA(g_.pitchKp * ePitch - g_.pitchKd * q + g_.pitchKi * zPitch);
 
     // Near vertical, heading/roll Euler angles are ill-conditioned: rate-damp.
     double aYaw, aRoll;
@@ -82,8 +82,8 @@ void AllocatedAttitudeLaw::update(const GncContext& gc, const CommandSet& cmd,
     } else {
         const double psiCmd = cmd.heading ? *cmd.heading : psi;
         const double eYaw = units::wrapAngle(psiCmd - psi);
-        ziYaw_ = std::clamp(ziYaw_ + eYaw * gc.dt, -g_.intLimit, g_.intLimit);
-        aYaw = clampA(g_.yawKp * eYaw - g_.yawKd * r + g_.yawKi * ziYaw_);
+        const double zYaw = ziYaw_.accumulate(eYaw, gc.dt, false, g_.intLimit);
+        aYaw = clampA(g_.yawKp * eYaw - g_.yawKd * r + g_.yawKi * zYaw);
 
         const double phiCmd = cmd.roll ? *cmd.roll : 0.0;
         aRoll = clampA(g_.rollKp * units::wrapAngle(phiCmd - phi) - g_.rollKd * p);

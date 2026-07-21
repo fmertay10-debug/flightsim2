@@ -92,10 +92,10 @@ void ScheduledLaw::update(const GncContext& gc, const CommandSet& cmd,
     // ---- Pitch: state feedback with integral tracking [rad/s^2] ----
     const double thetaCmd = cmd.pitch ? *cmd.pitch : theta;
     const double eTheta = theta - thetaCmd;
-    const double aPitchRaw = -(kA * air.alpha + kQ * q + kT * eTheta + kI * ziTheta_);
+    const double aPitchRaw = -(kA * air.alpha + kQ * q + kT * eTheta + kI * ziTheta_.value());
     const double aPitch = clampA(aPitchRaw);
     // Conditional integration: freeze while the demand is clamped (anti-windup).
-    if (std::abs(aPitchRaw) < c_.maxAngAccel) ziTheta_ += eTheta * dt;
+    ziTheta_.accumulate(eTheta, dt, /*hold=*/std::abs(aPitchRaw) >= c_.maxAngAccel);
 
     double aYaw, aRoll;
     if (std::abs(theta) > c_.verticalGuard) {
@@ -111,9 +111,9 @@ void ScheduledLaw::update(const GncContext& gc, const CommandSet& cmd,
         // those from the effectiveness columns).
         const double psiCmd = cmd.heading ? *cmd.heading : psi;
         const double ePsi = units::wrapAngle(psi - psiCmd);
-        const double aYawRaw = -(kA * air.beta + kQ * r + kT * ePsi + kI * ziPsi_);
+        const double aYawRaw = -(kA * air.beta + kQ * r + kT * ePsi + kI * ziPsi_.value());
         aYaw = clampA(aYawRaw);
-        if (std::abs(aYawRaw) < c_.maxAngAccel) ziPsi_ += ePsi * dt;
+        ziPsi_.accumulate(ePsi, dt, /*hold=*/std::abs(aYawRaw) >= c_.maxAngAccel);
 
         // ---- Roll: PD hold wings level. No qbar attenuation needed: the
         // allocator divides the fixed accel demand by the qbar-growing roll

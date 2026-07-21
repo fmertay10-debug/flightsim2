@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "gnc/control/Integrator.h"
 #include "gnc/control/Pid.h"
 #include "gnc/control/laws/AllocatingLaw.h"
 #include "io/Json.h"
@@ -51,6 +52,6 @@ private:
     Gains g_;
     Pid   vsPid_;      // climb-rate error -> pitch command
     Pid   speedPid_;   // speed error -> throttle
-    double ziPitch_ = 0.0;   // inner pitch-attitude integral
+    Integrator ziPitch_;   // inner pitch-attitude integral (clamped to intLimit)
     ChannelHandle throttle_;
 };

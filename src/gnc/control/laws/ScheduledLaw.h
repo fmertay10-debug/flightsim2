@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "gnc/control/Integrator.h"
 #include "gnc/control/laws/AllocatingLaw.h"
 #include "math/LookupTable1D.h"
 #include "io/Json.h"
@@ -52,7 +53,7 @@ public:
 
 private:
     Config c_;
-    double ziTheta_ = 0.0;   // pitch tracking-error integral
-    double ziPsi_   = 0.0;   // yaw tracking-error integral
+    Integrator ziTheta_;   // pitch tracking-error integral (frozen on accel clamp)
+    Integrator ziPsi_;     // yaw tracking-error integral (frozen on accel clamp)
     ChannelHandle elevator_, aileron_, rudder_, throttle_;
 };
