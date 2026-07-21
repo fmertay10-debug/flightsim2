@@ -45,6 +45,18 @@ protected:
     void commandAngularAccel(const Vector3& angAccel, const GncContext& gc,
                              ChannelValues& out) const;
 
+    // Near vertical (|theta| > guardAngle) the heading and roll Euler angles are
+    // ill-conditioned, so the yaw and roll loops rate-damp instead of tracking
+    // them: aYaw = -yawRateDamp*r, aRoll = -rollRateDamp*p, each clamped to
+    // +/-maxAngAccel. Returns true and fills aRoll/aYaw when the guard is active;
+    // returns false (leaving them untouched) so the law runs its normal yaw/roll
+    // control. Shared by every attitude law that launches near-vertical.
+    static bool rateDampIfNearVertical(double theta, double guardAngle,
+                                       double p, double r,
+                                       double rollRateDamp, double yawRateDamp,
+                                       double maxAngAccel,
+                                       double& aRoll, double& aYaw);
+
     ChannelTable table_;                            // declared limits for allocation
     std::vector<const ForceComponent*> components_; // non-owning
     Allocator allocator_;

@@ -97,14 +97,11 @@ void ScheduledLaw::update(const GncContext& gc, const CommandSet& cmd,
     // Conditional integration: freeze while the demand is clamped (anti-windup).
     ziTheta_.accumulate(eTheta, dt, /*hold=*/std::abs(aPitchRaw) >= c_.maxAngAccel);
 
+    // yaw rate-damp near vertical uses kQ (the pitch law damps q via -(kQ*q),
+    // so -kQ is the positive damping magnitude).
     double aYaw, aRoll;
-    if (std::abs(theta) > c_.verticalGuard) {
-        // Near vertical, heading/roll Euler angles are ill-conditioned:
-        // rate-damp. (-kQ is the positive damping magnitude: the pitch law
-        // damps q via -(kQ*q).)
-        aYaw  = clampA(-kQ * r);
-        aRoll = clampA(-c_.rollKd * p);
-    } else {
+    if (!rateDampIfNearVertical(theta, c_.verticalGuard, p, r,
+                                c_.rollKd, kQ, c_.maxAngAccel, aRoll, aYaw)) {
         // ---- Yaw: mirror the pitch feedback by axisymmetry ----
         // Sideslip beta plays alpha's role; heading error plays theta's; the
         // demanded accelerations carry no channel signs (the Allocator gets

@@ -74,12 +74,9 @@ void AllocatedAttitudeLaw::update(const GncContext& gc, const CommandSet& cmd,
     const double aPitch =
         clampA(g_.pitchKp * ePitch - g_.pitchKd * q + g_.pitchKi * zPitch);
 
-    // Near vertical, heading/roll Euler angles are ill-conditioned: rate-damp.
     double aYaw, aRoll;
-    if (std::abs(theta) > g_.verticalGuard) {
-        aYaw  = clampA(-g_.yawKd * r);
-        aRoll = clampA(-g_.rollKd * p);
-    } else {
+    if (!rateDampIfNearVertical(theta, g_.verticalGuard, p, r,
+                                g_.rollKd, g_.yawKd, g_.maxAngAccel, aRoll, aYaw)) {
         const double psiCmd = cmd.heading ? *cmd.heading : psi;
         const double eYaw = units::wrapAngle(psiCmd - psi);
         const double zYaw = ziYaw_.accumulate(eYaw, gc.dt, false, g_.intLimit);

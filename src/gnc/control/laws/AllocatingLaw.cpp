@@ -1,8 +1,22 @@
 #include "gnc/control/laws/AllocatingLaw.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "component/ForceComponent.h"
 #include "gnc/control/WrenchCommand.h"
 #include "math/Matrix3x3.h"
+
+bool AllocatingLaw::rateDampIfNearVertical(double theta, double guardAngle,
+                                           double p, double r,
+                                           double rollRateDamp, double yawRateDamp,
+                                           double maxAngAccel,
+                                           double& aRoll, double& aYaw) {
+    if (std::abs(theta) <= guardAngle) return false;
+    aRoll = std::clamp(-rollRateDamp * p, -maxAngAccel, maxAngAccel);
+    aYaw  = std::clamp(-yawRateDamp * r, -maxAngAccel, maxAngAccel);
+    return true;
+}
 
 void AllocatingLaw::commandAngularAccel(const Vector3& angAccel,
                                         const GncContext& gc,
