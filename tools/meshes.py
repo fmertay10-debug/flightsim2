@@ -11,7 +11,9 @@ VISUAL plausibility against the channel sign conventions (core/Channel.h),
 not aerodynamic exactness. Kept small (a few hundred faces) so the browser
 animates smoothly.
 """
+import json
 import math
+import os
 
 
 def _ring(x, radius, n, cx=0.0, cz=0.0):
@@ -173,12 +175,101 @@ def aircraft_mesh(span, length, body_color="#8892a0",
     return {"parts": parts}
 
 
-def mesh_for(vehicle_cfg, dynamics):
-    """Choose a mesh from a loaded vehicle.json (or None for kinematic movers)."""
+def datcom_mesh(mesh_json, vehicle_cfg):
+    """Turn a committed DATCOM mesh.json (the real outer mould line + fin/canard
+    plates, x from the nose tip, aft-positive) into a renderable, articulated
+    mesh in the viewer's body frame (+x FORWARD, +y right, +z down).
+
+    The only frame change is the x-axis: DATCOM measures x aft from the nose,
+    the viewer wants x forward from the CG, so x_body = xcg - x_datcom (the CG
+    lands at the mesh origin, which is where the vehicle rotates). Fin plates
+    get hinges inferred from their own radial position (cruciform mapping:
+    horizontal pair = elevator, vertical pair = rudder, all four = aileron);
+    a gimballed motor adds a TVC nozzle bell driven by the tvc channels.
+    Canards are fixed surfaces (the aero model gives them no channel)."""
+    geom = vehicle_cfg.get("geometry", {})
+    xcg = geom.get("xcg_m")
+    if xcg is None:
+        xcg = geom.get("length_m", 3.0) / 2.0
+
+    def to_body(v):
+        return [xcg - v[0], v[1], v[2]]
+
+    parts = []
+    tail_x = None                       # most-aft body-x, for the nozzle
+    for p in mesh_json["parts"]:
+        name = p["name"]
+        verts = [to_body(v) for v in p["vertices"]]
+        xs = [v[0] for v in verts]
+        tail_x = min(xs) if tail_x is None else min(tail_x, min(xs))
+        out = {"name": name, "vertices": verts, "faces": p["faces"]}
+
+        if name == "body":
+            out["color"] = "#c9ced6"
+        elif name.startswith("fin_"):
+            out["color"] = "#e08a3c"
+            # Radial (outward) direction of this fin, from its vertex spread.
+            my = sum(v[1] for v in verts) / len(verts)
+            mz = sum(v[2] for v in verts) / len(verts)
+            mag = math.hypot(my, mz) or 1.0
+            uy, uz = my / mag, mz / mag
+            axis = [0.0, uy, uz]
+            # Root (near the body) x-station of the plate = its most-forward x.
+            root_x = max(xs)
+            r = math.hypot(my, mz)
+            origin = [root_x, uy * r * 0.5, uz * r * 0.5]
+            hinges = [{"channel": "aileron", "axis": axis,
+                       "origin": origin, "sign": 1.0}]
+            if abs(uy) > abs(uz):                    # horizontal pair -> elevator
+                hinges.append({"channel": "elevator", "axis": axis,
+                               "origin": origin, "sign": 1.0 if uy > 0 else -1.0})
+            else:                                    # vertical pair -> rudder
+                hinges.append({"channel": "rudder", "axis": axis,
+                               "origin": origin, "sign": 1.0 if uz > 0 else -1.0})
+            out["hinges"] = hinges
+        elif name.startswith("canard_"):
+            out["color"] = "#7f8794"                 # fixed forward surface
+        else:
+            out["color"] = "#9aa0a6"
+        parts.append(out)
+
+    # TVC bell aft of the tail for a gimballed motor.
+    has_gimbal = any("gimbal" in c for c in vehicle_cfg.get("components", []))
+    if has_gimbal and tail_x is not None:
+        length = geom.get("length_m", 3.0)
+        rad = geom.get("diameter_m", length * 0.06) / 2.0
+        noz_v, noz_f = [], []
+        _tube(noz_v, noz_f, tail_x, rad * 0.55, tail_x - 0.06 * length,
+              rad * 0.8, 12, 0)
+        origin = [tail_x, 0.0, 0.0]
+        parts.append({"name": "nozzle", "color": "#6b6f78",
+                      "vertices": noz_v, "faces": noz_f,
+                      "hinges": [
+                          {"channel": "tvc_pitch", "axis": [0, 1, 0],
+                           "origin": origin, "sign": -1.0},
+                          {"channel": "tvc_yaw", "axis": [0, 0, 1],
+                           "origin": origin, "sign": -1.0},
+                      ]})
+    return {"parts": parts}
+
+
+def mesh_for(vehicle_cfg, dynamics, vehicle_dir=None):
+    """Choose a mesh from a loaded vehicle.json (or None for kinematic movers).
+
+    Prefers the vehicle's committed DATCOM mesh.json (its REAL geometry) when
+    vehicle_dir is given and the file exists; otherwise falls back to a
+    procedural airframe from the reference dimensions."""
     if vehicle_cfg is None or dynamics == "kinematic":
         # Generic small dart for targets/traffic.
         return aircraft_mesh(span=6.0, length=8.0, body_color="#9aa0a6",
                              wing_color="#b0b4b8", tail_color="#b0b4b8")
+
+    mesh_file = (vehicle_cfg.get("geometry", {}) or {}).get("mesh")
+    if vehicle_dir and mesh_file:
+        path = os.path.join(vehicle_dir, mesh_file)
+        if os.path.exists(path):
+            with open(path) as f:
+                return datcom_mesh(json.load(f), vehicle_cfg)
 
     # The aero component tells us the airframe family and its references.
     aero = next((c for c in vehicle_cfg.get("components", [])

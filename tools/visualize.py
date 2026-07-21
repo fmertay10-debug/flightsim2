@@ -183,6 +183,7 @@ def build(scenario_path):
             print(f"  (skipping {entry['name']}: no log at {log_path})")
             continue
         cfg = None
+        vehicle_dir = None
         if "definition" in entry:
             cfg = entry["definition"]
         elif "vehicle" in entry:
@@ -190,8 +191,9 @@ def build(scenario_path):
                 else os.path.join(scn_dir, entry["vehicle"])
             if os.path.exists(vpath):
                 cfg = load_jsonc(vpath)
+                vehicle_dir = os.path.dirname(vpath)
         logs[entry["name"]] = read_log(log_path)
-        cfgs[entry["name"]] = (cfg, entry.get("dynamics", "six_dof"))
+        cfgs[entry["name"]] = (cfg, entry.get("dynamics", "six_dof"), vehicle_dir)
 
     if not logs:
         raise SystemExit("no vehicle logs found -- run the scenario first")
@@ -207,13 +209,13 @@ def build(scenario_path):
 
     vehicles = []
     for name, cols in logs.items():
-        cfg, dynamics = cfgs[name]
+        cfg, dynamics, vehicle_dir = cfgs[name]
         comps = component_prefixes(cols)
         vehicles.append({
             "name": name,
             "target": targets.get(name),
             "components": comps,
-            "mesh": mesh_for(cfg, dynamics),
+            "mesh": mesh_for(cfg, dynamics, vehicle_dir),
             "frames": resample_frames(cols, times, comps),
             "series": {k: [rnd(v) for v in vals] for k, vals in cols.items()},
         })
