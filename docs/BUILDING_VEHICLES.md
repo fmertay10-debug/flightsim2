@@ -14,7 +14,7 @@ explicitly via `"type"`, and the loader wires them through registries.
                  │    ...         ──►  any wrench producer             │
                  │  ]                                                  │
                  │  gnc:                                               │
-                 │    control_law ──►  control algorithm               │  Controller
+                 │    control_law ──►  control algorithm               │  ControlLaw
                  │    actuator    ──►  per-channel servo dynamics (opt)│  ActuatorBank
                  └──────────────────────────────────────────────────┘
 ```
@@ -35,26 +35,38 @@ Aerodynamics:
 |---|---|---|
 | `aircraft_aero` | `cla`,`cma`,… | linear stability derivatives |
 | `f16_aero` | `dir` | wind-tunnel table set (the F-16) |
-| `rocket_aero` | `cna`,`cma`,… | linear missile derivatives |
 | `rocket_table_aero` | `tables_csv`,`control_csv` | DATCOM (alpha, Mach) tables |
 
 Optional `xref_m` names the moment reference station so CG travel changes the
 static margin (see the mass block).
 
 Motors (each takes an optional `gimbal` block — see below):
-`turbojet` (throttleable, density-lapsed) · `solid_motor` (thrust-time curve +
-impulse-consistent propellant) · `tabulated_thrust` (raw thrust(t) table) ·
-`f16_engine` (idle/mil/max tables with power-lever dynamics).
+`turbojet` (throttleable, density-lapsed) · `solid_motor` (thrust-time curve;
+`propellant_kg` is generator metadata that sizes the mass CSV's drain) ·
+`tabulated_thrust` (raw thrust(t) table) · `f16_engine` (idle/mil/max tables
+with power-lever dynamics).
 
 ### `mass` — mass / inertia / CG
-| option | config | what |
-|---|---|---|
-| constant | `{"model":"constant","mass_kg":…,"inertia":{…}}` | fixed tensor (+ optional `ixz`) |
-| dry_plus_propellant | `{"model":"dry_plus_propellant","dry_mass_kg":…,"inertia":{…}}` | fixed dry tensor; the motors' remaining propellant is added each step, so mass drops through the burn |
-| tabulated | `{"model":"tabulated","table":"mass_props.csv"}` | mass, Ixx/Iyy/Izz, **xcg** vs time |
 
-(The legacy flat `mass_kg` + `inertia` form is retired — the loader rejects
-it, pointing here; `dry_plus_propellant` is its explicit replacement.)
+One model covers every case:
+
+```json
+"mass": { "model": "tabulated", "table": "mass_props.csv" }
+```
+
+CSV columns: `time_s, mass_kg, ixx, iyy, izz` plus optional `ixy, ixz, iyz`
+(products of inertia, entered as negative off-diagonals) and optional `xcg_m`
+(CG station vs time; absent = CG at the aero reference, no moment transfer).
+Values interpolate linearly and hold at the endpoints, so:
+
+- a **constant-mass** vehicle is a two-row table (see `data/vehicles/f16/mass_props.csv`);
+- a **burning motor** is rows over the burn — the generators sample the
+  impulse-proportional propellant drain at the thrust-curve breakpoints;
+- **CG travel** (changing static margin) is an `xcg_m` column
+  (see `data/vehicles/generated/advanced_rocket/mass_props.csv`).
+
+(The retired `constant` / `dry_plus_propellant` models were special cases of
+this table; the loader rejects them, pointing here.)
 
 ### `gnc.control_law` — the control algorithm (registry: `gnc::Factory`)
 | `type` | config | what |
@@ -71,10 +83,9 @@ vehicle converted): a law emits a desired body wrench (WrenchCommand) and the
 **Allocator** distributes it over whatever channels the components declare,
 weighted by each component's queried effectiveness at the current flight
 condition. Throttle passes through as a direct channel write. That is
-what flies a hybrid: `vehicles/hybrid_launcher.json` has a gimbaled motor AND
-fins — the gimbal steers the low-qbar pad phase, the fins take over as speed
-builds, and after burnout the fins track alone, all under one law with no
-mode switching (`scenarios/hybrid_launch.json`). Note its gains are in
+what would fly a hybrid (gimbaled motor AND fins) with no mode switching:
+the gimbal's authority columns dominate at low qbar, the fins' as speed
+builds, and after burnout the fins track alone. Note allocation gains are in
 angular-acceleration units (rad/s² per rad of error) and must dominate the
 airframe's weathercock stiffness — expect values ~100×, not ~1×, with an
 integral term to hold trim.
@@ -111,13 +122,12 @@ burnout — the physics falls straight out of the mass/motor blocks. A single
 nozzle gives pitch + yaw only; roll needs fins or (future) an RCS component,
 so a TVC vehicle should be aerodynamically roll-damped. TVC launchers are
 near-neutral or unstable in pitch (that's *why* they need TVC), so give the
-aero component a small `cma` and no control derivatives — see
-`vehicles/tvc_rocket.json` and `scenarios/tvc_launch.json`.
+aero component a small `cma` and no control derivatives.
 
 **To add a new force/control component** (e.g. RCS): implement a
 `ForceComponent` that *declares* its own channels (e.g. `rcs_roll`) +
 `component::Factory::registerComponent("rcs", ...)`, and a control law that
-*binds* and writes those channels + `control::Factory::registerControlLaw`.
+*binds* and writes those channels + `gnc::Factory::registerControlLaw`.
 No shared struct to edit — channel names are the whole contract. Nothing in
 `sim/`, `dynamics/`, or the other blocks changes.
 
@@ -134,21 +144,23 @@ No shared struct to edit — channel names are the whole contract. Nothing in
 2. **Fly it with the hand-tuned allocation law** it shipped with:
 
    ```
-   ./build/flightsim scenarios/datcom_rocket_launch.json
+   ./build/flightsim data/scenarios/datcom_rocket_launch.json
    ```
 
 3. **Design an autopilot from the vehicle's OWN data** — the control block gets
    its parameters from the aero + mass blocks:
 
    ```
-   py tools/design_autopilot.py vehicles/generated/my_rocket/vehicle.json \
-       --mass 72 --iyy 480 --altitude 3000 --method lqr
-   #   -> vehicles/generated/my_rocket/gain_schedule.csv  (LQR gains vs Mach)
+   ./build/flightsim --linearize data/vehicles/generated/my_rocket/vehicle.json \
+       --altitude 3000 --machs 0.3,0.5,0.7 --out plant.csv
+   py tools/design_autopilot.py --plant plant.csv --method lqr
+   #   -> data/vehicles/generated/my_rocket/gain_schedule.csv (LQR gains vs Mach)
    ```
 
-   The tool linearizes the short-period plant at each Mach from the DATCOM
-   derivatives + the mass/CG, runs LQR, and prints the open- and closed-loop
-   modes. `--method place --wn 12 --zeta 0.7` uses pole placement instead.
+   `--linearize` trims and linearizes the REAL component stack (the same
+   f(x,u) the sim flies) into a short-period plant per Mach; design_autopilot
+   runs LQR on it and prints the open- and closed-loop modes.
+   `--method place --wn 12 --zeta 0.7` uses pole placement instead.
 
 4. **Swap the control law to LQR** — one section of the vehicle file:
 
@@ -162,14 +174,14 @@ No shared struct to edit — channel names are the whole contract. Nothing in
    }
    ```
 
-   (`vehicles/generated/datcom_rocket/vehicle_lqr.json` is exactly this: the
+   (`data/vehicles/generated/datcom_rocket/vehicle_lqr.json` is exactly this: the
    same components as `vehicle.json`, only the control law changed.)
 
 5. **Fly the LQR version** and compare — same airframe, same pitch program:
 
    ```
-   ./build/flightsim scenarios/lqr_rocket_launch.json
-   py tools/visualize.py scenarios/lqr_rocket_launch.json   # 3-D viewer
+   ./build/flightsim data/scenarios/lqr_rocket_launch.json
+   py tools/visualize.py data/scenarios/lqr_rocket_launch.json   # 3-D viewer
    ```
 
 Nothing in `src/` changed across any of this. New airframe = data + JSON; new

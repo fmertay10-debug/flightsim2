@@ -183,7 +183,7 @@ def mesh_for(vehicle_cfg, dynamics):
     # The aero component tells us the airframe family and its references.
     aero = next((c for c in vehicle_cfg.get("components", [])
                  if c.get("type", "").endswith("_aero")), {})
-    atype = aero.get("type", "rocket_aero")
+    atype = aero.get("type", "rocket_table_aero")
 
     if atype in ("aircraft_aero", "f16_aero"):
         if atype == "f16_aero":

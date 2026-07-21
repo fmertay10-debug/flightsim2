@@ -243,17 +243,16 @@ def main():
     Iyy = args.iyy
     if mass is None or Iyy is None:
         mblock = cfg.get("mass", {})
-        model = mblock.get("model")
-        if model == "constant":
-            mass = mass or mblock["mass_kg"]
-            Iyy = Iyy or mblock["inertia"]["iyy"]
-        elif model == "dry_plus_propellant":
-            # Design at dry mass by default; pass --mass for a mid-burn point.
-            mass = mass or mblock["dry_mass_kg"]
-            Iyy = Iyy or mblock["inertia"]["iyy"]
+        if mblock.get("model") == "tabulated":
+            # Design at burnout (last row = dry) by default; pass --mass/--iyy
+            # for a mid-burn point.
+            mrows, mcols = read_csv(os.path.join(vdir, mblock["table"]))
+            last = mrows[-1]
+            mass = mass or last[mcols["mass_kg"]]
+            Iyy = Iyy or last[mcols["iyy"]]
         else:
-            sys.exit("design_autopilot: pass --mass and --iyy (tabulated mass "
-                     "vehicle has no scalar mass in the json)")
+            sys.exit("design_autopilot: pass --mass and --iyy (no tabulated "
+                     "mass table in the vehicle json)")
     xcg = args.xcg if args.xcg is not None else xref
     dxc = (xcg - xref) / cbar
 

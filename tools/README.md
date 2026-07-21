@@ -28,7 +28,7 @@ synthesizes pitch gains by **LQR** (default) or **pole placement**, written as
 `gain_schedule.csv` for the C++ `ScheduledController`.
 
 ```
-py tools/design_autopilot.py vehicles/generated/datcom_rocket/vehicle.json \
+py tools/design_autopilot.py data/vehicles/generated/datcom_rocket/vehicle.json \
     --mass 72 --iyy 480 --altitude 3000 --method lqr
 py tools/design_autopilot.py <vehicle.json> --method place --wn 12 --zeta 0.7
 ```
@@ -44,8 +44,8 @@ server) with synced, orbit-able **trajectory** and **attitude** views, flying
 each vehicle as its real 3-D model.
 
 ```
-./build/flightsim scenarios/lqr_rocket_launch.json    # writes the logs
-py tools/visualize.py scenarios/lqr_rocket_launch.json # -> output/.../view.html
+./build/flightsim data/scenarios/lqr_rocket_launch.json    # writes the logs
+py tools/visualize.py data/scenarios/lqr_rocket_launch.json # -> output/.../view.html
 ```
 
 ## make_missiles.py — build the missile examples end-to-end
@@ -79,7 +79,7 @@ probability (Pk), miss statistics, CEP/R90, and the 2-D miss dispersion into a
 self-contained HTML report.
 
 ```
-py tools/monte_carlo.py scenarios/aam_intercept.json --runs 300
-py tools/monte_carlo.py scenarios/sam_intercept.json --runs 200 \
+py tools/monte_carlo.py data/scenarios/aam_intercept.json --runs 300
+py tools/monte_carlo.py data/scenarios/sam_intercept.json --runs 200 \
     --sigma-aim-deg 3 --sigma-target-m 100 --sigma-thrust 0.06
 ```

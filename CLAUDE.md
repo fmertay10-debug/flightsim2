@@ -8,11 +8,12 @@ See README.md for layout, config schemas, and how to add vehicle types.
 ```
 cmake -S . -B build && cmake --build build -j       # Windows: add -G "MinGW Makefiles"
 ctest --test-dir build --output-on-failure          # tests run with repo root as CWD
-./build/flightsim scenarios/<name>.json
+./build/flightsim data/scenarios/<name>.json
 ```
 
 Primary dev machine is Linux (since 2026-07). ctest includes `golden_gate`
-(tools/check_golden.py): byte-exact CSV comparison of all 15 golden scenarios.
+(tools/check_golden.py): byte-exact CSV comparison of every scenario with a
+baseline in tests/golden/.
 Goldens are baselined on this Linux/GCC toolchain; MinGW builds differ in the
 last printed digit (libm rounding), so re-baseline (`--update <names>`) only
 deliberately, never to paper over a diff you don't understand.
@@ -28,8 +29,6 @@ PATH cause 0xc0000139 crashes otherwise). Keep it.
 - Control sign conventions (see `src/core/Channel.h`): +elevator = nose DOWN,
   +rudder = nose LEFT, +aileron = right roll. Since ADR-0004 no law carries
   channel signs; they live in the components' effectiveness columns.
-- RocketAero axisymmetric mirror defaults: `cnb=-cma`, `cnr=cmq`, `cndr=cmde`,
-  `cyb=-cna`, `cydr=-cnde` — deliberate, overridable per config.
 - Config files: degrees/`_dps` keys, converted ONCE at the loading boundary
   (`math/Units.h`). Sim core is SI radians only.
 - Two-phase step (snapshot → propagate → commit) in `Simulation::step` keeps
@@ -42,8 +41,9 @@ ADR-0001). Each component maps `(state, air, channels) → body Wrench` about it
 own `momentReferenceStation()` (NaN = about CG); the Entity transfers each to
 the current CG and sums them. Gravity is applied by the Entity (it SEEDS the
 force accumulator — that exact FP summation order reproduces the pre-component
-results bit-for-bit; don't reorder it casually). Aero models are wrapped by
-`AeroComponent`; a motor + its mount is one `Propulsor` component (axial by
+results bit-for-bit; don't reorder it casually). Aero models ARE
+ForceComponents (`component/aero/`; the AeroModel/AeroComponent wrapper was
+collapsed 2026-07-21); a motor + its mount is one `Propulsor` component (axial by
 default, gimbaled TVC with a `"gimbal"` config block; My = arm*T*sin(tvc_pitch)
 nose-up for +, Mz = -arm*T*sin(tvc_yaw) nose-right for +, arm = nozzleStation -
 xcg so authority grows as CG moves forward and dies at burnout).
@@ -67,18 +67,21 @@ servo dynamics live in `ActuatorBank` (lag + slew rate + stop from the vehicle's
   differencing its control tables, the gimbal as arm*lastThrust (one-step
   thrust lag, deliberate). Allocation gains are angular-accel scale and must
   dominate weathercock stiffness (~100x the direct-PID scale, plus ki for
-  trim); see vehicles/hybrid_launcher.json + scenarios/hybrid_launch.json
-  (the TVC+fin blend acceptance vehicle, asserted in test_scenario).
-- A TVC launcher must be near-neutral/low-static-margin in pitch (small `cma`, no
-  aero control derivatives) or the aero weathercock cancels the gimbal authority;
-  roll is left to aero damping (single nozzle = pitch/yaw only). See
-  vehicles/tvc_rocket.json.
+  trim). The TVC+fin blend vehicles were deleted 2026-07-21 (linear-aero
+  purge); the gimbal path in Propulsor stays, covered by test_tvc.
+- Hard-won TVC wisdom (for when a gimbaled vehicle returns): the launcher must
+  be near-neutral/low-static-margin in pitch (small `cma`, no aero control
+  derivatives) or the aero weathercock cancels the gimbal authority; roll is
+  left to aero damping (single nozzle = pitch/yaw only).
 
 ## Config schema (components[] + gnc, since increment 2)
 
-Vehicle JSON: `mass` block ("constant" | "dry_plus_propellant" | "tabulated";
-the legacy flat `mass_kg`+`inertia` form is a LOAD ERROR since 2026-07-19 --
-its behavior lives on as "dry_plus_propellant") + `"components": [...]` (each entry names its
+Vehicle JSON: `mass` block -- ONLY {"model": "tabulated", "table":
+"mass_props.csv"} since 2026-07-21 (CSV columns time_s, mass_kg, ixx, iyy, izz
+[, ixy, ixz, iyz, xcg_m]; constant mass = a 2-row table; the solid-motor drain
+is sampled at the thrust-curve breakpoints by the generators, exactly the old
+dry_plus_propellant behavior; missing xcg_m = NaN = no CG transfer) +
+`"components": [...]` (each entry names its
 implementation via explicit `"type"` — no key-sniffing, no vehicle-type
 dispatch) + `"gnc": {"control_law": {"type": ...}, "actuator": {...}}`. The old
 schema (top-level aero/propulsion/thrust_vectoring/controller/actuator) is a
@@ -89,13 +92,13 @@ order — keep aero first, motor second for bit-identical results.
 
 Everything is a registry (see docs/BUILDING_VEHICLES.md):
 
-- New force producer (aero, motor, RCS, rotor...) = ForceComponent subclass +
-  `component::Factory::registerComponent`. Aero models can stay AeroModel
-  subclasses wrapped in `AeroComponent`; component types: aircraft_aero /
-  f16_aero / rocket_aero / rocket_table_aero / turbojet / solid_motor /
-  tabulated_thrust / f16_engine.
-- New mass model = MassModel subclass + branch in `vehicle::create` (`mass`
-  block: "constant" | "dry_plus_propellant" | "tabulated").
+- New force producer (aero, motor, RCS, rotor...) = ForceComponent subclass
+  (in `component/aero/` or `component/propulsion/` by domain) +
+  `component::Factory::registerComponent`. Component types: aircraft_aero /
+  f16_aero / rocket_table_aero / turbojet / solid_motor / tabulated_thrust /
+  f16_engine.
+- Mass is always TabulatedMassModel (`mass` block: "tabulated" only); a new
+  mass source = a new CSV generator, not a new class.
 - New control law = ControlLaw subclass + `gnc::Factory::registerControlLaw`
   (types: allocated_attitude / aircraft_allocated / scheduled / lqr -- the
   direct-write PIDs were retired when ADR-0004 completed, 2026-07-19).
@@ -144,11 +147,12 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
 
 ## DATCOM / Python side
 
-- `datcom/` is a trimmed vendored copy of C:\dev\pyParserForDatcom: the
+- `tools/datcom/` is a trimmed vendored copy of C:\dev\pyParserForDatcom: the
   `pydatcom` parser + `examples/` + `vehicles/` + `tests/`. The `ml/` tree,
   `.venv`, and caches were deliberately excluded. numpy-only.
 - `tools/datcom_export.py` reads a parsed `aero.npz` and writes a vehicle
-  folder (aero_tables.csv, control_tables.csv, vehicle.json, mesh.json).
+  folder under data/vehicles/generated/ (aero_tables.csv, control_tables.csv,
+  mass_props.csv, vehicle.json, mesh.json).
   Conversions at the boundary: ft->m, per-deg->per-rad (cnb/cyb; rate
   derivatives cmq/cnr/clp are already per-rad), alpha/delta deg->rad. DATCOM
   gives aero+geometry only; mass/inertia are estimated (slender-body) or set
@@ -158,15 +162,14 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
   +rudder = nose-LEFT (aircraft convention), but the DATCOM pitch tables are
   mirrored onto yaw with +delta = nose-RIGHT, so the rudder is looked up
   NEGATED (`dr = -u.rudder`). Do not remove.
-- A sounding rocket is a poor interceptor (heavy, very stable, small fins):
-  vehicles/interceptor_missile.json is the agile derivative-aero vehicle that
-  actually hits in scenarios/intercept.json.
+- A sounding rocket is a poor interceptor (heavy, very stable, small fins) --
+  interceptors need the agile fin-heavy DATCOM airframes (aam etc.).
 - The F-16 is now the REAL tabular model: Stevens & Lewis / NASA TP-1538
   wind-tunnel tables + turbofan, ported from the sibling Desktop/PROJECT model
-  (vehicles/f16/*.csv). Aero validated cell-for-cell against
+  (data/vehicles/f16/*.csv). Aero validated cell-for-cell against
   tests/fixtures/f16_coeff_checks.csv (test_f16aero). The airframe is statically
   UNSTABLE at xcg=0.35 cbar and its aileron sign is INVERTED vs the missile
-  convention (+aileron -> LEFT roll) -- vehicles/f16.json carries negative roll
+  convention (+aileron -> LEFT roll) -- data/vehicles/f16.json carries negative roll
   gains and the pitch loop acts as SAS. Credible subsonic only (no Mach dep).
 
 ## Python tools
@@ -187,14 +190,12 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
   COMMITTED portfolio gallery `docs/gallery/*.html` + index. Regenerate it
   after any visualizer or vehicle change that alters those flights.
 - Python is `python3` (3.12) on the Linux dev machine (`py` on Windows).
-  numpy and node are NOT currently installed here: check_golden.py needs
-  neither, but the DATCOM/design tools (numpy) and check_viz.mjs (node) do —
-  install before using those.
+  The repo-local `.venv-tools` venv (gitignored) has numpy + control for the
+  DATCOM/design tools; check_golden.py needs only stdlib. node is NOT
+  installed here — install before using check_viz.mjs.
 
 ## Known behaviors (not bugs)
 
-- `rocket_launch.json`: after apogee the flight plan still commands 65° pitch,
-  so fins saturate at -15° during ballistic descent. Expected; anti-windup holds.
 - Kinematic entities need no vehicle definition; loader skips aero/controller.
 - The LQR rocket has a small (~4 Hz, decaying) pitch-rate wiggle the PID lacks;
   `tools/analyze.py --tmax 14` shows it. Underdamped, stable; left as-is.
@@ -210,9 +211,9 @@ Hard-won gotchas encoded there:
 - ROLL: DATCOM's CLP is ~0/slightly anti-damping and missile roll inertia is
   tiny, so the roll fin loop limit-cycles at high qbar and spins up p to
   thousands of deg/s, which then drives a gyroscopic q-r explosion (forward
-  Euler can't integrate it). Fixes: realistic (larger) ixx in make_missiles,
-  gentle roll gains, and `rollScale = min(1, qbarRef/qbar)` attenuation in
-  ScheduledController (never amplify at low qbar).
+  Euler can't integrate it). Fixes: realistic (larger) ixx in make_missiles
+  and gentle roll gains. (The old `rollScale = min(1, qbarRef/qbar)` hack was
+  retired with ADR-0004 C1 -- allocation attenuates by construction.)
 - Ground-attack missiles dive to high qbar, so their LQR is designed at a LOW
   altitude (make_missiles `design.alt`) and the intercept watch runs BEFORE the
   ground-impact kill (Simulation::step) so a diving hit registers.
