@@ -32,6 +32,10 @@ public:
         LookupTable2D dcmCtrl;   // pitch moment increment (also rudder, mirrored)
         LookupTable2D dclCtrl;   // fin lift increment (elevator CN / rudder CY)
         LookupTable2D clRoll;    // roll moment from differential deflection
+        // Authority flags from the CSV scan: any nonzero cell in the
+        // pitch/lift tables (symmetric fins) or the roll table.
+        bool hasSymCtrl  = true;
+        bool hasRollCtrl = true;
     };
 
     // xrefStation: moment reference station [m from nose]; NaN = report about
@@ -46,7 +50,10 @@ public:
     static std::unique_ptr<RocketTableAero> fromJson(const json::Value& cfg,
                                                      const std::string& baseDir);
 
-    // DATCOM control tables always carry all three fin channels.
+    // Declares ONLY fin channels whose control tables carry authority: an
+    // uncontrolled DATCOM run (all-zero tables) declares nothing, so a
+    // TVC-only or ballistic airframe passes the loader's authority probe --
+    // same rule as the derivative models.
     void declareChannels(ChannelTable& table) override;
 
     Wrench computeWrench(const ComponentContext& ctx, const ChannelValues& u,

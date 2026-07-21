@@ -1,0 +1,81 @@
+{
+  "role": {
+    "class": "TVC + fin hybrid launcher (allocation blends the effectors)",
+    "guidance": null,
+    "autopilot": "alloc",
+    "effectors": "fins+tvc"
+  },
+  "mass": {
+    "model": "tabulated",
+    "table": "mass_props.csv"
+  },
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.068938,
+      "cbar_m": 6.0,
+      "bref_m": 0.3778,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 3.3333
+    },
+    {
+      "type": "solid_motor",
+      "propellant_kg": 260,
+      "thrust_curve": [
+        [
+          0.0,
+          95000
+        ],
+        [
+          0.3,
+          103000
+        ],
+        [
+          7.5,
+          88000
+        ],
+        [
+          8.0,
+          0
+        ]
+      ],
+      "gimbal": {
+        "nozzle_station_m": 6.0,
+        "max_gimbal_deg": 6
+      }
+    }
+  ],
+  "geometry": {
+    "length_m": 6.0,
+    "diameter_m": 0.3778,
+    "xcg_m": 3.3333,
+    "mesh": "mesh.json"
+  },
+  "gnc": {
+    "control_law": {
+      "type": "allocated_attitude",
+      "gains": {
+        "pitch_kp": 150,
+        "pitch_kd": 60,
+        "pitch_ki": 30,
+        "yaw_kp": 150,
+        "yaw_kd": 60,
+        "yaw_ki": 30,
+        "roll_kp": 40,
+        "roll_kd": 15
+      },
+      "limits": {
+        "max_ang_accel_dps2": 6000,
+        "int_limit": 1.0,
+        "vertical_guard_deg": 84
+      }
+    },
+    "actuator": {
+      "tau_s": 0.03,
+      "rate_dps": 200,
+      "limit_deg": 20,
+      "gimbal_limit_deg": 6
+    }
+  }
+}

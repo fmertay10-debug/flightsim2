@@ -108,6 +108,13 @@ same viewer via `py tools/visualize.py data/scenarios/<name>.json`.
 LQR autopilot, flown to an intercept under proportional navigation
 (`data/scenarios/{aam,sam,agm,ssm}_*.json`). All four hit.
 
+**The fleet** (`data/vehicles/fleet/`, built by `tools/make_fleet.py`) —
+13 more ready-to-fly missiles/rockets on the same DATCOM databases:
+tail-fin, canard, three-fin, and boattail airframes; fins, TVC, TVC+fin
+hybrid, and unguided effector suites; LQR-designed and hand-tuned
+autopilots; each vehicle.json carries a `role` block naming its intended
+guidance (`pro_nav` / `pure_pursuit` / flight-plan only).
+
 **Analysis tools** (Python): `tools/analyze.py` reports control-tracking
 metrics and oscillation detection from a run's log; `tools/monte_carlo.py` runs
 a dispersion study over an intercept (randomized aim, target, wind, thrust) and

@@ -1,0 +1,80 @@
+{
+  "role": {
+    "class": "three-fin research probe steered by TVC",
+    "guidance": null,
+    "autopilot": "alloc",
+    "effectors": "tvc"
+  },
+  "mass": {
+    "model": "tabulated",
+    "table": "mass_props.csv"
+  },
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.023458,
+      "cbar_m": 3.5,
+      "bref_m": 0.2204,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 1.9444
+    },
+    {
+      "type": "solid_motor",
+      "propellant_kg": 35,
+      "thrust_curve": [
+        [
+          0.0,
+          14000
+        ],
+        [
+          0.25,
+          15000
+        ],
+        [
+          4.5,
+          12000
+        ],
+        [
+          5.0,
+          0
+        ]
+      ],
+      "gimbal": {
+        "nozzle_station_m": 3.5,
+        "max_gimbal_deg": 7
+      }
+    }
+  ],
+  "geometry": {
+    "length_m": 3.5,
+    "diameter_m": 0.2204,
+    "xcg_m": 1.9444,
+    "mesh": "mesh.json"
+  },
+  "gnc": {
+    "control_law": {
+      "type": "allocated_attitude",
+      "gains": {
+        "pitch_kp": 400,
+        "pitch_kd": 120,
+        "pitch_ki": 60,
+        "yaw_kp": 400,
+        "yaw_kd": 120,
+        "yaw_ki": 60,
+        "roll_kp": 40,
+        "roll_kd": 15
+      },
+      "limits": {
+        "max_ang_accel_dps2": 9000,
+        "int_limit": 1.0,
+        "vertical_guard_deg": 84
+      }
+    },
+    "actuator": {
+      "tau_s": 0.03,
+      "rate_dps": 150,
+      "gimbal_limit_deg": 7
+    }
+  }
+}

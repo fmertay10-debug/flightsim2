@@ -1,0 +1,80 @@
+{
+  "role": {
+    "class": "pure-TVC booster (no aero control surfaces)",
+    "guidance": null,
+    "autopilot": "alloc",
+    "effectors": "tvc"
+  },
+  "mass": {
+    "model": "tabulated",
+    "table": "mass_props.csv"
+  },
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.093833,
+      "cbar_m": 7.0,
+      "bref_m": 0.4407,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 3.8889
+    },
+    {
+      "type": "solid_motor",
+      "propellant_kg": 300,
+      "thrust_curve": [
+        [
+          0.0,
+          120000
+        ],
+        [
+          0.3,
+          130000
+        ],
+        [
+          8.5,
+          110000
+        ],
+        [
+          9.0,
+          0
+        ]
+      ],
+      "gimbal": {
+        "nozzle_station_m": 7.0,
+        "max_gimbal_deg": 8
+      }
+    }
+  ],
+  "geometry": {
+    "length_m": 7.0,
+    "diameter_m": 0.4407,
+    "xcg_m": 3.8889,
+    "mesh": "mesh.json"
+  },
+  "gnc": {
+    "control_law": {
+      "type": "allocated_attitude",
+      "gains": {
+        "pitch_kp": 150,
+        "pitch_kd": 60,
+        "pitch_ki": 30,
+        "yaw_kp": 150,
+        "yaw_kd": 60,
+        "yaw_ki": 30,
+        "roll_kp": 40,
+        "roll_kd": 15
+      },
+      "limits": {
+        "max_ang_accel_dps2": 6000,
+        "int_limit": 1.0,
+        "vertical_guard_deg": 84
+      }
+    },
+    "actuator": {
+      "tau_s": 0.03,
+      "rate_dps": 120,
+      "gimbal_limit_deg": 8
+    }
+  }
+}

@@ -221,6 +221,23 @@ Hard-won gotchas encoded there:
   blind_range freezes the collision course first. Air-to-ground works best as a
   near-vertical top-attack (gravity-aligned, little horizontal reach needed).
 
+## The fleet (data/vehicles/fleet/) — 13 ready-to-fly missiles/rockets
+
+Built by `tools/make_fleet.py` (venv python) from the repo's parsed DATCOM
+databases (tools/datcom/examples/*/aero.npz + data/vehicles/generated/*/
+aero.npz) — the coefficient tables are nondimensional, so per-vehicle
+geometric scaling of sref/cbar/bref is exact at DATCOM fidelity. Running the
+DATCOM SOLVER for new geometries needs DATCOM.exe (Windows-only binary in
+tools/datcom/bin; wine on Linux — NOT installed here). Each vehicle.json
+carries a "role" block (class / guidance assignment / autopilot kind /
+effectors) for the scenario builder. Mix: 7 LQR-designed (via --linearize),
+5 hand-tuned allocated_attitude (incl. TVC-only atlas_tvc + triax_probe and
+TVC+fin vulcan_hybrid), 1 unguided (javelin_ballistic, NO gnc block).
+RocketTableAero declares only fin channels whose control tables carry
+authority (all-zero tables = uncontrolled airframe declares nothing), which
+is what lets TVC-only and ballistic table-aero vehicles pass the loader's
+authority probe.
+
 ## Analysis tools (Python)
 
 - `analyze.py`: reads a CSV log (incl. the `*_sp` setpoint columns the

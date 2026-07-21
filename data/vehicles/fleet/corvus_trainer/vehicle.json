@@ -1,0 +1,76 @@
+{
+  "role": {
+    "class": "training round, hand-tuned allocation autopilot",
+    "guidance": "pure_pursuit",
+    "autopilot": "alloc",
+    "effectors": "fins"
+  },
+  "mass": {
+    "model": "tabulated",
+    "table": "mass_props.csv"
+  },
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.01103,
+      "cbar_m": 2.4,
+      "bref_m": 0.1511,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 1.3333
+    },
+    {
+      "type": "solid_motor",
+      "propellant_kg": 14,
+      "thrust_curve": [
+        [
+          0.0,
+          9000
+        ],
+        [
+          0.2,
+          10000
+        ],
+        [
+          2.5,
+          8500
+        ],
+        [
+          3.0,
+          0
+        ]
+      ]
+    }
+  ],
+  "geometry": {
+    "length_m": 2.4,
+    "diameter_m": 0.1511,
+    "xcg_m": 1.3333,
+    "mesh": "mesh.json"
+  },
+  "gnc": {
+    "control_law": {
+      "type": "allocated_attitude",
+      "gains": {
+        "pitch_kp": 12000,
+        "pitch_kd": 500,
+        "pitch_ki": 1500,
+        "yaw_kp": 12000,
+        "yaw_kd": 500,
+        "yaw_ki": 1500,
+        "roll_kp": 60,
+        "roll_kd": 20
+      },
+      "limits": {
+        "max_ang_accel_dps2": 40000,
+        "int_limit": 1.5,
+        "vertical_guard_deg": 80
+      }
+    },
+    "actuator": {
+      "tau_s": 0.02,
+      "rate_dps": 400,
+      "limit_deg": 25
+    }
+  }
+}

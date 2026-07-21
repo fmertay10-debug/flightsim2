@@ -34,16 +34,32 @@ std::unique_ptr<RocketTableAero> RocketTableAero::fromJson(const json::Value& cf
     t.dclCtrl = csv::buildTable2D(ctrl, "delta_rad", "mach", "dCL_sym");
     t.clRoll  = csv::buildTable2D(ctrl, "delta_rad", "mach", "Cl_roll");
 
+    // Scan the raw columns for any authority at all: an uncontrolled DATCOM
+    // run ships all-zero control tables, and declaring fin channels for it
+    // would trip the loader's authority probe (rightly).
+    const auto anyNonzero = [&](const char* col) {
+        const std::size_t ci = ctrl.col(col);
+        for (const auto& r : ctrl.rows)
+            if (r[ci] != 0.0) return true;
+        return false;
+    };
+    t.hasSymCtrl  = anyNonzero("dCM_sym") || anyNonzero("dCL_sym");
+    t.hasRollCtrl = anyNonzero("Cl_roll");
+
     const double xref = cfg.has("xref_m") ? cfg.num("xref_m") : std::nan("");
     return std::make_unique<RocketTableAero>(ref, std::move(t), xref);
 }
 
 void RocketTableAero::declareChannels(ChannelTable& table) {
     // Declared travel is metadata; enforcement stays with the actuator config.
+    // Only surfaces with actual table authority are declared (see header).
     constexpr double lim = 0.7854;   // 45 deg
-    elevator_ = table.add({channels::kElevator, ChannelKind::Surface, -lim, lim});
-    aileron_  = table.add({channels::kAileron,  ChannelKind::Surface, -lim, lim});
-    rudder_   = table.add({channels::kRudder,   ChannelKind::Surface, -lim, lim});
+    if (t_.hasSymCtrl)
+        elevator_ = table.add({channels::kElevator, ChannelKind::Surface, -lim, lim});
+    if (t_.hasRollCtrl)
+        aileron_ = table.add({channels::kAileron,  ChannelKind::Surface, -lim, lim});
+    if (t_.hasSymCtrl)
+        rudder_  = table.add({channels::kRudder,   ChannelKind::Surface, -lim, lim});
 }
 
 Wrench RocketTableAero::computeWrench(const ComponentContext& ctx, const ChannelValues& u,

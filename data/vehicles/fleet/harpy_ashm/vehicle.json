@@ -1,0 +1,78 @@
+{
+  "role": {
+    "class": "anti-ship sea-skimmer, boost-sustain",
+    "guidance": "pro_nav",
+    "autopilot": "lqr",
+    "effectors": "fins"
+  },
+  "mass": {
+    "model": "tabulated",
+    "table": "mass_props.csv"
+  },
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.08262,
+      "cbar_m": 4.5,
+      "bref_m": 0.27,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 2.52
+    },
+    {
+      "type": "solid_motor",
+      "propellant_kg": 90,
+      "thrust_curve": [
+        [
+          0.0,
+          70000
+        ],
+        [
+          0.4,
+          76000
+        ],
+        [
+          3.5,
+          60000
+        ],
+        [
+          4.0,
+          20000
+        ],
+        [
+          12.0,
+          18000
+        ],
+        [
+          12.5,
+          0
+        ]
+      ]
+    }
+  ],
+  "geometry": {
+    "length_m": 4.5,
+    "diameter_m": 0.27,
+    "xcg_m": 2.52,
+    "mesh": "mesh.json"
+  },
+  "gnc": {
+    "control_law": {
+      "type": "lqr",
+      "schedule": "gain_schedule.csv",
+      "limits": {
+        "max_ang_accel_dps2": 40000,
+        "min_airspeed_ms": 30
+      },
+      "roll": {
+        "kp": 40,
+        "kd": 15
+      }
+    },
+    "actuator": {
+      "tau_s": 0.02,
+      "rate_dps": 450,
+      "limit_deg": 20
+    }
+  }
+}

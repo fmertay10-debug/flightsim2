@@ -1,0 +1,76 @@
+{
+  "role": {
+    "class": "sounding rocket, pitch-program ballistic",
+    "guidance": null,
+    "autopilot": "alloc",
+    "effectors": "fins"
+  },
+  "mass": {
+    "model": "tabulated",
+    "table": "mass_props.csv"
+  },
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.038778,
+      "cbar_m": 4.5,
+      "bref_m": 0.2833,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 2.5
+    },
+    {
+      "type": "solid_motor",
+      "propellant_kg": 90,
+      "thrust_curve": [
+        [
+          0.0,
+          34000
+        ],
+        [
+          0.3,
+          37000
+        ],
+        [
+          6.5,
+          30000
+        ],
+        [
+          7.0,
+          0
+        ]
+      ]
+    }
+  ],
+  "geometry": {
+    "length_m": 4.5,
+    "diameter_m": 0.2833,
+    "xcg_m": 2.5,
+    "mesh": "mesh.json"
+  },
+  "gnc": {
+    "control_law": {
+      "type": "allocated_attitude",
+      "gains": {
+        "pitch_kp": 8000,
+        "pitch_kd": 400,
+        "pitch_ki": 1000,
+        "yaw_kp": 8000,
+        "yaw_kd": 400,
+        "yaw_ki": 1000,
+        "roll_kp": 50,
+        "roll_kd": 20
+      },
+      "limits": {
+        "max_ang_accel_dps2": 20000,
+        "int_limit": 1.5,
+        "vertical_guard_deg": 84
+      }
+    },
+    "actuator": {
+      "tau_s": 0.02,
+      "rate_dps": 300,
+      "limit_deg": 20
+    }
+  }
+}

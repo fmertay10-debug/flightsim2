@@ -1,0 +1,70 @@
+{
+  "role": {
+    "class": "point-defense sprint interceptor",
+    "guidance": "pure_pursuit",
+    "autopilot": "lqr",
+    "effectors": "fins"
+  },
+  "mass": {
+    "model": "tabulated",
+    "table": "mass_props.csv"
+  },
+  "components": [
+    {
+      "type": "rocket_table_aero",
+      "sref_m2": 0.018836,
+      "cbar_m": 2.232,
+      "bref_m": 0.186,
+      "tables_csv": "aero_tables.csv",
+      "control_csv": "control_tables.csv",
+      "xref_m": 1.178
+    },
+    {
+      "type": "solid_motor",
+      "propellant_kg": 14,
+      "thrust_curve": [
+        [
+          0.0,
+          38000
+        ],
+        [
+          0.15,
+          42000
+        ],
+        [
+          1.1,
+          36000
+        ],
+        [
+          1.3,
+          0
+        ]
+      ]
+    }
+  ],
+  "geometry": {
+    "length_m": 2.232,
+    "diameter_m": 0.186,
+    "xcg_m": 1.178,
+    "mesh": "mesh.json"
+  },
+  "gnc": {
+    "control_law": {
+      "type": "lqr",
+      "schedule": "gain_schedule.csv",
+      "limits": {
+        "max_ang_accel_dps2": 40000,
+        "min_airspeed_ms": 50
+      },
+      "roll": {
+        "kp": 40,
+        "kd": 15
+      }
+    },
+    "actuator": {
+      "tau_s": 0.02,
+      "rate_dps": 450,
+      "limit_deg": 30
+    }
+  }
+}
