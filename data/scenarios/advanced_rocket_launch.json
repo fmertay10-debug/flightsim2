@@ -24,7 +24,7 @@
         { "time_s": 10, "pitch_deg": 72 },
         { "time_s": 16, "pitch_deg": 62 }
       ],
-      "log": "output/advanced_rocket_launch/adv-rocket.csv",
+      "log": "data/output/advanced_rocket_launch/adv-rocket.csv",
       "log_decimation": 20
     }
   ]

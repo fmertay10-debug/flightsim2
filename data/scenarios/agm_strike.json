@@ -11,7 +11,7 @@
       "name": "strike-jet",
       "dynamics": "kinematic",
       "initial": { "position_ned_m": [1800, 80, -4500], "velocity_ned_ms": [150, 0, 0] },
-      "log": "output/agm_strike/strike-jet.csv", "log_decimation": 10
+      "log": "data/output/agm_strike/strike-jet.csv", "log_decimation": 10
     },
     {
       "name": "agm",
@@ -23,7 +23,7 @@
         "euler_deg": [0, -63, 6]
       },
       "guidance": { "type": "pro_nav", "target": "convoy", "nav_gain": 4.0, "max_pitch_deg": 88, "max_yaw_deg": 60, "blind_range_m": 18 },
-      "log": "output/agm_strike/agm.csv", "log_decimation": 5
+      "log": "data/output/agm_strike/agm.csv", "log_decimation": 5
     },
     {
       "name": "convoy",
@@ -33,7 +33,7 @@
         "velocity_ned_ms": [0, 0, 0],
         "euler_deg": [0, 0, 0]
       },
-      "log": "output/agm_strike/convoy.csv", "log_decimation": 5
+      "log": "data/output/agm_strike/convoy.csv", "log_decimation": 5
     }
   ],
 

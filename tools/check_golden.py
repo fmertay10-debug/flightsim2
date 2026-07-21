@@ -2,7 +2,7 @@
 """Golden regression gate for flightsim2.
 
 Runs each scenario that has a committed baseline under tests/golden/ and compares the
-freshly written output/ CSVs (and the console summary) against it, cell by cell,
+freshly written data/output/ CSVs (and the console summary) against it, cell by cell,
 with a number-aware tolerance. This is the safety net for refactors: a flipped
 sign, a reordered force sum, or a changed integration step moves a number and
 fails here immediately.
@@ -34,7 +34,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
 GOLDEN = os.path.join(PROJ, "tests", "golden")
-OUTPUT = os.path.join(PROJ, "output")
+OUTPUT = os.path.join(PROJ, "data", "output")
 
 
 def parse_cell(s):
@@ -94,7 +94,7 @@ def compare_csv(golden_path, output_path, atol, rtol):
 
 def compare_stdout(name, actual, atol, rtol):
     """Soft check: number-aware line compare of the console summary."""
-    golden_file = os.path.join(GOLDEN, f"{name}.stdout.txt")
+    golden_file = os.path.join(GOLDEN, name, "stdout.txt")
     if not os.path.exists(golden_file):
         return True, "no stdout golden"
     with open(golden_file) as f:
@@ -134,7 +134,7 @@ def run_scenario(name, flightsim):
 
 
 def update_golden(name):
-    """Copy fresh output/<name>/*.csv and the stdout over the committed golden."""
+    """Copy fresh data/output/<name>/*.csv over the committed golden."""
     src = os.path.join(OUTPUT, name)
     dst = os.path.join(GOLDEN, name)
     os.makedirs(dst, exist_ok=True)
@@ -195,10 +195,10 @@ def main():
 
         if args.update:
             update_golden(name)
-            with open(os.path.join(GOLDEN, f"{name}.stdout.txt"), "w",
+            with open(os.path.join(GOLDEN, name, "stdout.txt"), "w",
                       newline="") as f:
                 f.write(stdout)
-            print(f"[UPDATED] {name}: CSVs + stdout re-baselined from output/")
+            print(f"[UPDATED] {name}: CSVs + stdout re-baselined from data/output/")
             continue
 
         gdir = os.path.join(GOLDEN, name)

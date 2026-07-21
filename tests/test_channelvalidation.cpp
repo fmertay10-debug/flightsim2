@@ -53,8 +53,8 @@ struct DeadSurface : ForceComponent {
 
 int main() {
     // Shared constant-mass table for the inline scenario definitions below
-    // (their relative data paths resolve in output/, where they are written).
-    std::ofstream("output/_test_mass.csv")
+    // (their relative data paths resolve in data/output/, where they are written).
+    std::ofstream("data/output/_test_mass.csv")
         << "time_s,mass_kg,ixx,iyy,izz\n0,40,1,60,60\n1,40,1,60,60\n";
 
     // A surface-less airframe: stability derivatives only, no control authority.
@@ -108,7 +108,7 @@ int main() {
     // --- End-to-end through the scenario loader (inline definition): an
     //     allocating law on an airframe with no control channels at all ---
     {
-        const std::string path = "output/_test_bad_pairing_scenario.json";
+        const std::string path = "data/output/_test_bad_pairing_scenario.json";
         std::ofstream(path) << R"({
             "simulation": {"dt_s": 0.01, "duration_s": 1},
             "vehicles": [{
@@ -136,7 +136,7 @@ int main() {
             [](const json::Value&, const std::string&) {
                 return std::make_unique<DeadSurface>();
             });
-        const std::string path = "output/_test_dead_surface_scenario.json";
+        const std::string path = "data/output/_test_dead_surface_scenario.json";
         std::ofstream(path) << R"({
             "simulation": {"dt_s": 0.01, "duration_s": 1},
             "vehicles": [{
@@ -155,7 +155,7 @@ int main() {
 
     // --- The retired flat mass schema is rejected, pointing at the block ---
     {
-        const std::string path = "output/_test_flat_mass_scenario.json";
+        const std::string path = "data/output/_test_flat_mass_scenario.json";
         std::ofstream(path) << R"({
             "simulation": {"dt_s": 0.01, "duration_s": 1},
             "vehicles": [{
@@ -177,7 +177,7 @@ int main() {
 
     // --- The old schema is rejected with a pointer to the new one ---
     {
-        const std::string path = "output/_test_old_schema_scenario.json";
+        const std::string path = "data/output/_test_old_schema_scenario.json";
         std::ofstream(path) << R"({
             "simulation": {"dt_s": 0.01, "duration_s": 1},
             "vehicles": [{

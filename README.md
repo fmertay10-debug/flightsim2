@@ -29,9 +29,9 @@ data/
   scenarios/       scenario files: sim settings, environment, vehicle list, flight plans
   vehicles/        vehicle definitions: mass table + components[] + gnc block
     generated/     DATCOM-derived vehicles (built by tools/make_missiles.py etc.)
+  output/          sim CSV logs + generated HTML viewers (gitignored)
 tools/             Python: design/analysis/visualization tools (see tools/README.md)
   datcom/          vendored pydatcom: DATCOM output parser + example rockets (no ML)
-output/            sim CSV logs + generated HTML viewers (gitignored)
 src/
   math/            Vector3, Matrix3x3, Quaternion (scalar-first), lookup tables, units
   core/            shared currency structs: State, Channel(Table/Values), AirData, Telemetry
@@ -149,7 +149,7 @@ reference triad and velocity vector.
 
 ```
 ./build/flightsim data/scenarios/aam_intercept.json      # writes the CSV logs
-py tools/visualize.py data/scenarios/aam_intercept.json  # -> output/aam_intercept/view.html
+py tools/visualize.py data/scenarios/aam_intercept.json  # -> data/output/aam_intercept/view.html
 ```
 
 ## Conventions (locked)

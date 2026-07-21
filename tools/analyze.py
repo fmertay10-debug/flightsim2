@@ -7,8 +7,8 @@ Reads the setpoint columns (pitch_sp, heading_sp, altitude_sp, speed_sp) the
 CsvLogger emits, so it can measure the tracked channels directly.
 
 Usage:
-    py tools/analyze.py output/lqr_rocket_launch/lqr-rocket.csv
-    py tools/analyze.py output/f16_cruise/viper.csv --html
+    py tools/analyze.py data/output/lqr_rocket_launch/lqr-rocket.csv
+    py tools/analyze.py data/output/f16_cruise/viper.csv --html
 """
 import argparse
 import math
@@ -250,7 +250,7 @@ svg{display:block;width:460px;height:150px}</style></head>
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("log", help="scenario CSV log (output/<scenario>/<vehicle>.csv)")
+    ap.add_argument("log", help="scenario CSV log (data/output/<scenario>/<vehicle>.csv)")
     ap.add_argument("--html", action="store_true", help="also write analysis.html")
     ap.add_argument("--tmin", type=float, help="restrict analysis to t >= tmin [s]")
     ap.add_argument("--tmax", type=float, help="restrict analysis to t <= tmax [s] "

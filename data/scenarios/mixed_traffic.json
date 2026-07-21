@@ -19,7 +19,7 @@
         { "time_s": 0,  "altitude_m": 900, "heading_deg": 0, "speed_ms": 60 },
         { "time_s": 40, "heading_deg": 45 }
       ],
-      "log": "output/mixed_traffic/trainer-1.csv",
+      "log": "data/output/mixed_traffic/trainer-1.csv",
       "log_decimation": 20
     },
     {
@@ -35,7 +35,7 @@
         { "time_s": 0,  "altitude_m": 1100, "heading_deg": 180, "speed_ms": 60 },
         { "time_s": 50, "heading_deg": 270 }
       ],
-      "log": "output/mixed_traffic/trainer-2.csv",
+      "log": "data/output/mixed_traffic/trainer-2.csv",
       "log_decimation": 20
     },
     {
@@ -46,7 +46,7 @@
         "position_ned_m": [2000, -1000, -1000],
         "velocity_ned_ms": [50, 0, 0]
       },
-      "log": "output/mixed_traffic/traffic.csv",
+      "log": "data/output/mixed_traffic/traffic.csv",
       "log_decimation": 20
     }
   ]

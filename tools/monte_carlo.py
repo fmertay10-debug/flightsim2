@@ -134,7 +134,7 @@ def main():
                     help="wind 1-sigma per component [m/s]")
     ap.add_argument("--sigma-thrust", type=float, default=0.04,
                     help="motor total-impulse 1-sigma [fraction]")
-    ap.add_argument("--out", help="output HTML (default output/<scenario>/monte_carlo.html)")
+    ap.add_argument("--out", help="output HTML (default data/output/<scenario>/monte_carlo.html)")
     args = ap.parse_args()
 
     base = load_jsonc(args.scenario)
@@ -200,7 +200,7 @@ def main():
           f"min {misses.min():.1f}, max {misses.max():.1f}")
     print(f"  CEP {cep:.1f} m, R90 {r90:.1f} m")
 
-    out = args.out or os.path.join(PROJ, "output", name, "monte_carlo.html")
+    out = args.out or os.path.join(PROJ, "data", "output", name, "monte_carlo.html")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write(html_report(name, args, sig, n, pk, hit_radius, misses,

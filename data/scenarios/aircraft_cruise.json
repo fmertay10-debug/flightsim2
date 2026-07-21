@@ -18,7 +18,7 @@
         { "time_s": 0,  "altitude_m": 1000, "heading_deg": 0, "speed_ms": 60 },
         { "time_s": 60, "heading_deg": 90 }
       ],
-      "log": "output/aircraft_cruise/trainer-1.csv",
+      "log": "data/output/aircraft_cruise/trainer-1.csv",
       "log_decimation": 20
     }
   ]

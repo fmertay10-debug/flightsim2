@@ -23,7 +23,7 @@
         { "time_s": 8,  "pitch_deg": 70 },
         { "time_s": 14, "pitch_deg": 60 }
       ],
-      "log": "output/lqr_rocket_launch/lqr-rocket.csv",
+      "log": "data/output/lqr_rocket_launch/lqr-rocket.csv",
       "log_decimation": 25
     }
   ]

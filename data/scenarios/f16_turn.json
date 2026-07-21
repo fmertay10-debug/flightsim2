@@ -21,7 +21,7 @@
         { "time_s": 0,  "altitude_m": 3000, "heading_deg": 0,   "speed_ms": 150 },
         { "time_s": 8,  "heading_deg": 200 }
       ],
-      "log": "output/f16_turn/viper.csv",
+      "log": "data/output/f16_turn/viper.csv",
       "log_decimation": 15
     }
   ]

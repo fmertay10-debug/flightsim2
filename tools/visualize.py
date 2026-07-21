@@ -9,7 +9,7 @@ preset plots of every logged/derived quantity.
 
 Usage:
     py tools/visualize.py data/scenarios/aam_intercept.json
-    py tools/visualize.py scenarios/f16_turn.json --out output/f16.html
+    py tools/visualize.py scenarios/f16_turn.json --out data/output/f16.html
 """
 import argparse
 import csv
@@ -1145,11 +1145,11 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("scenario", help="path to the scenario .json that was run")
     ap.add_argument("--out", help="output HTML path "
-                    "(default: output/<scenario>/view.html)")
+                    "(default: data/output/<scenario>/view.html)")
     args = ap.parse_args()
 
     data = build(args.scenario)
-    out = args.out or os.path.join(PROJ, "output", data["name"], "view.html")
+    out = args.out or os.path.join(PROJ, "data", "output", data["name"], "view.html")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write(render_html(data))
