@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "models/rocket/RocketAero.h"
+#include "models/aircraft/AircraftAero.h"
 #include "component/ComponentFactory.h"
 #include "component/Propulsor.h"
 #include "gnc/control/laws/AllocatedAttitudeLaw.h"
@@ -52,23 +52,23 @@ struct DeadSurface : ForceComponent {
 };
 
 int main() {
-    // A TVC airframe: stability derivatives only, no fin authority.
-    const json::Value tvcAero = json::Value::parse(R"({
-        "sref_m2": 0.2, "lref_m": 8.0, "dref_m": 0.5,
-        "ca0": 0.3, "cna": 20.0, "cma": -1.5, "cmq": -60.0, "clp": -4.0
+    // A surface-less airframe: stability derivatives only, no control authority.
+    const json::Value bareAero = json::Value::parse(R"({
+        "sref_m2": 0.2, "cbar_m": 8.0, "bspan_m": 0.5,
+        "cd0": 0.3, "cla": 20.0, "cma": -1.5, "cmq": -60.0, "clp": -4.0
     })");
-    // A finned airframe: same but with control derivatives.
+    // A surfaced airframe: same but with control derivatives.
     const json::Value finAero = json::Value::parse(R"({
-        "sref_m2": 0.2, "lref_m": 8.0, "dref_m": 0.5,
-        "ca0": 0.3, "cna": 20.0, "cma": -1.5, "cmq": -60.0, "clp": -4.0,
-        "cnde": 1.5, "cmde": -8.0, "clda": 3.0
+        "sref_m2": 0.2, "cbar_m": 8.0, "bspan_m": 0.5,
+        "cd0": 0.3, "cla": 20.0, "cma": -1.5, "cmq": -60.0, "clp": -4.0,
+        "clde": 1.5, "cmde": -8.0, "clda": 3.0, "cndr": -8.0
     })");
 
-    // --- A fin-requiring law on a TVC-only vehicle: fails naming the fin ---
-    // (ScheduledLaw requires elevator+rudder; the TVC aero declares nothing.)
+    // --- A fin-requiring law on a surface-less vehicle: fails naming the fin ---
+    // (ScheduledLaw requires elevator+rudder; the bare aero declares nothing.)
     {
         ChannelTable t;
-        auto aero = RocketAero::fromJson(tvcAero);
+        auto aero = AircraftAero::fromJson(bareAero);
         aero->declareChannels(t);                      // declares NOTHING
         motor(Propulsor::Gimbal{6.0, 0.1})->declareChannels(t);
         ScheduledLaw ctl(ScheduledLaw::Config{});
@@ -78,7 +78,7 @@ int main() {
     // --- require() lists what IS declared when a channel is missing ---
     {
         ChannelTable t;
-        auto aero = RocketAero::fromJson(finAero);
+        auto aero = AircraftAero::fromJson(finAero);
         aero->declareChannels(t);
         motor(std::nullopt)->declareChannels(t);       // axial mount: no gimbal
         CHECK(throwsMentioning([&] { t.require(channels::kTvcPitch); },
@@ -90,7 +90,7 @@ int main() {
     // --- Matched pairings bind cleanly ---
     {
         ChannelTable t;
-        auto aero = RocketAero::fromJson(finAero);
+        auto aero = AircraftAero::fromJson(finAero);
         aero->declareChannels(t);
         ScheduledLaw ctl(ScheduledLaw::Config{});
         for (const ChannelHandle h : ctl.bindChannels(t))
@@ -112,9 +112,9 @@ int main() {
                     "mass": {"model": "constant", "mass_kg": 40,
                              "inertia": {"ixx": 1, "iyy": 60, "izz": 60}},
                     "components": [
-                        {"type": "rocket_aero",
-                         "sref_m2": 0.2, "lref_m": 8.0, "dref_m": 0.5,
-                         "ca0": 0.3, "cna": 20.0, "cma": -1.5,
+                        {"type": "aircraft_aero",
+                         "sref_m2": 0.2, "cbar_m": 8.0, "bspan_m": 0.5,
+                         "cd0": 0.3, "cla": 20.0, "cma": -1.5,
                          "cmq": -60.0, "clp": -4.0}
                     ],
                     "gnc": { "control_law": {"type": "allocated_attitude"} }
@@ -160,9 +160,9 @@ int main() {
                 "definition": {
                     "mass_kg": 40, "inertia": {"ixx": 1, "iyy": 60, "izz": 60},
                     "components": [
-                        {"type": "rocket_aero",
-                         "sref_m2": 0.2, "lref_m": 8.0, "dref_m": 0.5,
-                         "ca0": 0.3, "cna": 20.0, "cma": -1.5,
+                        {"type": "aircraft_aero",
+                         "sref_m2": 0.2, "cbar_m": 8.0, "bspan_m": 0.5,
+                         "cd0": 0.3, "cla": 20.0, "cma": -1.5,
                          "cmq": -60.0, "clp": -4.0}
                     ]
                 }

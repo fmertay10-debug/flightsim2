@@ -9,7 +9,6 @@
 
 #include "models/aircraft/AircraftAero.h"
 #include "models/f16/F16Aero.h"
-#include "models/rocket/RocketAero.h"
 #include "models/rocket/RocketTableAero.h"
 #include "component/AeroComponent.h"
 #include "component/Propulsor.h"
@@ -47,10 +46,6 @@ std::map<std::string, Factory::Builder>& registry() {
         { "aircraft_aero",
           [](const json::Value& cfg, const std::string&) {
               return std::make_unique<AeroComponent>(AircraftAero::fromJson(cfg));
-          } },
-        { "rocket_aero",
-          [](const json::Value& cfg, const std::string&) {
-              return std::make_unique<AeroComponent>(RocketAero::fromJson(cfg));
           } },
         { "f16_aero",
           [](const json::Value& cfg, const std::string& baseDir) {

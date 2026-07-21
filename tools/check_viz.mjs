@@ -3,7 +3,7 @@
 // scene mapping on known attitudes. Run: node tools/check_viz.mjs <view.html>
 import { readFileSync } from "fs";
 
-const path = process.argv[2] ?? "output/hybrid_launch/view.html";
+const path = process.argv[2] ?? "output/aam_intercept/view.html";
 const html = readFileSync(path, "utf-8");
 const m = html.match(/\/\*PURE-BEGIN\*\/([\s\S]*?)\/\*PURE-END\*\//);
 if (!m) { console.error("PURE block not found in " + path); process.exit(1); }

@@ -14,9 +14,9 @@ Comparison is number-aware on purpose:
 
 Usage (python3 on Linux, py on Windows):
   python3 tools/check_golden.py                     # check every golden scenario
-  python3 tools/check_golden.py rocket_launch f16_cruise
+  python3 tools/check_golden.py lqr_rocket_launch f16_cruise
   python3 tools/check_golden.py --atol 1e-9 --rtol 1e-9
-  python3 tools/check_golden.py --update rocket_launch  # RE-BASELINE named scenarios
+  python3 tools/check_golden.py --update lqr_rocket_launch  # RE-BASELINE named scenarios
   python3 tools/check_golden.py --flightsim build/flightsim
 
 Registered in ctest as `golden_gate`, so `ctest --test-dir build` runs it.

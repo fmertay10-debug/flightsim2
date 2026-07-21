@@ -11,7 +11,7 @@
 // "components" array names its implementation here explicitly via "type"
 // (no key-sniffing, no vehicle-type defaults). Built-in types:
 //
-//   aero:   "aircraft_aero" | "rocket_aero"        (point derivatives)
+//   aero:   "aircraft_aero"                        (point derivatives)
 //           "f16_aero" | "rocket_table_aero"       (lookup tables)
 //   motors: "turbojet" | "solid_motor" | "tabulated_thrust" | "f16_engine"
 //           (each takes an optional "gimbal" block -> thrust-vectoring mount:

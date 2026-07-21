@@ -1,5 +1,0 @@
-scenario: hybrid_launch
-finished at t = 30.002 s
-
-entity           alive    north[m]    east[m]     alt[m] speed[m/s]
-hybrid           yes       12461.9       84.1    15984.9      565.8

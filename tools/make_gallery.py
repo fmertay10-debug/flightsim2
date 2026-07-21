@@ -2,7 +2,7 @@
 its interactive viewer into docs/gallery/, and write an index page.
 
     py tools/make_gallery.py            # all curated scenarios
-    py tools/make_gallery.py hybrid_launch intercept   # a subset
+    py tools/make_gallery.py aam_intercept f16_turn    # a subset
 
 Requires a built sim (build/flightsim). The gallery is self-contained: clone
 the repo, open docs/gallery/index.html -- or serve the folder with GitHub
@@ -19,23 +19,10 @@ SIM = os.path.join(PROJ, "build", "flightsim")
 
 # (scenario stem, card title, card description)
 CURATED = [
-    ("hybrid_launch", "Hybrid TVC+fin launcher",
-     "One allocation-based control law flies a gimbaled nozzle AND fins: "
-     "TVC steers off the pad, authority blends to the fins as dynamic "
-     "pressure builds, and the fins track a post-burnout pitch command "
-     "alone. Open the Allocation preset to watch the moment hand-off."),
-    ("intercept", "Missile intercept",
-     "An agile interceptor under proportional navigation chases a turning "
-     "drone to a hit. Chase camera + LOS overlay show the closing geometry; "
-     "the Intercept preset plots range and closing speed to the endgame."),
     ("aam_intercept", "Air-to-air missile",
      "Full-pipeline AAM -- DATCOM aerodynamics, auto-designed LQR gain "
      "schedule, ProNav guidance -- launched from a carrier aircraft against "
      "a maneuvering bandit."),
-    ("tvc_launch", "TVC rocket launch",
-     "A finless rocket steered purely by thrust vectoring through its "
-     "gravity-turn pitch program; after burnout the gimbal loses authority "
-     "and it coasts ballistically. Watch the nozzle bell work."),
     ("f16_turn", "F-16 turn",
      "The real Stevens & Lewis / NASA wind-tunnel F-16 model (statically "
      "unstable airframe + SAS autopilot) flying a commanded heading "

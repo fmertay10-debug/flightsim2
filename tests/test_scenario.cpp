@@ -23,16 +23,6 @@ static void testAircraftCruise() {
     CHECK_NEAR(s.eulerAngles().z, 1.5708, 0.1);
 }
 
-static void testInterceptHits() {
-    scenario::LoadResult loaded = scenario::load("scenarios/intercept.json");
-    Simulation& sim = *loaded.simulation;
-    sim.run();
-    const InterceptResult& ic = sim.interceptResult();
-    CHECK(ic.watching);
-    CHECK(ic.hit);                         // ProNav + agile missile must connect
-    CHECK(ic.missDistance < 8.0);
-}
-
 static void testF16Stable() {
     // Real tabular F-16 (statically unstable): the SAS-style autopilot must
     // hold the commanded climb to 3500 m and 150 m/s without departing.
@@ -100,65 +90,13 @@ static void testMissileIntercept() {
     CHECK(ic.missDistance < 10.0);
 }
 
-static void testTvcRocket() {
-    // Thrust-vectored rocket (no aero control surfaces): the gimbal must tip it
-    // over, tracking the pitch program DURING the burn. Capture near burnout.
-    scenario::LoadResult loaded = scenario::load("scenarios/tvc_launch.json");
-    Simulation& sim = *loaded.simulation;
-    double thetaAtBurnout = 90.0, maxRollRate = 0.0;
-    while (sim.step()) {
-        const State& s = sim.entities()[0]->state();
-        maxRollRate = std::max(maxRollRate, std::abs(s.angularRate.x));
-        if (s.time <= 7.6) thetaAtBurnout = s.eulerAngles().y;   // last boost sample
-    }
-    // Started at 88 deg; TVC must have tipped it well over toward the ~55 deg cmd.
-    CHECK(thetaAtBurnout < 1.30);            // < ~74 deg (radians)
-    CHECK(thetaAtBurnout > 0.70);            // > ~40 deg (tracked, not tumbled)
-    CHECK(maxRollRate < 0.2);                // roll passively bounded (no roll ctrl)
-}
-
-static void testHybridLauncher() {
-    // TVC + fins on one airframe under the allocation-based law: the gimbal
-    // must steer the early low-qbar phase, the fins must carry the tracking
-    // after burnout (~8 s) -- including a post-burnout pitch command.
-    scenario::LoadResult loaded = scenario::load("scenarios/hybrid_launch.json");
-    Simulation& sim = *loaded.simulation;
-    const Entity& e = *sim.entities()[0];
-    const ChannelTable& table = *e.telemetry().channels;
-    const ChannelHandle tvc  = table.find("tvc_pitch");
-    const ChannelHandle elev = table.find("elevator");
-    CHECK(tvc.valid());
-    CHECK(elev.valid());
-
-    double tvcEarly = 0.0, tvcLate = 0.0, finLate = 0.0, thetaEnd = 0.0;
-    while (sim.step()) {
-        const Telemetry& t = e.telemetry();
-        const double time = t.state.time;
-        const double gp = std::abs(t.control.get(tvc));
-        if (time < 2.0) tvcEarly = std::max(tvcEarly, gp);
-        if (time > 8.5) {
-            tvcLate = std::max(tvcLate, gp);
-            finLate = std::max(finLate, std::abs(t.control.get(elev)));
-        }
-        thetaEnd = e.state().eulerAngles().y;
-    }
-    CHECK(sim.entities()[0]->alive());
-    CHECK(tvcEarly > 0.003);            // gimbal did the early steering
-    CHECK(tvcLate < 1e-4);              // burnout kills the gimbal channel
-    CHECK(finLate > 0.002);             // fins carry the post-burnout tracking
-    CHECK_NEAR(thetaEnd, 0.7854, 0.06); // 45 deg command held after burnout
-}
-
 int main() {
     testAircraftCruise();
-    testInterceptHits();
     testF16Stable();
     testDatcomRocket();
     testVariableRocket();
     testLqrRocket();
     testMissileIntercept();
-    testTvcRocket();
-    testHybridLauncher();
     std::printf("test_scenario: all checks passed\n");
     return 0;
 }
