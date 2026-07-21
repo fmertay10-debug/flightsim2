@@ -35,7 +35,7 @@ src/
   core/            shared currency structs: State, Channel(Table/Values), AirData, Telemetry
   io/              minimal JSON parser (// comments) + tidy-CSV / key-value reader
   environment/     ISA atmosphere; gravity + wind Strategies
-  dynamics/        EOM Strategies: six_dof, point_mass, kinematic (+ factory)
+  dynamics/        EOM Strategies: six_dof, kinematic (+ factory)
   component/       ForceComponent Strategy (state+channels -> body wrench) + registry +
                    control-effectiveness queries (dM/dchannel for allocation):
                    AeroComponent (wraps an AeroModel), Propulsor (motor + axial or

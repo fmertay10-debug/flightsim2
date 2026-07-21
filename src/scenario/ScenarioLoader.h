@@ -20,7 +20,7 @@
 //       "name": "chase-1",
 //       "vehicle": "vehicles/trainer.json",     // path relative to the scenario file
 //       // ... or "definition": { inline vehicle definition }
-//       "dynamics": "six_dof" | "point_mass" | "kinematic",
+//       "dynamics": "six_dof" | "kinematic",
 //       "turn_rate_dps": 0,                     // kinematic only
 //       "initial": {"position_ned_m": [n, e, d], "velocity_ned_ms": [n, e, d],
 //                   "euler_deg": [roll, pitch, yaw], "rates_dps": [p, q, r]},

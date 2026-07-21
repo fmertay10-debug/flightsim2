@@ -7,7 +7,6 @@
 
 // Factory: EOM strategy from its config name.
 //   "six_dof"    -> SixDofEom
-//   "point_mass" -> PointMassEom
 //   "kinematic"  -> KinematicEom (opts.turnRate applies)
 namespace eom {
 
