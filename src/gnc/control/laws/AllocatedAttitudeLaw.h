@@ -1,9 +1,6 @@
 #pragma once
 
-#include <vector>
-
-#include "gnc/control/Allocator.h"
-#include "gnc/control/ControlLaw.h"
+#include "gnc/control/laws/AllocatingLaw.h"
 #include "io/Json.h"
 
 // Allocation-based attitude autopilot (ADR-0002's standard path): a PID on
@@ -18,7 +15,7 @@
 // the fins take over, after burnout the gimbal column dies. The law never
 // mentions either by name, and it carries NO plant sign knowledge -- signs
 // live in the effectiveness columns the components report.
-class AllocatedAttitudeLaw : public ControlLaw {
+class AllocatedAttitudeLaw : public AllocatingLaw {
 public:
     struct Gains {
         // attitude error -> desired angular acceleration [1/s^2 per rad]
@@ -31,25 +28,18 @@ public:
     };
 
     AllocatedAttitudeLaw(const Gains& g, double allocDamping)
-        : g_(g), allocator_(allocDamping) {}
+        : AllocatingLaw(allocDamping), g_(g) {}
 
     // Builder for gnc::Factory (type "allocated_attitude").
     static std::unique_ptr<ControlLaw> fromJson(const json::Value& cfg);
 
-    bool allocates() const override { return true; }
-
     std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
-    void bindComponents(
-        const std::vector<std::unique_ptr<ForceComponent>>& components) override;
 
     void update(const GncContext& gc, const CommandSet& cmd,
                 ChannelValues& out) override;
 
 private:
     Gains g_;
-    Allocator allocator_;
-    std::vector<const ForceComponent*> components_;
-    ChannelTable table_;   // copy for allocation-time channel limits
     ChannelHandle throttle_;
     double ziPitch_ = 0.0, ziYaw_ = 0.0;   // tracking-error integrals
 };

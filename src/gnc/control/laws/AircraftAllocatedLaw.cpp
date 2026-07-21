@@ -8,10 +8,10 @@
 #include "math/Units.h"
 
 AircraftAllocatedLaw::AircraftAllocatedLaw(const Gains& g, double allocDamping)
-    : g_(g),
+    : AllocatingLaw(allocDamping),
+      g_(g),
       vsPid_(g.vsKp, g.vsKi, 0.0, -g.maxPitch, g.maxPitch),
-      speedPid_(g.speedKp, g.speedKi, 0.0, 0.0, 1.0),
-      allocator_(allocDamping) {}
+      speedPid_(g.speedKp, g.speedKi, 0.0, 0.0, 1.0) {}
 
 std::unique_ptr<ControlLaw> AircraftAllocatedLaw::fromJson(const json::Value& cfg) {
     Gains g;
@@ -62,12 +62,6 @@ std::vector<ChannelHandle> AircraftAllocatedLaw::bindChannels(const ChannelTable
             "aircraft_allocated: the vehicle declares no control surfaces to "
             "allocate over");
     return bound;
-}
-
-void AircraftAllocatedLaw::bindComponents(
-    const std::vector<std::unique_ptr<ForceComponent>>& components) {
-    components_.clear();
-    for (const auto& c : components) components_.push_back(c.get());
 }
 
 void AircraftAllocatedLaw::update(const GncContext& gc, const CommandSet& cmd,
@@ -121,17 +115,5 @@ void AircraftAllocatedLaw::update(const GncContext& gc, const CommandSet& cmd,
     const double aRoll = clampA(g_.rollKp * (phiCmd - phi) - g_.rollKd * p);
     const double aYaw  = clampA(-g_.yawDamp * r);   // damper only, no channel signs
 
-    // ---- WrenchCommand (moment = I * alpha_des, diagonal terms) ----
-    const Matrix3x3& I = gc.mass.inertia;
-    const WrenchCommand nu{ Vector3(),
-                            Vector3(I(0, 0) * aRoll, I(1, 1) * aPitch, I(2, 2) * aYaw) };
-
-    // ---- Allocation over the components' current effectiveness ----
-    ControlEffect effects[ChannelTable::kMaxChannels];
-    int n = 0;
-    const ComponentContext cctx{ state, air, state.altitude(), dt, gc.mass.xcg };
-    for (const ForceComponent* c : components_)
-        n += c->controlEffectiveness(cctx, effects + n,
-                                     ChannelTable::kMaxChannels - n);
-    allocator_.allocate(nu, effects, n, table_, out);
+    commandAngularAccel(Vector3(aRoll, aPitch, aYaw), gc, out);
 }

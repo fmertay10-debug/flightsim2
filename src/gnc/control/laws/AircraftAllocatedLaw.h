@@ -1,11 +1,9 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 
-#include "gnc/control/Allocator.h"
-#include "gnc/control/ControlLaw.h"
 #include "gnc/control/Pid.h"
+#include "gnc/control/laws/AllocatingLaw.h"
 #include "io/Json.h"
 
 // Cascaded fixed-wing autopilot with an ALLOCATED inner loop (ADR-0004,
@@ -19,7 +17,7 @@
 // Allocator maps onto whatever surfaces the airframe declares via their live
 // effectiveness. No channel sign knowledge lives here -- the F-16's inverted
 // aileron, the elevator's nose-down polarity, all come from the columns.
-class AircraftAllocatedLaw : public ControlLaw {
+class AircraftAllocatedLaw : public AllocatingLaw {
 public:
     struct Gains {
         // Outer loops -- same config keys and semantics as aircraft_pid.
@@ -44,11 +42,7 @@ public:
     // Builder for gnc::Factory (type "aircraft_allocated").
     static std::unique_ptr<ControlLaw> fromJson(const json::Value& cfg);
 
-    bool allocates() const override { return true; }
-
     std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
-    void bindComponents(
-        const std::vector<std::unique_ptr<ForceComponent>>& components) override;
 
     void update(const GncContext& gc, const CommandSet& cmd,
                 ChannelValues& out) override;
@@ -58,9 +52,5 @@ private:
     Pid   vsPid_;      // climb-rate error -> pitch command
     Pid   speedPid_;   // speed error -> throttle
     double ziPitch_ = 0.0;   // inner pitch-attitude integral
-
-    ChannelTable table_;                            // declared limits for allocation
     ChannelHandle throttle_;
-    std::vector<const ForceComponent*> components_; // non-owning
-    Allocator allocator_;
 };

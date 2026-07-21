@@ -66,12 +66,6 @@ std::vector<ChannelHandle> ScheduledLaw::bindChannels(const ChannelTable& t) {
     return {elevator_, rudder_, aileron_, throttle_};
 }
 
-void ScheduledLaw::bindComponents(
-    const std::vector<std::unique_ptr<ForceComponent>>& components) {
-    components_.clear();
-    for (const auto& c : components) components_.push_back(c.get());
-}
-
 void ScheduledLaw::update(const GncContext& gc, const CommandSet& cmd,
                     ChannelValues& out) {
     const State& state = gc.state;
@@ -129,16 +123,5 @@ void ScheduledLaw::update(const GncContext& gc, const CommandSet& cmd,
         aRoll = clampA(c_.rollKp * units::wrapAngle(phiCmd - phi) - c_.rollKd * p);
     }
 
-    // ---- WrenchCommand (moment = I * a_des) -> Allocator ----
-    const Matrix3x3& I = gc.mass.inertia;
-    const WrenchCommand nu{ Vector3(),
-                            Vector3(I(0, 0) * aRoll, I(1, 1) * aPitch, I(2, 2) * aYaw) };
-
-    ControlEffect fx[ChannelTable::kMaxChannels];
-    int n = 0;
-    const ComponentContext cctx{ gc.state, air, gc.state.altitude(), dt, gc.mass.xcg };
-    for (const ForceComponent* comp : components_)
-        n += comp->controlEffectiveness(cctx, fx + n,
-                                        ChannelTable::kMaxChannels - n);
-    allocator_.allocate(nu, fx, n, table_, out);
+    commandAngularAccel(Vector3(aRoll, aPitch, aYaw), gc, out);
 }

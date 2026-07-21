@@ -3,11 +3,8 @@
 #include <string>
 
 #include <memory>
-#include <vector>
 
-#include "gnc/control/Allocator.h"
-#include "gnc/control/ControlLaw.h"
-#include "gnc/control/Pid.h"
+#include "gnc/control/laws/AllocatingLaw.h"
 #include "math/LookupTable1D.h"
 #include "io/Json.h"
 
@@ -31,7 +28,7 @@
 // the old roll qbarRef attenuation is unnecessary (a fixed accel demand over
 // qbar-growing effectiveness attenuates the deflection by construction).
 // Anti-windup: the integrators freeze while the accel demand is clamped.
-class ScheduledLaw : public ControlLaw {
+class ScheduledLaw : public AllocatingLaw {
 public:
     struct Config {
         LookupTable1D kAlpha, kQ, kTheta, kI;   // accel-domain gains vs Mach
@@ -48,15 +45,7 @@ public:
     static std::unique_ptr<ControlLaw> fromJson(const json::Value& cfg,
                                                 const std::string& baseDir);
 
-    // Pitch/yaw fins are essential; roll assist and throttle are optional.
-    bool allocates() const override { return true; }
-
     std::vector<ChannelHandle> bindChannels(const ChannelTable& table) override;
-
-    // Keeps component references to query control effectiveness (the B whose
-    // columns turn the designed deflections into the emitted WrenchCommand).
-    void bindComponents(
-        const std::vector<std::unique_ptr<ForceComponent>>& components) override;
 
     void update(const GncContext& gc, const CommandSet& cmd,
                 ChannelValues& out) override;
@@ -66,7 +55,4 @@ private:
     double ziTheta_ = 0.0;   // pitch tracking-error integral
     double ziPsi_   = 0.0;   // yaw tracking-error integral
     ChannelHandle elevator_, aileron_, rudder_, throttle_;
-    ChannelTable table_;                            // declared limits for allocation
-    std::vector<const ForceComponent*> components_; // non-owning (Vehicle outlives law)
-    Allocator allocator_;
 };

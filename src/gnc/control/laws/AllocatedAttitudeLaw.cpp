@@ -55,12 +55,6 @@ std::vector<ChannelHandle> AllocatedAttitudeLaw::bindChannels(const ChannelTable
     return bound;
 }
 
-void AllocatedAttitudeLaw::bindComponents(
-    const std::vector<std::unique_ptr<ForceComponent>>& components) {
-    components_.clear();
-    for (const auto& c : components) components_.push_back(c.get());
-}
-
 void AllocatedAttitudeLaw::update(const GncContext& gc, const CommandSet& cmd,
                                   ChannelValues& out) {
     out.set(throttle_, cmd.throttle ? std::clamp(*cmd.throttle, 0.0, 1.0) : 1.0);
@@ -95,19 +89,5 @@ void AllocatedAttitudeLaw::update(const GncContext& gc, const CommandSet& cmd,
         aRoll = clampA(g_.rollKp * units::wrapAngle(phiCmd - phi) - g_.rollKd * p);
     }
 
-    // ---- Pseudo-controls: nu = I * alpha_desired (diagonal terms) ----
-    // This law is attitude-only: it demands body moments and no net force, so
-    // the allocator runs its moment-only path.
-    const Matrix3x3& I = gc.mass.inertia;
-    const WrenchCommand nu{ Vector3(),
-                            Vector3(I(0, 0) * aRoll, I(1, 1) * aPitch, I(2, 2) * aYaw) };
-
-    // ---- Allocation over the components' current effectiveness ----
-    ControlEffect effects[ChannelTable::kMaxChannels];
-    int n = 0;
-    const ComponentContext cctx{ s, gc.air, s.altitude(), gc.dt, gc.mass.xcg };
-    for (const ForceComponent* c : components_)
-        n += c->controlEffectiveness(cctx, effects + n,
-                                     ChannelTable::kMaxChannels - n);
-    allocator_.allocate(nu, effects, n, table_, out);
+    commandAngularAccel(Vector3(aRoll, aPitch, aYaw), gc, out);
 }
