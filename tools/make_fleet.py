@@ -265,18 +265,22 @@ def build(name, spec):
     na, nm = dx.write_aero_tables(d, outdir)
     controlled = dx.write_control_tables(d, outdir)
 
-    # Mass: impulse-proportional drain at the thrust-curve breakpoints.
-    dx.write_simple_mass_props(os.path.join(outdir, "mass_props.csv"),
-                               spec["thrust"], spec["prop"], spec["dry"],
-                               spec["ixx"], spec["iyy"], spec["iyy"])
-
-    # Mesh from the scaled geometry.
-    dx.write_mesh(scaled_vehicle(base["veh"], s), 1.0, outdir)
-
     sref = round(float(d["sref"]) * k * k, 6)
     cbar = round(float(d["cbar"]) * k, 4)
     bref = round(float(d["blref"]) * k, 4)
     xref = round(float(d["xcg"]) * k, 4)
+
+    # Mass: impulse-proportional drain at the thrust-curve breakpoints.
+    # Gimbaled vehicles carry an explicit constant CG (= the aero reference
+    # station): the Propulsor's moment arm is nozzle_station - xcg, and the
+    # loader rejects a gimbal whose mass table has no xcg_m column.
+    dx.write_simple_mass_props(os.path.join(outdir, "mass_props.csv"),
+                               spec["thrust"], spec["prop"], spec["dry"],
+                               spec["ixx"], spec["iyy"], spec["iyy"],
+                               xcg_m=xref if "gimbal" in spec else None)
+
+    # Mesh from the scaled geometry.
+    dx.write_mesh(scaled_vehicle(base["veh"], s), 1.0, outdir)
 
     motor = {"type": "solid_motor", "propellant_kg": spec["prop"],
              "thrust_curve": spec["thrust"]}

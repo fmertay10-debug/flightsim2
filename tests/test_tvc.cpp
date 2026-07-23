@@ -1,12 +1,18 @@
 #include "test_util.h"
 
+#include <filesystem>
+#include <fstream>
 #include <memory>
+#include <stdexcept>
+#include <string>
 
 #include "component/propulsion/Propulsor.h"
 #include "core/AirData.h"
 #include "core/Channel.h"
 #include "core/State.h"
+#include "io/Json.h"
 #include "math/Units.h"
+#include "vehicle/VehicleFactory.h"
 
 // Fixed-thrust stub so the mount math can be tested at chosen thrust levels.
 struct FixedThrust : PropulsionModel {
@@ -104,6 +110,66 @@ int main() {
         const Wrench aft = tvc.computeWrench(ctxAt(4.0), u, nullptr);   // arm 2.0
         const Wrench fwd = tvc.computeWrench(ctxAt(3.0), u, nullptr);   // arm 3.0
         CHECK(fwd.moment.y > aft.moment.y);   // longer arm -> more moment
+    }
+
+    // --- Load gate: a gimbaled vehicle whose mass table has no xcg_m column
+    //     must be REJECTED (the arm nozzle_station - xcg cannot be formed;
+    //     the retired NaN fallback silently used the nose as the CG) ---
+    {
+        std::filesystem::create_directories("data/output");
+        std::ofstream("data/output/_test_tvc_mass_nocg.csv")
+            << "time_s,mass_kg,ixx,iyy,izz\n0,100,10,500,500\n1,100,10,500,500\n";
+        std::ofstream("data/output/_test_tvc_mass_cg.csv")
+            << "time_s,mass_kg,ixx,iyy,izz,xcg_m\n"
+               "0,100,10,500,500,2.5\n1,100,10,500,500,2.5\n";
+
+        const auto gimbaledDef = [](const std::string& massCsv) {
+            return json::Value::parse(R"({
+                "mass": {"model": "tabulated", "table": ")" + massCsv + R"("},
+                "components": [{
+                    "type": "solid_motor", "propellant_kg": 10,
+                    "thrust_curve": [[0, 5000], [5, 0]],
+                    "gimbal": {"nozzle_station_m": 4.0, "max_gimbal_deg": 8}
+                }]
+            })");
+        };
+
+        bool threw = false;
+        try {
+            vehicle::create(gimbaledDef("_test_tvc_mass_nocg.csv"), "data/output");
+        } catch (const std::exception& e) {
+            threw = std::string(e.what()).find("xcg_m") != std::string::npos;
+        }
+        CHECK(threw);   // rejected, and the message names the missing column
+
+        // Same vehicle WITH a CG column loads, and the CG reads back.
+        const auto ok = vehicle::create(gimbaledDef("_test_tvc_mass_cg.csv"),
+                                        "data/output");
+        CHECK_NEAR(ok->massState(0.0).xcg, 2.5, 1e-12);
+
+        // A present xcg_m column must be finite in EVERY row -- the load gate
+        // samples t=0, so the table parser rejects mid-table NaN itself.
+        std::ofstream("data/output/_test_tvc_mass_nancg.csv")
+            << "time_s,mass_kg,ixx,iyy,izz,xcg_m\n"
+               "0,100,10,500,500,2.5\n1,100,10,500,500,nan\n";
+        bool threwNan = false;
+        try {
+            vehicle::create(gimbaledDef("_test_tvc_mass_nancg.csv"),
+                            "data/output");
+        } catch (const std::exception& e) {
+            threwNan = std::string(e.what()).find("xcg_m") != std::string::npos;
+        }
+        CHECK(threwNan);
+
+        // An AXIAL motor without xcg_m is still fine (thrust through the CG).
+        const json::Value axialDef = json::Value::parse(R"({
+            "mass": {"model": "tabulated", "table": "_test_tvc_mass_nocg.csv"},
+            "components": [{
+                "type": "solid_motor", "propellant_kg": 10,
+                "thrust_curve": [[0, 5000], [5, 0]]
+            }]
+        })");
+        CHECK(vehicle::create(axialDef, "data/output") != nullptr);
     }
 
     std::printf("test_tvc: all checks passed\n");

@@ -81,6 +81,14 @@ public:
     // CG. NaN (default) = already about the CG, no transfer.
     virtual double momentReferenceStation() const { return std::nan(""); }
 
+    // True if this component cannot form its wrench without a finite CG
+    // station (MassState::xcg) -- e.g. a gimbaled nozzle, whose moment arm is
+    // (nozzle station - xcg). The aero components tolerate NaN (it means "CG
+    // at the aero reference", zero transfer), so the default is false; the
+    // vehicle factory rejects a true-returning component paired with a mass
+    // table that has no xcg_m column.
+    virtual bool requiresCgStation() const { return false; }
+
     // Telemetry: propulsive thrust magnitude produced by the last
     // computeWrench() [N]; 0 for non-propulsive components.
     virtual double thrustNewtons() const { return 0.0; }

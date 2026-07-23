@@ -126,10 +126,14 @@ def thrust_curve_points(mass_kg, burn=5.5):
     return [(0.0, t0), (0.2, 1.15 * t0), (5.0, 1.05 * t0), (burn, 0.0)]
 
 
-def write_simple_mass_props(path, thrust_curve, propellant, dry, ixx, iyy, izz):
+def write_simple_mass_props(path, thrust_curve, propellant, dry, ixx, iyy, izz,
+                            xcg_m=None):
     """Tabulated mass CSV without CG travel: impulse-proportional drain
     sampled at the thrust-curve breakpoints (exact -- the drain is piecewise
-    linear between them), inertia held at the dry values."""
+    linear between them), inertia held at the dry values. xcg_m (constant CG
+    station, meters from the nose) is REQUIRED for gimbaled vehicles: the
+    Propulsor's moment arm is nozzle_station - xcg and the loader rejects a
+    gimbal whose mass table carries no CG."""
     t = [p[0] for p in thrust_curve]
     f = [p[1] for p in thrust_curve]
     imp = [0.0]
@@ -137,10 +141,13 @@ def write_simple_mass_props(path, thrust_curve, propellant, dry, ixx, iyy, izz):
         imp.append(imp[-1] + 0.5 * (f[i] + f[i - 1]) * (t[i] - t[i - 1]))
     total = imp[-1]
     with open(path, "w") as out:
-        out.write("time_s,mass_kg,ixx,iyy,izz\n")
+        cg_hdr = "" if xcg_m is None else ",xcg_m"
+        cg_val = "" if xcg_m is None else f",{xcg_m:.10g}"
+        out.write(f"time_s,mass_kg,ixx,iyy,izz{cg_hdr}\n")
         for i in range(len(t)):
             mass = dry + propellant * (1.0 - imp[i] / total)
-            out.write(f"{t[i]:.10g},{mass:.10g},{ixx:.10g},{iyy:.10g},{izz:.10g}\n")
+            out.write(f"{t[i]:.10g},{mass:.10g},{ixx:.10g},{iyy:.10g},"
+                      f"{izz:.10g}{cg_val}\n")
 
 
 def write_variable_tables(outdir, mass_kg, length_m, diameter_m, xref_m, burn=5.5):

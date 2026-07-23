@@ -1,5 +1,6 @@
 #include "vehicle/VehicleFactory.h"
 
+#include <cmath>
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
@@ -63,7 +64,22 @@ std::unique_ptr<Vehicle> create(const json::Value& def, const std::string& baseD
         names.push_back(std::move(label));
     }
 
-    return std::make_unique<Vehicle>(buildMass(def, baseDir),
+    std::unique_ptr<MassModel> mass = buildMass(def, baseDir);
+
+    // A component that forms a moment arm from the CG station (a gimbaled
+    // nozzle: arm = nozzle_station - xcg) cannot fly with an unknown CG --
+    // guessing one silently mis-scales its control authority.
+    if (!std::isfinite(mass->at(0.0).xcg))
+        for (std::size_t i = 0; i < components.size(); ++i)
+            if (components[i]->requiresCgStation())
+                throw std::invalid_argument(
+                    "vehicle: component '" + names[i] + "' needs the CG "
+                    "station for its moment arm, but the mass table has no "
+                    "xcg_m column. Add xcg_m (meters from the nose, aft "
+                    "positive -- the same datum as nozzle_station_m) to the "
+                    "mass CSV; a constant CG is one value repeated per row.");
+
+    return std::make_unique<Vehicle>(std::move(mass),
                                      std::move(components), std::move(names));
 }
 

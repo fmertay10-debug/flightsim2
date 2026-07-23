@@ -18,7 +18,10 @@
 //
 // Gimbal physics: the moment arm is (nozzle station - CG station), so it GROWS
 // as the CG migrates forward during the burn, and control authority is
-// proportional to thrust -- zero after burnout, by construction.
+// proportional to thrust -- zero after burnout, by construction. The arm
+// cannot be formed without a CG, so a gimbaled propulsor requires a mass
+// table with an xcg_m column (same nose datum, aft positive, as
+// nozzle_station_m) -- enforced at load via requiresCgStation().
 class Propulsor : public ForceComponent {
 public:
     struct Gimbal {
@@ -41,6 +44,10 @@ public:
                          const double* x) const override;
 
     double thrustNewtons() const override { return lastThrust_; }
+
+    // The gimbal moment arm is (nozzleStation - xcg): meaningless without a
+    // CG station. Axial mounts thrust through the CG and need none.
+    bool requiresCgStation() const override { return gimbal_.has_value(); }
 
     // Gimbal moment sensitivities: dMy/d(tvc_pitch) = dMz/d(tvc_yaw) = L*T,
     // using the LAST computed thrust (one-step lag; deterministic, and the

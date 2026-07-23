@@ -57,7 +57,10 @@ One model covers every case:
 CSV columns: `time_s, mass_kg, ixx, iyy, izz` plus optional `ixy, ixz, iyz`
 (products of inertia, entered as negative off-diagonals) and optional `xcg_m`
 (CG station vs time; absent = CG at the aero reference, no moment transfer).
-Values interpolate linearly and hold at the endpoints, so:
+Exception: a **gimbaled** vehicle REQUIRES `xcg_m` — the TVC moment arm is
+`nozzle_station_m - xcg`, which cannot be formed without a CG, so the loader
+rejects a gimbal whose mass table lacks the column (a constant CG is one value
+repeated per row). Values interpolate linearly and hold at the endpoints, so:
 
 - a **constant-mass** vehicle is a two-row table (see `data/vehicles/f16/mass_props.csv`);
 - a **burning motor** is rows over the burn — the generators sample the

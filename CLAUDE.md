@@ -80,7 +80,9 @@ Vehicle JSON: `mass` block -- ONLY {"model": "tabulated", "table":
 "mass_props.csv"} since 2026-07-21 (CSV columns time_s, mass_kg, ixx, iyy, izz
 [, ixy, ixz, iyz, xcg_m]; constant mass = a 2-row table; the solid-motor drain
 is sampled at the thrust-curve breakpoints by the generators, exactly the old
-dry_plus_propellant behavior; missing xcg_m = NaN = no CG transfer) +
+dry_plus_propellant behavior; missing xcg_m = NaN = no CG transfer, EXCEPT
+gimbaled vehicles, which REQUIRE xcg_m -- the TVC arm is nozzleStation - xcg
+and the loader rejects a gimbal without a CG) +
 `"components": [...]` (each entry names its
 implementation via explicit `"type"` — no key-sniffing, no vehicle-type
 dispatch) + `"gnc": {"control_law": {"type": ...}, "actuator": {...}}`. The old

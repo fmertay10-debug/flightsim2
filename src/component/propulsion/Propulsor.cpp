@@ -52,8 +52,9 @@ Wrench Propulsor::wrenchFromThrust(double thrust, const ComponentContext& ctx,
 
     // Nozzle is aft of the CG by the moment arm L (body -x). Moment about CG
     // = r x F with r = (-L, 0, 0):  My = L*Fz (nose up), Mz = -L*Fy (nose right).
-    const double L = std::isfinite(ctx.xcg) ? (gimbal_->nozzleStation - ctx.xcg)
-                                            : gimbal_->nozzleStation;
+    // xcg is guaranteed finite here: the vehicle factory rejects a gimbal
+    // without a mass-table CG (requiresCgStation).
+    const double L = gimbal_->nozzleStation - ctx.xcg;
     w.moment = Vector3(0.0, L * Fz, -L * Fy);
     return w;
 }
@@ -71,9 +72,11 @@ void Propulsor::derivatives(const ComponentContext& ctx, const ChannelValues& u,
 
 int Propulsor::controlEffectiveness(const ComponentContext& ctx,
                                     ControlEffect* out, int maxOut) const {
+    // The zero-thrust return also covers the loader's authority probe, which
+    // runs with xcg = NaN before any wrench pass: lastThrust_ is still 0
+    // there, so the NaN never reaches the arm.
     if (!gimbal_ || lastThrust_ <= 0.0) return 0;
-    const double L = std::isfinite(ctx.xcg) ? (gimbal_->nozzleStation - ctx.xcg)
-                                            : gimbal_->nozzleStation;
+    const double L  = gimbal_->nozzleStation - ctx.xcg;
     const double LT = L * lastThrust_;
     int n = 0;
     if (tvcPitch_.valid() && n < maxOut)
