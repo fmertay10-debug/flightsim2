@@ -27,7 +27,13 @@ reproduce the logged velocity), and test_f16_trim (TRUE external validation:
 trim + short-period poles vs Stevens/Lewis/Johnson 3rd ed. Table 3.6-3 and
 Example 3.8-1 -- trim to 4 significant figures, poles to 0.3%; the
 comparison surfaced and fixed the missing d(alpha_dot)/dq = 1 + Zq/V column,
-now PlantPoint::Aq). When adding physics, extend these -- a test
+now PlantPoint::Aq). nesc_case_02/03/04 fly the NASA NESC 6-DOF check-cases
+(NASA/TM-2015-218675; tests/nesc/README.md) and must sit within 1.5x the
+mutual scatter of NASA's ~5 independent reference sims -- case 4 (drag
+sphere, round non-rotating Earth) on ALL channels; the tumbling-brick cases
+on rotational channels (the references fly a rotating Earth; our deltas
+match the analytic centrifugal/Coriolis terms exactly, see the README).
+When adding physics, extend these -- a test
 that compares the code to itself cannot catch a shared error (see the 2.25x
 TVC arm bug).
 Goldens are baselined on this Linux/GCC toolchain; MinGW builds differ in the

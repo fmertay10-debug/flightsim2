@@ -1,0 +1,14 @@
+// NESC 6-DOF check-case "U.S. Standard Face Brick" WITH rotational damping
+// (NASA/TM-2015-218675 Vol. II, B.1.3 Tables 4-5, SI via Table 73):
+// m = 0.155404754 slug; I = {0.001894220, 0.006211019, 0.007194665}
+// slug-ft^2; S = 0.22222 ft^2, b = 0.33333 ft, cbar = 0.66667 ft;
+// Clp = Cmq = Cnr = -1, all forces zero (check-case 3: damping, no drag).
+{
+  "mass": { "model": "tabulated", "table": "mass_props.csv" },
+  "components": [
+    { "type": "aircraft_aero",
+      "sref_m2": 0.020644914, "cbar_m": 0.2032010, "bspan_m": 0.1015990,
+      "cd0": 0.0, "cla": 0.0, "cma": 0.0,
+      "clp": -1.0, "cmq": -1.0, "cnr": -1.0 }
+  ]
+}

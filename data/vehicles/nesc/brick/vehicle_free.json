@@ -1,0 +1,6 @@
+// The same brick with ALL aero zeroed (check-case 2: torque-free tumble;
+// the only force is gravity). An empty components list is deliberate.
+{
+  "mass": { "model": "tabulated", "table": "mass_props.csv" },
+  "components": []
+}

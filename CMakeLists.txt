@@ -78,6 +78,38 @@ if(Python3_Interpreter_FOUND)
                      tests/golden/ssm_strike/ssm.csv
                      --gravity spherical
              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+    # NESC 6-DOF check-cases (NASA/TM-2015-218675; tests/nesc/README.md):
+    # fly the case, then require our trajectory to sit within 1.5x the
+    # mutual scatter of NASA's ~5 independent reference simulations.
+    # Case 4's environment is exactly representable -> all channels; the
+    # brick cases fly a rotating Earth -> rotational channels (their stated
+    # verification purpose).
+    add_test(NAME nesc_case_02
+             COMMAND ${Python3_EXECUTABLE} tools/nesc_compare.py
+                     --flightsim $<TARGET_FILE:flightsim>
+                     --scenario data/scenarios/nesc_atmos_02.json
+                     --only p,q,r,phi,theta,psi
+                     data/output/nesc_atmos_02/brick.csv
+                     tests/nesc/Atmos_02_TumblingBrickNoDamping
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME nesc_case_03
+             COMMAND ${Python3_EXECUTABLE} tools/nesc_compare.py
+                     --flightsim $<TARGET_FILE:flightsim>
+                     --scenario data/scenarios/nesc_atmos_03.json
+                     --only p,q,r,phi,theta,psi
+                     data/output/nesc_atmos_03/brick.csv
+                     tests/nesc/Atmos_03_TumblingBrickDamping
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME nesc_case_04
+             COMMAND ${Python3_EXECUTABLE} tools/nesc_compare.py
+                     --flightsim $<TARGET_FILE:flightsim>
+                     --scenario data/scenarios/nesc_atmos_04.json
+                     data/output/nesc_atmos_04/sphere.csv
+                     tests/nesc/Atmos_04_DroppedSphereRoundNonRotation
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(nesc_case_02 nesc_case_03 nesc_case_04
+                         PROPERTIES TIMEOUT 300)
 else()
     message(WARNING "Python3 not found -- golden_gate test not registered")
 endif()

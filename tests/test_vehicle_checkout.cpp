@@ -184,7 +184,8 @@ int main() {
     std::vector<fs::path> defs;
     for (const auto& e : fs::directory_iterator("data/vehicles"))
         if (e.path().extension() == ".json") defs.push_back(e.path());
-    for (const char* sub : { "data/vehicles/fleet", "data/vehicles/generated" })
+    for (const char* sub : { "data/vehicles/fleet", "data/vehicles/generated",
+                             "data/vehicles/nesc" })
         for (const auto& e : fs::directory_iterator(sub))
             if (fs::exists(e.path() / "vehicle.json"))
                 defs.push_back(e.path() / "vehicle.json");

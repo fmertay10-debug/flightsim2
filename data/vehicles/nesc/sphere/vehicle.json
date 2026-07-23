@@ -1,0 +1,10 @@
+// NESC 6-DOF check-case atmospheric spheroid (NASA/TM-2015-218675 Vol. II,
+// B.1.1 Tables 1-2, converted to SI with the Table 73 exact factors):
+// m = 1 slug, I = 3.6 slug-ft^2, S = 0.1963495 ft^2, CD = 0.1.
+// Drag is attitude-independent (ballistic_drag) -- the sphere tumbles.
+{
+  "mass": { "model": "tabulated", "table": "mass_props.csv" },
+  "components": [
+    { "type": "ballistic_drag", "sref_m2": 0.018241465, "cd": 0.1 }
+  ]
+}

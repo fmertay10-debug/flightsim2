@@ -1,0 +1,27 @@
+// NESC atmospheric check-case 4: sphere with drag over a round NON-rotating
+// Earth (NASA/TM-2015-218675 Vol. II C.1.4, Table 28) -- the case whose
+// environment our sim represents EXACTLY: inverse-square gravitation about
+// the 6371007.1809 m sphere (Table 73), US-76/ISA atmosphere, still air.
+// CD = 0.1, body rates (10, 20, 30) deg/s.
+{
+  "name": "nesc_atmos_04",
+  "simulation": { "dt_s": 0.0002, "duration_s": 30, "ground_level_m": 0 },
+  "environment": {
+    "gravity": { "type": "inverse_square", "mu_m3_s2": 3.986004418e14,
+                 "radius_m": 6371007.1809 },
+    "wind": { "type": "none" }
+  },
+  "vehicles": [
+    {
+      "name": "sphere",
+      "vehicle": "../vehicles/nesc/sphere/vehicle.json",
+      "dynamics": "six_dof",
+      "initial": { "position_ned_m": [0, 0, -9144],
+                   "velocity_ned_ms": [0, 0, 0],
+                   "euler_deg": [0, 0, 0],
+                   "rates_dps": [10, 20, 30] },
+      "log": "data/output/nesc_atmos_04/sphere.csv",
+      "log_decimation": 50
+    }
+  ]
+}
