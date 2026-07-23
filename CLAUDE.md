@@ -113,6 +113,7 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
 - New force producer (aero, motor, RCS, rotor...) = ForceComponent subclass
   (in `component/aero/` or `component/propulsion/` by domain) +
   `component::Factory::registerComponent`. Component types: aircraft_aero /
+  ballistic_drag (attitude-independent bluff-body drag; tumbling bodies) /
   f16_aero / rocket_table_aero / turbojet / solid_motor / tabulated_thrust /
   f16_engine.
 - Mass is always TabulatedMassModel (`mass` block: "tabulated" only); a new

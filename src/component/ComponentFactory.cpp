@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "component/aero/AircraftAero.h"
+#include "component/aero/BallisticDrag.h"
 #include "component/aero/F16Aero.h"
 #include "component/aero/RocketTableAero.h"
 #include "component/propulsion/Propulsor.h"
@@ -45,6 +46,10 @@ std::map<std::string, Factory::Builder>& registry() {
         { "aircraft_aero",
           [](const json::Value& cfg, const std::string&) {
               return AircraftAero::fromJson(cfg);
+          } },
+        { "ballistic_drag",
+          [](const json::Value& cfg, const std::string&) {
+              return BallisticDrag::fromJson(cfg);
           } },
         { "f16_aero",
           [](const json::Value& cfg, const std::string& baseDir) {

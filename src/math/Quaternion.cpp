@@ -1,5 +1,6 @@
 #include "math/Quaternion.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iomanip>
 
@@ -61,8 +62,9 @@ Matrix3x3 Quaternion::toDcm() const {
 Vector3 Quaternion::toEuler() const {
     const Matrix3x3 C = toDcm();
 
-    // C(0,2) = -sin(theta)
-    const double theta = std::asin(-C(0, 2));
+    // C(0,2) = -sin(theta); clamp against rounding pushing the argument
+    // epsilon past 1 at gimbal lock (asin would return NaN exactly there).
+    const double theta = std::asin(std::clamp(-C(0, 2), -1.0, 1.0));
     const double cth   = std::cos(theta);
 
     double phi, psi;

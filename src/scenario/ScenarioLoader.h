@@ -13,7 +13,10 @@
 // {
 //   "name": "my_scenario",
 //   "simulation":  {"dt_s": 0.002, "duration_s": 60, "ground_level_m": 0},
-//   "environment": {"gravity": "flat" | "spherical",
+//   "environment": {"gravity": "flat" | "spherical" |
+//                     {"type": "inverse_square", "mu_m3_s2": ..,
+//                      "radius_m": .., "j2": 0},   // gravitation, no
+//                                                  // centrifugal (NESC)
 //                   "wind": {"type": "none" | "constant", "ned_ms": [n, e, d]}},
 //   "vehicles": [
 //     {

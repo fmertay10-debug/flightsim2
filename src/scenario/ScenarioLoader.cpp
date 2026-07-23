@@ -38,10 +38,24 @@ std::unique_ptr<Environment> buildEnvironment(const json::Value& root) {
     if (root.has("environment")) {
         const json::Value& env = root.at("environment");
 
-        const std::string g = env.str("gravity", "flat");
-        if (g == "spherical")   gravity = std::make_unique<SphericalEarthGravity>();
-        else if (g != "flat")
-            throw std::invalid_argument("scenario: unknown gravity model '" + g + "'");
+        // "gravity" is either a name ("flat" | "spherical") or a parameterized
+        // model: {"type": "inverse_square", "mu_m3_s2": ..., "radius_m": ...,
+        // "j2": 0} (gravitation about a non-rotating sphere; NESC check-cases).
+        if (env.has("gravity") && env.at("gravity").isObject()) {
+            const json::Value& g = env.at("gravity");
+            const std::string type = g.str("type");
+            if (type == "inverse_square")
+                gravity = std::make_unique<InverseSquareGravity>(
+                    g.num("mu_m3_s2"), g.num("radius_m"), g.num("j2", 0.0));
+            else
+                throw std::invalid_argument(
+                    "scenario: unknown gravity model type '" + type + "'");
+        } else {
+            const std::string g = env.str("gravity", "flat");
+            if (g == "spherical")   gravity = std::make_unique<SphericalEarthGravity>();
+            else if (g != "flat")
+                throw std::invalid_argument("scenario: unknown gravity model '" + g + "'");
+        }
 
         if (env.has("wind")) {
             const json::Value& w = env.at("wind");
