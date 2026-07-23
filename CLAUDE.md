@@ -21,9 +21,13 @@ arm vs raw JSON/CSV numbers + surface polarity vs the locked conventions +
 geometry-vs-mass CG lint), test_divergence (the NaN tripwire in
 Simulation::step kills diverged entities loudly), test_linear_nonlinear
 (nonlinear ringing vs Linearizer eigenvalues), test_convergence (first-order
-dt convergence through the full scenario pipeline), and force_audit_*
+dt convergence through the full scenario pipeline), force_audit_*
 (tools/energy_audit.py re-integrates logged forces with its own DCM and must
-reproduce the logged velocity). When adding physics, extend these -- a test
+reproduce the logged velocity), and test_f16_trim (TRUE external validation:
+trim + short-period poles vs Stevens/Lewis/Johnson 3rd ed. Table 3.6-3 and
+Example 3.8-1 -- trim to 4 significant figures, poles to 0.3%; the
+comparison surfaced and fixed the missing d(alpha_dot)/dq = 1 + Zq/V column,
+now PlantPoint::Aq). When adding physics, extend these -- a test
 that compares the code to itself cannot catch a shared error (see the 2.25x
 TVC arm bug).
 Goldens are baselined on this Linux/GCC toolchain; MinGW builds differ in the

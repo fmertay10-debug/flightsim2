@@ -30,6 +30,10 @@ struct PlantPoint {
     // Short-period sensitivities (the designer's plant entries):
     double Za = 0.0, Zde = 0.0;             // d(alpha_dot)/d(alpha, de) [1/s, 1/s]
     double Ma = 0.0, Mq = 0.0, Mde = 0.0;   // d(q_dot)/d(alpha, q, de)
+    // d(alpha_dot)/dq = 1 + Zq/V: pitch rate makes lift (CZq), which feeds
+    // alpha_dot -- 0.905 for the F-16, not 1. The proper 2-state A is
+    // [[Za, Aq], [Ma, Mq]]; aero with no q force dependence gives exactly 1.
+    double Aq = 1.0;
 };
 
 struct LinearizerOptions {

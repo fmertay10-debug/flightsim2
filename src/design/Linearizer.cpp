@@ -147,8 +147,10 @@ PlantPoint Linearizer::at(double mach) const {
              rates(V, a0, 0.0, d0 - ha).alphaDot) / (2.0 * ha);
     p.Ma = (rates(V, a0 + ha, 0.0, d0).qDot -
             rates(V, a0 - ha, 0.0, d0).qDot) / (2.0 * ha);
-    p.Mq = (rates(V, a0, hq, d0).qDot -
-            rates(V, a0, -hq, d0).qDot) / (2.0 * hq);
+    const Rates rqp = rates(V, a0, hq, d0);
+    const Rates rqm = rates(V, a0, -hq, d0);
+    p.Mq = (rqp.qDot - rqm.qDot) / (2.0 * hq);
+    p.Aq = (rqp.alphaDot - rqm.alphaDot) / (2.0 * hq);
     p.Mde = (rates(V, a0, 0.0, d0 + ha).qDot -
              rates(V, a0, 0.0, d0 - ha).qDot) / (2.0 * ha);
     return p;
