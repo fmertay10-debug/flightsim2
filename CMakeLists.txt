@@ -55,6 +55,29 @@ if(Python3_Interpreter_FOUND)
                      --flightsim $<TARGET_FILE:flightsim>
              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(golden_gate PROPERTIES TIMEOUT 300)
+
+    # Independent force-bookkeeping audit of the golden flight logs
+    # (tools/energy_audit.py): reconstructs velocity from the logged
+    # component forces + gravity with its own DCM and integrator; a frame
+    # or force-accounting error fails loudly where byte-comparison cannot.
+    add_test(NAME force_audit_flat
+             COMMAND ${Python3_EXECUTABLE} tools/energy_audit.py
+                     tests/golden/aircraft_cruise/trainer-1.csv
+                     tests/golden/f16_cruise/viper.csv
+                     tests/golden/f16_turn/viper.csv
+                     tests/golden/aam_intercept/aam.csv
+                     tests/golden/agm_strike/agm.csv
+                     --gravity flat
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME force_audit_spherical
+             COMMAND ${Python3_EXECUTABLE} tools/energy_audit.py
+                     tests/golden/advanced_rocket_launch/adv-rocket.csv
+                     tests/golden/datcom_rocket_launch/datcom-rocket.csv
+                     tests/golden/lqr_rocket_launch/lqr-rocket.csv
+                     tests/golden/sam_intercept/sam.csv
+                     tests/golden/ssm_strike/ssm.csv
+                     --gravity spherical
+             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 else()
     message(WARNING "Python3 not found -- golden_gate test not registered")
 endif()

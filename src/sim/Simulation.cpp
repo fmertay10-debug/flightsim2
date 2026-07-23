@@ -1,6 +1,24 @@
 #include "sim/Simulation.h"
 
+#include <cmath>
+#include <cstdio>
 #include <utility>
+
+namespace {
+
+// Every scalar the integrator advances; one NaN here means the physics blew
+// up (bad table data, unstable integration) and would otherwise fly silently
+// to the end of the run.
+bool finiteState(const State& s) {
+    const auto ok3 = [](const Vector3& v) {
+        return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+    };
+    return ok3(s.position) && ok3(s.velocity) && ok3(s.angularRate) &&
+           std::isfinite(s.attitude.w) && std::isfinite(s.attitude.x) &&
+           std::isfinite(s.attitude.y) && std::isfinite(s.attitude.z);
+}
+
+} // namespace
 
 Simulation::Simulation(SimConfig config, std::unique_ptr<Environment> environment)
     : config_(config), environment_(std::move(environment)) {}
@@ -51,6 +69,16 @@ bool Simulation::step() {
             entities_[i]->commit(nextStates[i]);
 
     time_ += config_.dt;
+
+    // Divergence tripwire: kill loudly on the first non-finite committed
+    // state instead of propagating NaN to a clean-looking end of run.
+    for (const auto& e : entities_)
+        if (e->alive() && !finiteState(e->state())) {
+            std::fprintf(stderr,
+                         "sim: entity '%s' diverged (non-finite state) at "
+                         "t=%.3f s -- killed\n", e->name().c_str(), time_);
+            e->kill();
+        }
 
     // Notify observers with each entity's telemetry (recorded pre-commit,
     // so control/state/time are consistent).

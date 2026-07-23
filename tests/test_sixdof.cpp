@@ -40,7 +40,11 @@ static void testPureRoll() {
 }
 
 // Gyroscopic coupling: spin about x with asymmetric inertia and a transverse
-// rate -> angular momentum magnitude is conserved (torque-free).
+// rate -> the INERTIAL-frame angular momentum VECTOR is conserved
+// (torque-free). The vector matters: |I*omega| alone is conserved under
+// either sign of the omega x (I*omega) term (the cross product is
+// perpendicular to I*omega), so a magnitude-only check cannot catch a
+// flipped gyroscopic sign -- only the frame-transformed vector can.
 static void testTorqueFreeMomentum() {
     const SixDofEom eom;
     const double dt = 0.0002;
@@ -48,13 +52,16 @@ static void testTorqueFreeMomentum() {
 
     State s;
     s.angularRate = Vector3(5.0, 0.5, 0.0);
-    const double h0 = (I * s.angularRate).norm();
+    const double  h0  = (I * s.angularRate).norm();
+    const Vector3 Li0 = s.attitude.rotateBack(I * s.angularRate);
 
     for (int i = 0; i < 5000; ++i)                       // 1 second
         s = eom.solve(s, Vector3(), Vector3(), 1.0, I, dt);
 
     const double h1 = (I * s.angularRate).norm();
     CHECK_NEAR(h1, h0, h0 * 1e-3);
+    const Vector3 Li1 = s.attitude.rotateBack(I * s.angularRate);
+    CHECK_NEAR((Li1 - Li0).norm(), 0.0, h0 * 5e-3);
 }
 
 int main() {

@@ -14,6 +14,18 @@ ctest --test-dir build --output-on-failure          # tests run with repo root a
 Primary dev machine is Linux (since 2026-07). ctest includes `golden_gate`
 (tools/check_golden.py): byte-exact CSV comparison of every scenario with a
 baseline in tests/golden/.
+A correctness tier (2026-07-22) tests against independent oracles, not the
+sim's own past output: test_physics_invariants (datum-shift/arm-scaling
+metamorphic), test_vehicle_checkout (every shipped vehicle: loads + gimbal
+arm vs raw JSON/CSV numbers + surface polarity vs the locked conventions +
+geometry-vs-mass CG lint), test_divergence (the NaN tripwire in
+Simulation::step kills diverged entities loudly), test_linear_nonlinear
+(nonlinear ringing vs Linearizer eigenvalues), test_convergence (first-order
+dt convergence through the full scenario pipeline), and force_audit_*
+(tools/energy_audit.py re-integrates logged forces with its own DCM and must
+reproduce the logged velocity). When adding physics, extend these -- a test
+that compares the code to itself cannot catch a shared error (see the 2.25x
+TVC arm bug).
 Goldens are baselined on this Linux/GCC toolchain; MinGW builds differ in the
 last printed digit (libm rounding), so re-baseline (`--update <names>`) only
 deliberately, never to paper over a diff you don't understand.
