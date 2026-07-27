@@ -28,7 +28,7 @@ _Avoid_: effector, aero model (as a special case), thrust term
 
 **Channel**:
 A named actuator degree of freedom declared by a ForceComponent (e.g. `elevator`,
-`gimbal_pitch`, `collective`), with units and limits. Control writes channels by
+`tvc_pitch`, `collective`), with units and limits. Control writes channels by
 name; the loader validates that every written channel has a consumer.
 _Avoid_: control input (the retired fixed union struct)
 
@@ -50,8 +50,8 @@ validated at load.
 _Avoid_: setpoint, command set (as a fixed struct of every possible field)
 
 **ControlLaw**:
-Tracks Commands. Emits either pseudo-controls (for allocation) or channel values
-directly — each ControlLaw declares which contract it uses.
+Tracks Commands. Emits a pseudo-control (a WrenchCommand) that the Allocator maps
+onto channels — the only contract since ADR-0004; the direct-write laws are gone.
 _Avoid_: controller, autopilot (the autopilot is the whole stack, not this one piece)
 
 **Pseudo-control**:

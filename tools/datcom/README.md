@@ -5,26 +5,26 @@ deck from a vehicle geometry, runs DATCOM, parses the output into
 aerodynamic coefficient tables (including fin-control increments), and
 batch-generates datasets for surrogate ML models.
 
-Originally a 1:1 port of the aerodynamic side of the MATLAB `6dof_git`
-project, verified to reproduce the MATLAB results bit-for-bit. That parity
-served as the correctness baseline; the toolchain has since diverged
-deliberately (see [docs/ROADMAP.md](docs/ROADMAP.md) for every decision):
-the deck writer was rebuilt on a namelist-emitter foundation (validated by
-running old and new decks through DATCOM.exe and comparing every
-coefficient table exactly), ogive noses now correctly use DATCOM's ogive
-method (`BNOSE=2.0`), and a canard configuration was added. A pytest
-regression suite locks behavior via golden files.
+The deck writer is built on a namelist-emitter foundation (validated by
+running decks through DATCOM.exe and comparing every coefficient table
+exactly), ogive noses use DATCOM's ogive method (`BNOSE=2.0`), and a canard
+configuration is supported. A pytest regression suite locks behavior via
+golden files.
+
+This is a trimmed vendored copy inside flightsim2: the `ml/` tree, the docs
+(including the Digital DATCOM user's manual PDF), and caches are excluded.
+flightsim2 uses it to parse DATCOM output into the aero tables that
+`tools/make_fleet.py` and `tools/make_missiles.py` build vehicles from.
 
 ## Layout
 
 ```
-pyParserForDatcom/
+tools/datcom/
 ├── pyproject.toml        pip install -e .[test,plot]
-├── bin/DATCOM.exe        USAF Digital DATCOM 1976 executable (Windows)
-├── docs/
-│   ├── ROADMAP.md        Decision log + issue tracker for this codebase
-│   └── Digital_Datcom_Users_Manual_1.2.pdf
+├── bin/DATCOM.exe        USAF Digital DATCOM 1976 executable (Windows; wine on Linux)
+├── examples/             Parsed aero databases the flightsim2 fleet is built from
 ├── vehicles/             Golden baseline files (regression tests)
+├── tools/                playground.py / view_vehicle.py
 ├── tests/                pytest suite (fast; -m slow runs DATCOM.exe)
 └── pydatcom/
     ├── vehicle.py        Vehicle dataclass (+ example rocket / canard missile)
@@ -35,6 +35,7 @@ pyParserForDatcom/
     ├── pipeline.py       run_pipeline() = write -> run -> import
     ├── dataset.py        LHS sampling + batch campaigns + flat ML tables
     ├── geometry.py       3-D mesh: vehicle_to_obj() / plot_vehicle()
+    ├── viewer_html.py    self-contained HTML vehicle viewer
     └── plotting.py       plot_aero() (matplotlib, optional)
 ```
 

@@ -1,7 +1,11 @@
 # Converting the aircraft to allocation (ADR-0004, last 4 configs) — options
 
-Status: DECISION PENDING (written 2026-07-19, after the rocket/missile fleet
-— 9/13 vehicles — converted).
+Status: RESOLVED (2026-07-19) — **Option A1 implemented** as the cascaded
+`aircraft_allocated` law (see ADR-0004 and
+`src/gnc/control/laws/AircraftAllocatedLaw.h`, which cite this document).
+Everything below is the historical analysis behind that decision, kept
+because the ADR and source headers reference it. Originally written
+2026-07-19, after the rocket/missile fleet — 9/13 vehicles — converted.
 
 ## What's different about aircraft
 

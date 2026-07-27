@@ -1,5 +1,13 @@
 # Control allocation layer, with direct channel writes still a legal contract
 
+> **Status: SUPERSEDED by ADR-0004 (2026-07-19).** The dual contract is gone:
+> every control law now emits a WrenchCommand through the Allocator, and the
+> direct-write PIDs were deleted once each vehicle was re-designed and
+> re-proven on the allocation path. The "do not clean this up" instruction
+> below is VOID — that cleanup is exactly what ADR-0004 did. Kept for the
+> rationale that still stands: effectiveness-weighted allocation, two-level
+> command vocabulary, and the deliberately deferred NavState seam.
+
 The GNC stack is Guidance → ControlLaw → Allocator → Channels. A ControlLaw tracks
 Commands and emits pseudo-controls (desired body moments, optionally axial force);
 the Allocator maps them onto channel commands using each ForceComponent's queried

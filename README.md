@@ -7,6 +7,39 @@ atmosphere, Strategy/Factory/Observer architecture), but everything scenario-spe
 now lives in **JSON config files** — no recompiling to change vehicles, initial
 conditions, wind, or flight plans, and a scenario can fly any number of vehicles.
 
+## Scope and data sources
+
+This is a rigid-body flight dynamics simulator built from **published, publicly
+available sources**. It models six-degree-of-freedom motion — forces, moments,
+attitude, and the guidance and control loops that steer a vehicle along a
+trajectory.
+
+The data behind the shipped models:
+
+- **Aerodynamics** — [USAF Digital DATCOM](https://en.wikipedia.org/wiki/DATCOM)
+  (1976), the public-domain U.S. Government coefficient-prediction program.
+  Vehicle aero comes from DATCOM runs on notional geometries, parsed into
+  nondimensional coefficient tables.
+- **F-16 model** — the wind-tunnel tables and turbofan model published in
+  Stevens & Lewis, *Aircraft Control and Simulation* (Appendix A) and NASA
+  TP-1538.
+- **Validation cases** — the NASA Engineering and Safety Center 6-DOF check
+  cases, NASA/TM-2015-218675.
+- **Guidance** — proportional navigation and pure pursuit, as given in the
+  standard textbook treatments (e.g. Zarchan, *Tactical and Strategic Missile
+  Guidance*, AIAA).
+- **Control** — LQR and pole placement via the Python `control` package.
+
+**The vehicles are notional.** The airframes under `data/vehicles/fleet/` are
+DATCOM example geometries, geometrically rescaled, with masses and inertias
+estimated by slender-body approximation. Their names (`viper`, `javelin`,
+`aegis`, `harpy`, `atlas`, …) are arbitrary labels chosen to make scenarios
+readable — they are **not** models of the real-world systems whose names they
+echo, and no performance claim about any real vehicle should be read into them.
+There is no seeker model, warhead, fuzing, propellant chemistry, or hardware
+interface anywhere in this repository; a "missile" here is a fin-stabilized
+rigid body with a thrust curve and a control law.
+
 ## Build & run
 
 Requires CMake + a C++17 compiler (MinGW/MSYS2 on Windows).
@@ -100,8 +133,9 @@ with the logged commands), toggleable overlays (body axes, velocity, α/β
 arcs, line-of-sight with closing speed, thrust vector, exhaust plume, aero
 force, setpoint ghost), orbit/follow/chase cameras, and preset telemetry
 plots synced two-way with the animation — click a plot to jump the 3-D view
-to that moment. Built by `py tools/make_gallery.py`; any scenario gets the
-same viewer via `py tools/visualize.py data/scenarios/<name>.json`.
+to that moment. Built by `python3 tools/make_gallery.py` (`py` on Windows);
+any scenario gets the same viewer via
+`python3 tools/visualize.py data/scenarios/<name>.json`.
 
 **Missile examples** — AAM, SAM, AGM, and SSM, each built the whole way
 (`tools/make_missiles.py`): a DATCOM aero run → tables → vehicle → auto-designed
@@ -130,8 +164,8 @@ interpolates the coefficients bilinearly over the full (alpha, Mach) envelope
 +/-180 deg. Generate a ready-to-fly vehicle from DATCOM output:
 
 ```
-py tools/datcom_export.py --list                          # shipped examples
-py tools/datcom_export.py 02_rocket_fin_control --name datcom_rocket
+python3 tools/datcom_export.py --list                     # shipped examples
+python3 tools/datcom_export.py 02_rocket_fin_control --name datcom_rocket
 # -> data/vehicles/generated/datcom_rocket/{aero_tables.csv,
 #    control_tables.csv, mass_props.csv, vehicle.json, mesh.json}
 ```
@@ -145,19 +179,6 @@ fields it sets). `pro_nav` (3D proportional navigation, skid-to-turn) and
 closest approach and ends the run on a hit. See
 `data/scenarios/aam_intercept.json` (an air-to-air missile catching a
 maneuvering bandit — reported HIT at ~7.5 m).
-
-## 3-D visualization
-
-Turn any run's CSV logs into a self-contained HTML viewer (no libraries, no
-server, opens in any browser) with two synced, orbit-able views: a **trajectory**
-view flying every vehicle as its real 3-D model along its path, and an
-**attitude** view spinning a chosen vehicle's model at its true attitude with a
-reference triad and velocity vector.
-
-```
-./build/flightsim data/scenarios/aam_intercept.json      # writes the CSV logs
-py tools/visualize.py data/scenarios/aam_intercept.json  # -> data/output/aam_intercept/view.html
-```
 
 ## Conventions (locked)
 
@@ -208,3 +229,9 @@ Factory (`component::Factory`, `gnc::Factory`, `guidance::Factory`,
 `eom::create`), Observer (`SimObserver` → `CsvLogger`), Composition (`Entity` =
 state + integrator + optional Vehicle + optional GNC stack; `Vehicle` = mass +
 force components + declared channels).
+
+## License
+
+MIT — see [LICENSE](LICENSE). Third-party components (three.js, uPlot, and the
+public-domain USAF Digital DATCOM binary) are listed in
+[THIRD_PARTY.md](THIRD_PARTY.md).

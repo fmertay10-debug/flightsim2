@@ -203,7 +203,9 @@ Everything is a registry (see docs/BUILDING_VEHICLES.md):
   HTML viewer per scenario -- three.js r147 UMD + uPlot, vendored in
   `tools/vendor/` and inlined at build (only place third-party code is
   allowed). Articulated body-frame meshes (+x fwd, +y right, +z down; parts
-  carry `hinges` driven by channel columns -- fins, surfaces, TVC bell),
+  carry `hinges` driven by channel columns -- fins, surfaces, TVC bell;
+  deflections render at TRUE magnitude -- a display-scale option was tried
+  and REMOVED on purpose, sub-degree deflections are the honest display),
   toggleable overlays (triad, velocity, alpha/beta arcs, LOS + closing,
   thrust vector, plume, aero force w/ kN readout, setpoint ghost, labels),
   focus vehicle with orbit/follow/chase cameras, and preset-only uPlot
